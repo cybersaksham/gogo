@@ -9,11 +9,6 @@ import (
 
 var migrationNamePattern = regexp.MustCompile(`^\d{4}_[a-z0-9_]+$`)
 
-// Operation is the minimal migration operation contract.
-type Operation interface {
-	Name() string
-}
-
 // Dependency identifies another migration.
 type Dependency struct {
 	AppLabel string

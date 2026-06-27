@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"context"
 	"errors"
 	"testing"
 )
@@ -49,4 +50,20 @@ type NoopOperation struct {
 
 func (o NoopOperation) Name() string {
 	return o.NameValue
+}
+
+func (o NoopOperation) StateForwards(*ProjectState) error { return nil }
+func (o NoopOperation) DatabaseForwards(context.Context, SchemaEditor) error {
+	return nil
+}
+func (o NoopOperation) DatabaseBackwards(context.Context, SchemaEditor) error {
+	return nil
+}
+func (o NoopOperation) Describe() string { return o.NameValue }
+func (o NoopOperation) Reversible() bool { return true }
+func (o NoopOperation) ReferencesModel(string, string) bool {
+	return false
+}
+func (o NoopOperation) ReferencesField(string, string, string) bool {
+	return false
 }
