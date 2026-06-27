@@ -89,6 +89,13 @@ func TestRootVersionPrintsVersionInfo(t *testing.T) {
 }
 
 func TestRootUnavailableCommandReturnsPhaseError(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeTextFile(t, ".env", `
+GOGO_SECRET_KEY=root-secret
+DATABASE_URL=postgres://root
+`)
+
 	root := NewRoot()
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer

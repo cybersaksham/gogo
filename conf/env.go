@@ -88,10 +88,11 @@ func LoadFromEnv() (Settings, error) {
 		}
 	}
 
-	return settingsFromMap(values), nil
+	return SettingsFromMap(values), nil
 }
 
-func settingsFromMap(values map[string]string) Settings {
+// SettingsFromMap builds settings from parsed environment values and defaults.
+func SettingsFromMap(values map[string]string) Settings {
 	settings := DefaultSettings()
 
 	if value := values["GOGO_ENV"]; value != "" {
