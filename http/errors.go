@@ -7,3 +7,6 @@ var ErrInvalidPattern = errors.New("invalid pattern")
 
 // ErrRouteConflict indicates a duplicate route name or method conflict.
 var ErrRouteConflict = errors.New("route conflict")
+
+// ErrReverse indicates that a route could not be reversed.
+var ErrReverse = errors.New("reverse route")
