@@ -89,11 +89,13 @@ type Metadata struct {
 	RequiredDBFeatures  []string
 	Indexes             []Index
 	Constraints         []Constraint
+	Fields              []FieldMeta
 	Permissions         []Permission
 	DefaultPermissions  []string
 	SelectOnSave        bool
 	GenerateMigrations  bool
 	CompositePrimaryKey *CompositePrimaryKey
+	Inheritance         InheritanceInfo
 }
 
 // Clone returns an immutable copy of metadata.
@@ -108,6 +110,7 @@ func (m Metadata) Clone() Metadata {
 	copied.RequiredDBFeatures = append([]string(nil), m.RequiredDBFeatures...)
 	copied.Indexes = cloneIndexes(m.Indexes)
 	copied.Constraints = cloneConstraints(m.Constraints)
+	copied.Fields = cloneFieldMetaSlice(m.Fields)
 	copied.Permissions = append([]Permission(nil), m.Permissions...)
 	copied.DefaultPermissions = append([]string(nil), m.DefaultPermissions...)
 	if m.CompositePrimaryKey != nil {
@@ -115,7 +118,16 @@ func (m Metadata) Clone() Metadata {
 			Columns: append([]string(nil), m.CompositePrimaryKey.Columns...),
 		}
 	}
+	copied.Inheritance = m.Inheritance.Clone()
 	return copied
+}
+
+// Label returns the stable app_label.ModelName identifier.
+func (m Metadata) Label() string {
+	if m.AppLabel == "" || m.ModelName == "" {
+		return ""
+	}
+	return modelKey(m.AppLabel, m.ModelName)
 }
 
 // ResolveMetadata resolves explicit and default metadata for a model.
