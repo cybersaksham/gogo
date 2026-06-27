@@ -15,14 +15,6 @@ var (
 	ErrUnmanagedModel    = errors.New("unmanaged model cannot be registered")
 )
 
-// ModelAdmin stores model-specific admin configuration.
-type ModelAdmin struct {
-	Model          models.Metadata
-	Handler        string
-	AllowUnmanaged bool
-	ListDisplay    []string
-}
-
 // NewRegistry creates an empty model admin registry.
 func NewRegistry() *Registry {
 	return &Registry{byModel: make(map[string]ModelAdmin)}
@@ -116,10 +108,4 @@ func (r *Registry) Autodiscover(apps *app.Registry) error {
 		}
 	}
 	return nil
-}
-
-func (a ModelAdmin) clone() ModelAdmin {
-	a.Model = a.Model.Clone()
-	a.ListDisplay = append([]string(nil), a.ListDisplay...)
-	return a
 }
