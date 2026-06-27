@@ -13,3 +13,5 @@ var ErrDuplicateMigration = errors.New("duplicate migration")
 var ErrMissingDependency = errors.New("missing migration dependency")
 
 var ErrMigrationCycle = errors.New("migration dependency cycle")
+
+var ErrInconsistentMigrationHistory = errors.New("inconsistent migration history")

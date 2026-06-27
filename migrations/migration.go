@@ -36,6 +36,11 @@ func (m Migration) Identity() string {
 	return m.AppLabel + "." + m.Name
 }
 
+// Dependency returns this migration as a dependency reference.
+func (m Migration) Dependency() Dependency {
+	return Dependency{AppLabel: m.AppLabel, Name: m.Name}
+}
+
 // ReplacesMigration reports whether this migration replaces another migration.
 func (m Migration) ReplacesMigration(dependency Dependency) bool {
 	for _, replaced := range m.Replaces {
