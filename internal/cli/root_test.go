@@ -101,13 +101,13 @@ DATABASE_URL=postgres://root
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	err := root.Execute(context.Background(), []string{"createsuperuser"}, &stdout, &stderr)
+	err := root.Execute(context.Background(), []string{"collectstatic"}, &stdout, &stderr)
 	if !errors.Is(err, ErrCommandUnavailable) {
-		t.Fatalf("Execute(createsuperuser) error = %v, want ErrCommandUnavailable", err)
+		t.Fatalf("Execute(collectstatic) error = %v, want ErrCommandUnavailable", err)
 	}
 
-	if !strings.Contains(err.Error(), "07-auth-permissions-sessions") {
-		t.Fatalf("Execute(createsuperuser) error = %q, want phase name", err.Error())
+	if !strings.Contains(err.Error(), "10-forms-templates-static-files") {
+		t.Fatalf("Execute(collectstatic) error = %q, want phase name", err.Error())
 	}
 }
 

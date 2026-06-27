@@ -180,6 +180,47 @@ func (s *MemoryUserStore) FindByID(ctx context.Context, id int64) (User, bool, e
 	return user, ok, nil
 }
 
+// UpdateUser replaces an existing user while preserving uniqueness indexes.
+func (s *MemoryUserStore) UpdateUser(ctx context.Context, user User) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	existing, ok := s.byID[user.ID]
+	if !ok {
+		return fmt.Errorf("%w: id %d", ErrUserNotFound, user.ID)
+	}
+	oldUsername := NormalizeUsername(existing.Username)
+	oldEmail := NormalizeEmail(existing.Email)
+	newUsername := NormalizeUsername(user.Username)
+	newEmail := NormalizeEmail(user.Email)
+
+	if newUsername != "" {
+		if id, exists := s.byUsername[newUsername]; exists && id != user.ID {
+			return fmt.Errorf("%w: username %s", ErrDuplicateUser, newUsername)
+		}
+	}
+	if newEmail != "" {
+		if id, exists := s.byEmail[newEmail]; exists && id != user.ID {
+			return fmt.Errorf("%w: email %s", ErrDuplicateUser, newEmail)
+		}
+	}
+	delete(s.byUsername, oldUsername)
+	delete(s.byEmail, oldEmail)
+	if newUsername != "" {
+		s.byUsername[newUsername] = user.ID
+		user.Username = newUsername
+	}
+	if newEmail != "" {
+		s.byEmail[newEmail] = user.ID
+		user.Email = newEmail
+	}
+	s.byID[user.ID] = user
+	return nil
+}
+
 // UpdateLastLogin stores the latest successful login timestamp.
 func (s *MemoryUserStore) UpdateLastLogin(ctx context.Context, userID int64, at time.Time) error {
 	if err := ctx.Err(); err != nil {
