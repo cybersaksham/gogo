@@ -100,13 +100,13 @@ DATABASE_URL=postgres://root
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	err := root.Execute(context.Background(), []string{"runserver"}, &stdout, &stderr)
+	err := root.Execute(context.Background(), []string{"makemigrations"}, &stdout, &stderr)
 	if !errors.Is(err, ErrCommandUnavailable) {
-		t.Fatalf("Execute(runserver) error = %v, want ErrCommandUnavailable", err)
+		t.Fatalf("Execute(makemigrations) error = %v, want ErrCommandUnavailable", err)
 	}
 
-	if !strings.Contains(err.Error(), "03-http-routing-middleware-views") {
-		t.Fatalf("Execute(runserver) error = %q, want phase name", err.Error())
+	if !strings.Contains(err.Error(), "06-migrations-schema-management") {
+		t.Fatalf("Execute(makemigrations) error = %q, want phase name", err.Error())
 	}
 }
 

@@ -80,7 +80,7 @@ GOGO_HTTP_ADDR=:9100
 	}
 }
 
-func TestRunserverDefaultStarterIsUnavailable(t *testing.T) {
+func TestRunserverDefaultStarterUsesHTTPRuntime(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
 	writeTextFile(t, filepath.Join(dir, ".env"), `
@@ -89,9 +89,14 @@ DATABASE_URL=postgres://runserver
 `)
 
 	command := NewRunserverCommand(nil)
-	err := command.Run(context.Background(), nil)
-	if !errors.Is(err, ErrCommandUnavailable) {
-		t.Fatalf("Run() error = %v, want ErrCommandUnavailable", err)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err := command.Run(ctx, []string{"--addr", "127.0.0.1:0"})
+	if errors.Is(err, ErrCommandUnavailable) {
+		t.Fatalf("Run() returned unavailable error after runtime wiring: %v", err)
+	}
+	if err != nil && !errors.Is(err, context.Canceled) {
+		t.Fatalf("Run() error = %v, want nil or context.Canceled", err)
 	}
 }
 

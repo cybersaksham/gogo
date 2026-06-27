@@ -4,8 +4,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 
+	"github.com/cybersaksham/gogo/app"
 	"github.com/cybersaksham/gogo/conf"
+	gogohttp "github.com/cybersaksham/gogo/http"
 )
 
 // RunserverConfig contains resolved settings for the development server.
@@ -22,7 +27,7 @@ type ServerStarter func(context.Context, RunserverConfig) error
 // NewRunserverCommand creates the runserver command.
 func NewRunserverCommand(starter ServerStarter) Command {
 	if starter == nil {
-		starter = unavailableServerStarter
+		starter = defaultServerStarter
 	}
 
 	return runserverCommand{starter: starter}
@@ -62,7 +67,10 @@ func (c runserverCommand) Run(ctx context.Context, args []string) error {
 		resolvedAddr = *addr
 	}
 
-	return c.starter(ctx, RunserverConfig{
+	runCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	return c.starter(runCtx, RunserverConfig{
 		Addr:         resolvedAddr,
 		SettingsPath: *settingsPath,
 		Reload:       *reload,
@@ -83,6 +91,24 @@ func loadRunserverSettings(settingsPath string) (conf.Settings, error) {
 	return conf.SettingsFromMap(values), nil
 }
 
-func unavailableServerStarter(context.Context, RunserverConfig) error {
-	return fmt.Errorf("%w: runserver HTTP runtime is planned for 03-http-routing-middleware-views", ErrCommandUnavailable)
+func defaultServerStarter(ctx context.Context, config RunserverConfig) error {
+	settings := config.Settings
+	settings.HTTPAddr = config.Addr
+
+	middleware, err := gogohttp.BuildMiddleware(settings, gogohttp.BuiltInMiddlewareRegistry(os.Stdout))
+	if err != nil {
+		return err
+	}
+
+	server, err := gogohttp.NewServer(gogohttp.ServerConfig{
+		Settings:   settings,
+		Registry:   app.NewRegistry(),
+		Router:     gogohttp.NewRouter(),
+		Middleware: middleware,
+	})
+	if err != nil {
+		return err
+	}
+
+	return server.ListenAndServe(ctx)
 }
