@@ -30,6 +30,8 @@ type Permission struct {
 	Name          string
 	ContentTypeID int64
 	Codename      string
+	ContentType   ContentType
+	AppLabel      string
 }
 
 // ModelMeta returns Django-compatible metadata for auth permissions.
@@ -82,16 +84,17 @@ func (Group) ModelMeta() models.Metadata {
 
 // AbstractBaseUser contains the core identity fields shared by user types.
 type AbstractBaseUser struct {
-	ID            int64
-	Password      string
-	LastLogin     time.Time
-	IsSuperuser   bool
-	IsActive      bool
-	DateJoined    time.Time
-	Groups        []Group
-	Permissions   []Permission
-	Anonymous     bool
-	Authenticated bool
+	ID              int64
+	Password        string
+	LastLogin       time.Time
+	IsSuperuser     bool
+	IsActive        bool
+	DateJoined      time.Time
+	Groups          []Group
+	Permissions     []Permission
+	UserPermissions []Permission
+	Anonymous       bool
+	Authenticated   bool
 }
 
 // IsAuthenticated reports whether this principal represents a logged-in user.
