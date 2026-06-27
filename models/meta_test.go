@@ -30,8 +30,8 @@ func (metadataOptionsModel) ModelMeta() Metadata {
 		Managed:            &managed,
 		RequiredDBVendor:   "postgresql",
 		RequiredDBFeatures: []string{"supports_json_field"},
-		Indexes:            []Index{{Name: "idx_name", Fields: []string{"name"}}},
-		Constraints:        []Constraint{{Name: "uniq_name", Type: ConstraintUnique, Fields: []string{"name"}}},
+		Indexes:            []Index{{Name: "idx_name", Fields: []IndexField{Asc("name")}}},
+		Constraints:        []Constraint{{Name: "uniq_name", Type: ConstraintUnique, Fields: []IndexField{Asc("name")}}},
 		Permissions:        []Permission{{CodeName: "publish", Name: "Can publish"}},
 		DefaultPermissions: []string{"add", "change", "delete", "view"},
 		SelectOnSave:       true,
@@ -66,7 +66,7 @@ func TestResolveMetadataPreservesEveryModelOption(t *testing.T) {
 	if meta.RequiredDBVendor != "postgresql" || !reflect.DeepEqual(meta.RequiredDBFeatures, []string{"supports_json_field"}) {
 		t.Fatalf("required db options = (%q, %#v)", meta.RequiredDBVendor, meta.RequiredDBFeatures)
 	}
-	if len(meta.Indexes) != 1 || meta.Indexes[0].Name != "idx_name" || meta.Indexes[0].Fields[0] != "name" {
+	if len(meta.Indexes) != 1 || meta.Indexes[0].Name != "idx_name" || meta.Indexes[0].Fields[0].Name != "name" {
 		t.Fatalf("Indexes = %#v", meta.Indexes)
 	}
 	if len(meta.Constraints) != 1 || meta.Constraints[0].Type != ConstraintUnique {
@@ -82,11 +82,11 @@ func TestResolveMetadataPreservesEveryModelOption(t *testing.T) {
 
 func TestResolveMetadataCopiesOptionSlices(t *testing.T) {
 	meta := ResolveMetadata(metadataOptionsModel{})
-	meta.Indexes[0].Fields[0] = "changed"
+	meta.Indexes[0].Fields[0].Name = "changed"
 	meta.RequiredDBFeatures[0] = "changed"
 
 	again := ResolveMetadata(metadataOptionsModel{})
-	if again.Indexes[0].Fields[0] != "name" || again.RequiredDBFeatures[0] != "supports_json_field" {
+	if again.Indexes[0].Fields[0].Name != "name" || again.RequiredDBFeatures[0] != "supports_json_field" {
 		t.Fatalf("metadata slices were mutated across resolutions: %#v", again)
 	}
 }

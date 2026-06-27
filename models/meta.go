@@ -1,24 +1,33 @@
 package models
 
-import "fmt"
+import (
+	"fmt"
+
+	modelconstraints "github.com/cybersaksham/gogo/models/constraints"
+)
 
 const (
-	ConstraintUnique = "unique"
-	ConstraintCheck  = "check"
+	ConstraintUnique = modelconstraints.TypeUnique
+	ConstraintCheck  = modelconstraints.TypeCheck
 )
 
 // Index describes model index metadata.
-type Index struct {
-	Name   string
-	Fields []string
-}
+type Index = modelconstraints.Index
+
+// IndexField describes one ordered model index field.
+type IndexField = modelconstraints.IndexField
 
 // Constraint describes model constraint metadata.
-type Constraint struct {
-	Name   string
-	Type   string
-	Fields []string
-	Check  string
+type Constraint = modelconstraints.Constraint
+
+// Asc creates ascending index field metadata.
+func Asc(name string) IndexField {
+	return modelconstraints.Asc(name)
+}
+
+// Desc creates descending index field metadata.
+func Desc(name string) IndexField {
+	return modelconstraints.Desc(name)
 }
 
 // Permission describes one model-level permission.
@@ -46,10 +55,7 @@ func ValidateMetadata(meta Metadata) error {
 func cloneIndexes(indexes []Index) []Index {
 	copied := make([]Index, len(indexes))
 	for i, index := range indexes {
-		copied[i] = Index{
-			Name:   index.Name,
-			Fields: append([]string(nil), index.Fields...),
-		}
+		copied[i] = index.Clone()
 	}
 	return copied
 }
@@ -57,12 +63,7 @@ func cloneIndexes(indexes []Index) []Index {
 func cloneConstraints(constraints []Constraint) []Constraint {
 	copied := make([]Constraint, len(constraints))
 	for i, constraint := range constraints {
-		copied[i] = Constraint{
-			Name:   constraint.Name,
-			Type:   constraint.Type,
-			Fields: append([]string(nil), constraint.Fields...),
-			Check:  constraint.Check,
-		}
+		copied[i] = constraint.Clone()
 	}
 	return copied
 }
