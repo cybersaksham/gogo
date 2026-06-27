@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+
+	"github.com/cybersaksham/gogo/orm/dialects"
 )
 
 const DefaultDatabase = "default"
@@ -15,11 +17,6 @@ var (
 	ErrDatabaseExists        = errors.New("database already exists")
 	ErrDatabaseNotFound      = errors.New("database not found")
 )
-
-// Dialect describes the minimum SQL dialect metadata needed by a database.
-type Dialect interface {
-	Name() string
-}
 
 // Logger is the database logger contract.
 type Logger interface {
@@ -34,7 +31,7 @@ type DatabaseConfig struct {
 	Name        string
 	Driver      string
 	DSN         string
-	Dialect     Dialect
+	Dialect     dialects.Dialect
 	Logger      Logger
 	HealthCheck HealthCheck
 }
@@ -44,7 +41,7 @@ type Database struct {
 	Name        string
 	Driver      string
 	DSN         string
-	Dialect     Dialect
+	Dialect     dialects.Dialect
 	Logger      Logger
 	HealthCheck HealthCheck
 

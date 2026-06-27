@@ -6,12 +6,10 @@ import (
 	"errors"
 	"testing"
 
+	sqlitedialect "github.com/cybersaksham/gogo/orm/dialects/sqlite"
+
 	_ "modernc.org/sqlite"
 )
-
-type testDialect struct{}
-
-func (testDialect) Name() string { return "sqlite" }
 
 func TestOpenDatabasePingStatsAndClose(t *testing.T) {
 	ctx := context.Background()
@@ -19,7 +17,7 @@ func TestOpenDatabasePingStatsAndClose(t *testing.T) {
 		Name:    DefaultDatabase,
 		Driver:  "sqlite",
 		DSN:     ":memory:",
-		Dialect: testDialect{},
+		Dialect: sqlitedialect.New(),
 	})
 	if err != nil {
 		t.Fatalf("OpenDatabase() error = %v", err)
@@ -48,7 +46,7 @@ func TestOpenDatabaseUsesHealthCheck(t *testing.T) {
 		Name:    "health",
 		Driver:  "sqlite",
 		DSN:     ":memory:",
-		Dialect: testDialect{},
+		Dialect: sqlitedialect.New(),
 		HealthCheck: func(ctx context.Context, db *sql.DB) error {
 			called = true
 			return db.PingContext(ctx)
@@ -68,7 +66,7 @@ func TestOpenDatabasePropagatesHealthCheckFailure(t *testing.T) {
 		Name:    "bad",
 		Driver:  "sqlite",
 		DSN:     ":memory:",
-		Dialect: testDialect{},
+		Dialect: sqlitedialect.New(),
 		HealthCheck: func(context.Context, *sql.DB) error {
 			return failure
 		},
@@ -80,11 +78,11 @@ func TestOpenDatabasePropagatesHealthCheckFailure(t *testing.T) {
 
 func TestConnectionsSupportDefaultAndNamedDatabases(t *testing.T) {
 	ctx := context.Background()
-	defaultDB, err := OpenDatabase(ctx, DatabaseConfig{Name: DefaultDatabase, Driver: "sqlite", DSN: ":memory:", Dialect: testDialect{}})
+	defaultDB, err := OpenDatabase(ctx, DatabaseConfig{Name: DefaultDatabase, Driver: "sqlite", DSN: ":memory:", Dialect: sqlitedialect.New()})
 	if err != nil {
 		t.Fatalf("Open default database: %v", err)
 	}
-	replicaDB, err := OpenDatabase(ctx, DatabaseConfig{Name: "replica", Driver: "sqlite", DSN: ":memory:", Dialect: testDialect{}})
+	replicaDB, err := OpenDatabase(ctx, DatabaseConfig{Name: "replica", Driver: "sqlite", DSN: ":memory:", Dialect: sqlitedialect.New()})
 	if err != nil {
 		t.Fatalf("Open replica database: %v", err)
 	}
