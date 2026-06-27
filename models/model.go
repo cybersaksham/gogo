@@ -69,18 +69,47 @@ type CompositePrimaryKey struct {
 
 // Metadata contains the core model metadata available from task one.
 type Metadata struct {
+	DBTable             string
+	DBTableComment      string
 	AppLabel            string
 	ModelName           string
 	TableName           string
 	VerboseName         string
 	VerboseNamePlural   string
+	Ordering            []string
+	OrderWithRespectTo  string
+	GetLatestBy         []string
+	DefaultRelatedName  string
 	DefaultManagerName  string
+	BaseManagerName     string
+	Abstract            bool
+	Proxy               bool
+	Managed             *bool
+	RequiredDBVendor    string
+	RequiredDBFeatures  []string
+	Indexes             []Index
+	Constraints         []Constraint
+	Permissions         []Permission
+	DefaultPermissions  []string
+	SelectOnSave        bool
+	GenerateMigrations  bool
 	CompositePrimaryKey *CompositePrimaryKey
 }
 
 // Clone returns an immutable copy of metadata.
 func (m Metadata) Clone() Metadata {
 	copied := m
+	if m.Managed != nil {
+		value := *m.Managed
+		copied.Managed = &value
+	}
+	copied.Ordering = append([]string(nil), m.Ordering...)
+	copied.GetLatestBy = append([]string(nil), m.GetLatestBy...)
+	copied.RequiredDBFeatures = append([]string(nil), m.RequiredDBFeatures...)
+	copied.Indexes = cloneIndexes(m.Indexes)
+	copied.Constraints = cloneConstraints(m.Constraints)
+	copied.Permissions = append([]Permission(nil), m.Permissions...)
+	copied.DefaultPermissions = append([]string(nil), m.DefaultPermissions...)
 	if m.CompositePrimaryKey != nil {
 		copied.CompositePrimaryKey = &CompositePrimaryKey{
 			Columns: append([]string(nil), m.CompositePrimaryKey.Columns...),
@@ -100,12 +129,19 @@ func ResolveMetadata(model Model) Metadata {
 	}
 
 	modelSlug := snakeCase(meta.ModelName)
+	if meta.DBTable != "" && meta.TableName == "" {
+		meta.TableName = meta.DBTable
+	}
+	if meta.TableName != "" && meta.DBTable == "" {
+		meta.DBTable = meta.TableName
+	}
 	if meta.TableName == "" {
 		if meta.AppLabel != "" {
 			meta.TableName = meta.AppLabel + "_" + modelSlug
 		} else {
 			meta.TableName = modelSlug
 		}
+		meta.DBTable = meta.TableName
 	}
 	if meta.VerboseName == "" {
 		meta.VerboseName = strings.ReplaceAll(modelSlug, "_", " ")
@@ -115,6 +151,9 @@ func ResolveMetadata(model Model) Metadata {
 	}
 	if meta.DefaultManagerName == "" {
 		meta.DefaultManagerName = "objects"
+	}
+	if meta.DefaultPermissions == nil {
+		meta.DefaultPermissions = []string{"add", "change", "delete", "view"}
 	}
 	return meta
 }
