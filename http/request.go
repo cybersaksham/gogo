@@ -12,6 +12,7 @@ type Request struct {
 	pathParams map[string]string
 	user       any
 	session    any
+	attrs      map[string]any
 }
 
 // NewRequest wraps a standard HTTP request.
@@ -19,6 +20,7 @@ func NewRequest(raw *nethttp.Request) *Request {
 	return &Request{
 		raw:        raw,
 		pathParams: make(map[string]string),
+		attrs:      make(map[string]any),
 	}
 }
 
@@ -98,4 +100,13 @@ func (r *Request) WithSession(session any) *Request {
 // Session returns the attached session placeholder.
 func (r *Request) Session() any {
 	return r.session
+}
+
+func (r *Request) setAttr(name string, value any) {
+	r.attrs[name] = value
+}
+
+func (r *Request) boolAttr(name string) bool {
+	value, _ := r.attrs[name].(bool)
+	return value
 }
