@@ -131,7 +131,10 @@ func (f *BaseField) Validate(value any) error {
 		}
 		return fmt.Errorf("%w: %s cannot be null", ErrValidation, f.Name())
 	}
-	if value == "" && !f.options.Blank {
+	if value == "" {
+		if f.options.Blank {
+			return nil
+		}
 		return fmt.Errorf("%w: %s cannot be blank", ErrValidation, f.Name())
 	}
 	if len(f.options.Choices) > 0 && !f.validChoice(value) {
