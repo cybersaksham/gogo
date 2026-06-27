@@ -13,3 +13,6 @@ var ErrReverse = errors.New("reverse route")
 
 // ErrInvalidRedirect indicates an unsafe redirect target.
 var ErrInvalidRedirect = errors.New("invalid redirect")
+
+// ErrStaticMount indicates an invalid or unsafe static/media mount.
+var ErrStaticMount = errors.New("static mount")
