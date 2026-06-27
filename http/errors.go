@@ -10,3 +10,6 @@ var ErrRouteConflict = errors.New("route conflict")
 
 // ErrReverse indicates that a route could not be reversed.
 var ErrReverse = errors.New("reverse route")
+
+// ErrInvalidRedirect indicates an unsafe redirect target.
+var ErrInvalidRedirect = errors.New("invalid redirect")

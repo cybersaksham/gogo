@@ -17,6 +17,7 @@ type Response struct {
 	filePath    string
 	noBody      bool
 	contentType string
+	privateErr  error
 }
 
 // Text creates a plain text response.
@@ -75,6 +76,11 @@ func (r Response) Header() nethttp.Header {
 // Status returns the response status code.
 func (r Response) Status() int {
 	return r.status
+}
+
+// PrivateError returns internal error details for logging.
+func (r Response) PrivateError() error {
+	return r.privateErr
 }
 
 // Write writes the response to a standard HTTP response writer.
