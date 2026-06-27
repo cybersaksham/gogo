@@ -62,6 +62,9 @@ func (o DeleteModel) ReferencesModel(appLabel, modelName string) bool {
 	return o.Model.AppLabel == appLabel && o.Model.Name == modelName
 }
 func (o DeleteModel) ReferencesField(string, string, string) bool { return false }
+func (o DeleteModel) SafetyChecks() []migrations.SafetyCheck {
+	return []migrations.SafetyCheck{{Operation: o.Name(), Message: "drops table " + o.Model.TableName}}
+}
 
 func (o RenameModel) Name() string { return "RenameModel" }
 func (o RenameModel) StateForwards(state *migrations.ProjectState) error {

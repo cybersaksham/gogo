@@ -66,6 +66,12 @@ func (o RemoveConstraint) ReferencesModel(appLabel, modelName string) bool {
 	return o.AppLabel == appLabel && o.ModelName == modelName
 }
 func (o RemoveConstraint) ReferencesField(string, string, string) bool { return false }
+func (o RemoveConstraint) SafetyChecks() []migrations.SafetyCheck {
+	if strings.HasPrefix(o.ConstraintName, "uniq") {
+		return []migrations.SafetyCheck{{Operation: o.Name(), Message: "removes unique constraint " + o.ConstraintName}}
+	}
+	return nil
+}
 
 func constraintSQL(constraint migrations.ConstraintState) string {
 	switch constraint.Type {

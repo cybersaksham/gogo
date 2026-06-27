@@ -59,6 +59,12 @@ func (o AddField) ReferencesModel(appLabel, modelName string) bool {
 func (o AddField) ReferencesField(appLabel, modelName, fieldName string) bool {
 	return o.ReferencesModel(appLabel, modelName) && o.Field.Name == fieldName
 }
+func (o AddField) SafetyChecks() []migrations.SafetyCheck {
+	if !o.Field.Null && !o.HasDefault && !o.UnsafeAcknowledged {
+		return []migrations.SafetyCheck{{Operation: o.Name(), Message: "adds non-null field without default"}}
+	}
+	return nil
+}
 
 func (o RemoveField) Name() string { return "RemoveField" }
 func (o RemoveField) StateForwards(state *migrations.ProjectState) error {
@@ -80,6 +86,9 @@ func (o RemoveField) ReferencesModel(appLabel, modelName string) bool {
 }
 func (o RemoveField) ReferencesField(appLabel, modelName, fieldName string) bool {
 	return o.ReferencesModel(appLabel, modelName) && o.Field.Name == fieldName
+}
+func (o RemoveField) SafetyChecks() []migrations.SafetyCheck {
+	return []migrations.SafetyCheck{{Operation: o.Name(), Message: "drops column " + o.Field.Name}}
 }
 
 func (o AlterField) Name() string { return "AlterField" }
@@ -107,6 +116,12 @@ func (o AlterField) ReferencesModel(appLabel, modelName string) bool {
 }
 func (o AlterField) ReferencesField(appLabel, modelName, fieldName string) bool {
 	return o.ReferencesModel(appLabel, modelName) && (o.OldField.Name == fieldName || o.NewField.Name == fieldName)
+}
+func (o AlterField) SafetyChecks() []migrations.SafetyCheck {
+	if isNarrowingType(o.OldField.Kind, o.NewField.Kind) {
+		return []migrations.SafetyCheck{{Operation: o.Name(), Message: "narrows field type " + o.NewField.Name}}
+	}
+	return nil
 }
 
 func (o RenameField) Name() string { return "RenameField" }
@@ -139,6 +154,9 @@ func (o RenameField) ReferencesModel(appLabel, modelName string) bool {
 func (o RenameField) ReferencesField(appLabel, modelName, fieldName string) bool {
 	return o.ReferencesModel(appLabel, modelName) && (o.OldName == fieldName || o.NewName == fieldName)
 }
+func (o RenameField) SafetyChecks() []migrations.SafetyCheck {
+	return []migrations.SafetyCheck{{Operation: o.Name(), Message: "renames field with ambiguous data movement"}}
+}
 
 func removeField(fields []migrations.FieldState, name string) []migrations.FieldState {
 	result := fields[:0]
@@ -166,4 +184,8 @@ func fieldKind(field migrations.FieldState) string {
 		return "text"
 	}
 	return field.Kind
+}
+
+func isNarrowingType(oldKind, newKind string) bool {
+	return oldKind == "text" && strings.HasPrefix(newKind, "varchar")
 }
