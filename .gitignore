@@ -1,0 +1,27 @@
+# Go build output
+bin/
+dist/
+*.test
+*.out
+
+# Coverage
+coverage/
+coverage.out
+
+# Local environment
+.env
+.env.*.local
+
+# Local databases
+*.sqlite
+*.sqlite3
+*.db
+
+# Uploads and generated media
+media/
+uploads/
+
+# Editor files
+.idea/
+.vscode/
+*.swp
