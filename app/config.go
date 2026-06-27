@@ -12,9 +12,6 @@ var (
 	labelPattern      = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 )
 
-// Registry stores installed app state.
-type Registry struct{}
-
 // Config describes a framework app.
 type Config interface {
 	Name() string
