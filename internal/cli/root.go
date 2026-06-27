@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/cybersaksham/gogo/internal/version"
 )
@@ -19,13 +18,7 @@ func NewRoot() *Root {
 	registry := NewRegistry()
 	root := &Root{registry: registry}
 
-	root.mustRegister(helpCommand{root: root})
-	root.mustRegister(versionCommand{})
-	root.mustRegister(NewCheckCommand())
-	root.mustRegister(NewRunserverCommand(nil))
-	root.mustRegister(NewStartprojectCommand())
-	root.mustRegister(NewStartappCommand())
-	for _, command := range plannedUnavailableCommands() {
+	for _, command := range plannedCommands(root) {
 		root.mustRegister(command)
 	}
 
@@ -135,8 +128,14 @@ func (c unavailableCommand) Run(context.Context, []string) error {
 	return fmt.Errorf("%w: %s is planned for %s", ErrCommandUnavailable, c.name, c.phase)
 }
 
-func plannedUnavailableCommands() []Command {
+func plannedCommands(root *Root) []Command {
 	return []Command{
+		helpCommand{root: root},
+		versionCommand{},
+		NewCheckCommand(),
+		NewRunserverCommand(nil),
+		NewStartprojectCommand(),
+		NewStartappCommand(),
 		unavailableCommand{name: "makemigrations", summary: "Create new migrations", phase: "06-migrations-schema-management"},
 		unavailableCommand{name: "migrate", summary: "Apply or roll back migrations", phase: "06-migrations-schema-management"},
 		unavailableCommand{name: "showmigrations", summary: "List migrations", phase: "06-migrations-schema-management"},
@@ -145,7 +144,7 @@ func plannedUnavailableCommands() []Command {
 		unavailableCommand{name: "createsuperuser", summary: "Create an admin user", phase: "07-auth-permissions-sessions"},
 		unavailableCommand{name: "changepassword", summary: "Change a user password", phase: "07-auth-permissions-sessions"},
 		unavailableCommand{name: "collectstatic", summary: "Collect static files", phase: "10-forms-templates-static-files"},
-		unavailableCommand{name: "shell", summary: "Open a project shell", phase: "02-app-project-lifecycle"},
+		NewShellCommand(nil),
 		unavailableCommand{name: "dbshell", summary: "Open a database shell", phase: "05-orm-query-engine"},
 		unavailableCommand{name: "test", summary: "Run project tests", phase: "13-testing-docs-examples"},
 		unavailableCommand{name: "worker", summary: "Run a queue worker", phase: "11-queue-workers-beat-canvas"},
@@ -155,8 +154,4 @@ func plannedUnavailableCommands() []Command {
 		unavailableCommand{name: "dumpdata", summary: "Dump fixture data", phase: "10-forms-templates-static-files"},
 		unavailableCommand{name: "loaddata", summary: "Load fixture data", phase: "10-forms-templates-static-files"},
 	}
-}
-
-func commandLine(args []string) string {
-	return strings.Join(args, " ")
 }
