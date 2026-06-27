@@ -21,6 +21,7 @@ func NewRoot() *Root {
 
 	root.mustRegister(helpCommand{root: root})
 	root.mustRegister(versionCommand{})
+	root.mustRegister(NewCheckCommand())
 	for _, command := range plannedUnavailableCommands() {
 		root.mustRegister(command)
 	}
@@ -133,7 +134,6 @@ func (c unavailableCommand) Run(context.Context, []string) error {
 
 func plannedUnavailableCommands() []Command {
 	return []Command{
-		unavailableCommand{name: "check", summary: "Run system checks", phase: "01-foundation-cli-config"},
 		unavailableCommand{name: "runserver", summary: "Run the development server", phase: "03-http-routing-middleware-views"},
 		unavailableCommand{name: "startproject", summary: "Create a new Gogo project", phase: "02-app-project-lifecycle"},
 		unavailableCommand{name: "startapp", summary: "Create a new Gogo app", phase: "02-app-project-lifecycle"},
