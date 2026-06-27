@@ -5,3 +5,5 @@ import "errors"
 var ErrInvalidMigration = errors.New("invalid migration")
 
 var ErrUnsafeMigration = errors.New("unsafe migration")
+
+var ErrIrreversibleOperation = errors.New("irreversible operation")
