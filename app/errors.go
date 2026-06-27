@@ -17,4 +17,10 @@ var (
 
 	// ErrRegistryReady indicates the registry cannot be modified after readiness.
 	ErrRegistryReady = errors.New("app registry ready")
+
+	// ErrDuplicateCommand indicates duplicate app management command names.
+	ErrDuplicateCommand = errors.New("duplicate app command")
+
+	// ErrReservedCommand indicates a custom command collides with a built-in command name.
+	ErrReservedCommand = errors.New("reserved command")
 )

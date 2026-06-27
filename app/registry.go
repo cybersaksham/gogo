@@ -21,6 +21,8 @@ type Registry struct {
 	staticRoots []StaticResource
 	tasks       []TaskResource
 	commands    []CommandResource
+	mgmtCommand []ManagementCommand
+	mgmtByName  map[string]ManagementCommand
 	migrations  []MigrationResource
 	ready       bool
 }
@@ -28,8 +30,9 @@ type Registry struct {
 // NewRegistry creates an empty app registry.
 func NewRegistry() *Registry {
 	return &Registry{
-		byName:  make(map[string]Config),
-		byLabel: make(map[string]Config),
+		byName:     make(map[string]Config),
+		byLabel:    make(map[string]Config),
+		mgmtByName: make(map[string]ManagementCommand),
 	}
 }
 
