@@ -7,12 +7,22 @@ import (
 
 // Registry stores installed app state.
 type Registry struct {
-	mu      sync.RWMutex
-	apps    []Config
-	ordered []Config
-	byName  map[string]Config
-	byLabel map[string]Config
-	ready   bool
+	mu          sync.RWMutex
+	apps        []Config
+	ordered     []Config
+	byName      map[string]Config
+	byLabel     map[string]Config
+	models      []ModelResource
+	admin       []AdminResource
+	routes      []RouteResource
+	apiRoutes   []APIRouteResource
+	forms       []FormResource
+	templates   []TemplateResource
+	staticRoots []StaticResource
+	tasks       []TaskResource
+	commands    []CommandResource
+	migrations  []MigrationResource
+	ready       bool
 }
 
 // NewRegistry creates an empty app registry.
