@@ -92,31 +92,81 @@ func LoadFromEnv() (Settings, error) {
 }
 
 func settingsFromMap(values map[string]string) Settings {
-	return Settings{
-		Env:               values["GOGO_ENV"],
-		SecretKey:         values["GOGO_SECRET_KEY"],
-		Debug:             parseBool(values["GOGO_DEBUG"]),
-		AllowedHosts:      splitList(values["GOGO_ALLOWED_HOSTS"]),
-		HTTPAddr:          values["GOGO_HTTP_ADDR"],
-		DatabaseURL:       values["DATABASE_URL"],
-		InstalledApps:     splitList(values["GOGO_INSTALLED_APPS"]),
-		Middleware:        splitList(values["GOGO_MIDDLEWARE"]),
-		RootURLConf:       values["GOGO_ROOT_URLCONF"],
-		StaticURL:         values["GOGO_STATIC_URL"],
-		StaticRoot:        values["GOGO_STATIC_ROOT"],
-		MediaURL:          values["GOGO_MEDIA_URL"],
-		MediaRoot:         values["GOGO_MEDIA_ROOT"],
-		TemplateDirs:      splitList(values["GOGO_TEMPLATE_DIRS"]),
-		DefaultAutoField:  values["GOGO_DEFAULT_AUTO_FIELD"],
-		TimeZone:          values["GOGO_TIME_ZONE"],
-		LanguageCode:      values["GOGO_LANGUAGE_CODE"],
-		SessionCookieName: values["GOGO_SESSION_COOKIE_NAME"],
-		CSRFCookieName:    values["GOGO_CSRF_COOKIE_NAME"],
-		BrokerURL:         values["GOGO_BROKER_URL"],
-		ResultBackend:     values["GOGO_RESULT_BACKEND"],
-		CacheURL:          values["GOGO_CACHE_URL"],
-		EmailURL:          values["GOGO_EMAIL_URL"],
+	settings := DefaultSettings()
+
+	if value := values["GOGO_ENV"]; value != "" {
+		settings.Env = value
 	}
+	if value := values["GOGO_SECRET_KEY"]; value != "" {
+		settings.SecretKey = value
+	}
+	if value, ok := values["GOGO_DEBUG"]; ok && strings.TrimSpace(value) != "" {
+		settings.Debug = parseBool(value)
+	} else {
+		settings.Debug = settings.Env == "development"
+	}
+	if value := values["GOGO_ALLOWED_HOSTS"]; value != "" {
+		settings.AllowedHosts = splitList(value)
+	}
+	if value := values["GOGO_HTTP_ADDR"]; value != "" {
+		settings.HTTPAddr = value
+	}
+	if value := values["DATABASE_URL"]; value != "" {
+		settings.DatabaseURL = value
+	}
+	if value := values["GOGO_INSTALLED_APPS"]; value != "" {
+		settings.InstalledApps = splitList(value)
+	}
+	if value := values["GOGO_MIDDLEWARE"]; value != "" {
+		settings.Middleware = splitList(value)
+	}
+	if value := values["GOGO_ROOT_URLCONF"]; value != "" {
+		settings.RootURLConf = value
+	}
+	if value := values["GOGO_STATIC_URL"]; value != "" {
+		settings.StaticURL = value
+	}
+	if value := values["GOGO_STATIC_ROOT"]; value != "" {
+		settings.StaticRoot = value
+	}
+	if value := values["GOGO_MEDIA_URL"]; value != "" {
+		settings.MediaURL = value
+	}
+	if value := values["GOGO_MEDIA_ROOT"]; value != "" {
+		settings.MediaRoot = value
+	}
+	if value := values["GOGO_TEMPLATE_DIRS"]; value != "" {
+		settings.TemplateDirs = splitList(value)
+	}
+	if value := values["GOGO_DEFAULT_AUTO_FIELD"]; value != "" {
+		settings.DefaultAutoField = value
+	}
+	if value := values["GOGO_TIME_ZONE"]; value != "" {
+		settings.TimeZone = value
+	}
+	if value := values["GOGO_LANGUAGE_CODE"]; value != "" {
+		settings.LanguageCode = value
+	}
+	if value := values["GOGO_SESSION_COOKIE_NAME"]; value != "" {
+		settings.SessionCookieName = value
+	}
+	if value := values["GOGO_CSRF_COOKIE_NAME"]; value != "" {
+		settings.CSRFCookieName = value
+	}
+	if value := values["GOGO_BROKER_URL"]; value != "" {
+		settings.BrokerURL = value
+	}
+	if value := values["GOGO_RESULT_BACKEND"]; value != "" {
+		settings.ResultBackend = value
+	}
+	if value := values["GOGO_CACHE_URL"]; value != "" {
+		settings.CacheURL = value
+	}
+	if value := values["GOGO_EMAIL_URL"]; value != "" {
+		settings.EmailURL = value
+	}
+
+	return settings
 }
 
 func unquoteEnvValue(value string) string {
