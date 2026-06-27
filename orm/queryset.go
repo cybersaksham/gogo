@@ -369,8 +369,9 @@ func (qs QuerySet) filterExactMap(values map[string]any) QuerySet {
 
 // RawQuery stores raw query text and args.
 type RawQuery struct {
-	SQL  string
-	Args []any
+	SQL    string
+	Args   []any
+	Unsafe bool
 }
 
 // GetOrCreatePlan stores compiled get/create statements.
