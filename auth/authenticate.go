@@ -30,6 +30,7 @@ type Credentials struct {
 type UserStore interface {
 	FindByUsername(ctx context.Context, username string) (User, bool, error)
 	FindByEmail(ctx context.Context, email string) (User, bool, error)
+	FindByID(ctx context.Context, id int64) (User, bool, error)
 	UpdateLastLogin(ctx context.Context, userID int64, at time.Time) error
 }
 
@@ -166,6 +167,17 @@ func (s *MemoryUserStore) FindByEmail(ctx context.Context, email string) (User, 
 		return User{}, false, nil
 	}
 	return s.byID[id], true, nil
+}
+
+// FindByID returns a user by primary key.
+func (s *MemoryUserStore) FindByID(ctx context.Context, id int64) (User, bool, error) {
+	if err := ctx.Err(); err != nil {
+		return User{}, false, err
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	user, ok := s.byID[id]
+	return user, ok, nil
 }
 
 // UpdateLastLogin stores the latest successful login timestamp.
