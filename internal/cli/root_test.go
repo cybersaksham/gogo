@@ -33,6 +33,7 @@ func TestRootHelpListsPlannedCommandsInStableOrder(t *testing.T) {
 		"showmigrations",
 		"sqlmigrate",
 		"squashmigrations",
+		"optimizemigration",
 		"createsuperuser",
 		"changepassword",
 		"collectstatic",
@@ -100,13 +101,13 @@ DATABASE_URL=postgres://root
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	err := root.Execute(context.Background(), []string{"makemigrations"}, &stdout, &stderr)
+	err := root.Execute(context.Background(), []string{"createsuperuser"}, &stdout, &stderr)
 	if !errors.Is(err, ErrCommandUnavailable) {
-		t.Fatalf("Execute(makemigrations) error = %v, want ErrCommandUnavailable", err)
+		t.Fatalf("Execute(createsuperuser) error = %v, want ErrCommandUnavailable", err)
 	}
 
-	if !strings.Contains(err.Error(), "06-migrations-schema-management") {
-		t.Fatalf("Execute(makemigrations) error = %q, want phase name", err.Error())
+	if !strings.Contains(err.Error(), "07-auth-permissions-sessions") {
+		t.Fatalf("Execute(createsuperuser) error = %q, want phase name", err.Error())
 	}
 }
 
