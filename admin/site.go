@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/cybersaksham/gogo/auth"
 )
@@ -27,8 +28,12 @@ func (StaffPermissionPolicy) HasAccess(r *http.Request) bool {
 	return ok && user.IsActive && user.IsStaff && user.IsAuthenticated() && !user.IsAnonymous()
 }
 
-// Registry stores model admin registrations. Task 2 expands this type.
-type Registry struct{}
+// Registry stores model admin registrations.
+type Registry struct {
+	mu      sync.RWMutex
+	byModel map[string]ModelAdmin
+	order   []string
+}
 
 // Site is one named Django-style admin site.
 type Site struct {
@@ -95,7 +100,7 @@ func NewSite(options SiteOptions) (*Site, error) {
 		site.PermissionPolicy = StaffPermissionPolicy{}
 	}
 	if site.ModelRegistry == nil {
-		site.ModelRegistry = &Registry{}
+		site.ModelRegistry = NewRegistry()
 	}
 	return site, nil
 }
