@@ -1,0 +1,146 @@
+package schema
+
+import (
+	"strings"
+
+	"github.com/cybersaksham/gogo/migrations"
+	"github.com/cybersaksham/gogo/orm/dialects"
+)
+
+// Editor renders schema SQL for one dialect.
+type Editor struct {
+	Dialect dialects.Dialect
+}
+
+// NewEditor creates a schema editor.
+func NewEditor(dialect dialects.Dialect) Editor {
+	return Editor{Dialect: dialect}
+}
+
+func (e Editor) CreateTable(name string, fields []migrations.FieldState) string {
+	columns := make([]string, len(fields))
+	for i, field := range fields {
+		columns[i] = e.columnDefinition(field)
+	}
+	return "CREATE TABLE " + e.q(name) + " (" + strings.Join(columns, ", ") + ")"
+}
+
+func (e Editor) DropTable(name string) string {
+	return "DROP TABLE " + e.q(name)
+}
+
+func (e Editor) RenameTable(oldName, newName string) string {
+	return "ALTER TABLE " + e.q(oldName) + " RENAME TO " + e.q(newName)
+}
+
+func (e Editor) AddColumn(table string, field migrations.FieldState) string {
+	return "ALTER TABLE " + e.q(table) + " ADD COLUMN " + e.columnDefinition(field)
+}
+
+func (e Editor) DropColumn(table, column string) string {
+	return "ALTER TABLE " + e.q(table) + " DROP COLUMN " + e.q(column)
+}
+
+func (e Editor) AlterColumnType(table, column, kind string) string {
+	return "ALTER TABLE " + e.q(table) + " ALTER COLUMN " + e.q(column) + " TYPE " + kind
+}
+
+func (e Editor) AlterNull(table, column string, nullable bool) string {
+	action := "SET NOT NULL"
+	if nullable {
+		action = "DROP NOT NULL"
+	}
+	return "ALTER TABLE " + e.q(table) + " ALTER COLUMN " + e.q(column) + " " + action
+}
+
+func (e Editor) AlterDefault(table, column string, value any) string {
+	if value == nil {
+		return "ALTER TABLE " + e.q(table) + " ALTER COLUMN " + e.q(column) + " DROP DEFAULT"
+	}
+	return "ALTER TABLE " + e.q(table) + " ALTER COLUMN " + e.q(column) + " SET DEFAULT " + value.(string)
+}
+
+func (e Editor) RenameColumn(table, oldName, newName string) string {
+	return "ALTER TABLE " + e.q(table) + " RENAME COLUMN " + e.q(oldName) + " TO " + e.q(newName)
+}
+
+func (e Editor) AddIndex(table string, index migrations.IndexState) string {
+	fields := quoteList(e, index.Fields)
+	return "CREATE INDEX " + e.q(index.Name) + " ON " + e.q(table) + " (" + strings.Join(fields, ", ") + ")"
+}
+
+func (e Editor) DropIndex(name string) string {
+	return "DROP INDEX " + e.q(name)
+}
+
+func (e Editor) RenameIndex(oldName, newName string) string {
+	return "ALTER INDEX " + e.q(oldName) + " RENAME TO " + e.q(newName)
+}
+
+func (e Editor) AddConstraint(table string, constraint migrations.ConstraintState) string {
+	return "ALTER TABLE " + e.q(table) + " ADD CONSTRAINT " + e.q(constraint.Name) + " " + e.constraintSQL(constraint)
+}
+
+func (e Editor) DropConstraint(table, name string) string {
+	if e.Dialect.Name() == "sqlite" {
+		return "-- SQLite rebuild required to drop constraint " + e.q(name) + " on " + e.q(table)
+	}
+	return "ALTER TABLE " + e.q(table) + " DROP CONSTRAINT " + e.q(name)
+}
+
+func (e Editor) CreateManyToManyTable(table, fromColumn, toColumn string) string {
+	return "CREATE TABLE " + e.q(table) + " (" + e.q(fromColumn) + " bigint NOT NULL, " + e.q(toColumn) + " bigint NOT NULL)"
+}
+
+func (e Editor) DropManyToManyTable(table string) string {
+	return "DROP TABLE " + e.q(table)
+}
+
+func (e Editor) columnDefinition(field migrations.FieldState) string {
+	parts := []string{e.q(columnName(field)), fieldKind(field)}
+	if field.PrimaryKey {
+		parts = append(parts, "PRIMARY KEY")
+	}
+	if !field.Null || field.PrimaryKey {
+		parts = append(parts, "NOT NULL")
+	}
+	return strings.Join(parts, " ")
+}
+
+func (e Editor) constraintSQL(constraint migrations.ConstraintState) string {
+	fields := strings.Join(quoteList(e, constraint.Fields), ", ")
+	switch constraint.Type {
+	case "check":
+		return "CHECK (" + constraint.Check + ")"
+	case "exclusion":
+		return "EXCLUDE (" + fields + ")"
+	default:
+		return "UNIQUE (" + fields + ")"
+	}
+}
+
+func (e Editor) q(identifier string) string {
+	return e.Dialect.QuoteIdent(identifier)
+}
+
+func quoteList(e Editor, values []string) []string {
+	quoted := make([]string, len(values))
+	for i, value := range values {
+		quoted[i] = e.q(value)
+	}
+	return quoted
+}
+
+func columnName(field migrations.FieldState) string {
+	if field.Column != "" {
+		return field.Column
+	}
+	return field.Name
+}
+
+func fieldKind(field migrations.FieldState) string {
+	if field.Kind != "" {
+		return field.Kind
+	}
+	return "text"
+}
