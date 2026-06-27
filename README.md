@@ -4,13 +4,30 @@ Gogo is a Go backend framework planned around Django-style applications, models,
 
 ## Current Status
 
-Implementation has started from the incremental plans in `.plans/`.
+Implementation is proceeding task by task from the incremental plans in `.plans/`.
 
-## Planned CLI
+Completed foundation pieces:
+
+- Go module: `github.com/cybersaksham/gogo`
+- Root package metadata
+- Version metadata package
+- CLI command registry
+- Root CLI with planned commands
+- Settings model and validation
+- Environment loader and defaults
+- Configuration check command
+- Runserver command skeleton
+
+## CLI
+
+Implemented commands:
 
 - `gogo help`
 - `gogo version`
 - `gogo check`
+
+Planned commands with explicit unavailable errors until their phase lands:
+
 - `gogo runserver`
 - `gogo startproject`
 - `gogo startapp`
@@ -34,24 +51,75 @@ Implementation has started from the incremental plans in `.plans/`.
 
 ## Environment
 
-Copy `.env.example` to `.env` for local development. Keep `.env` out of Git.
+Copy `.env.example` to `.env` for local development. Keep `.env` out of Git. Generated client projects must commit `.env.example` and must not commit `.env`.
 
-Required variables:
+Framework variables:
 
-- `GOGO_SECRET_KEY`
-- `DATABASE_URL`
+- `GOGO_ENV`: runtime environment. Defaults to `development`. Allowed values are `development`, `test`, and `production`.
+- `GOGO_SECRET_KEY`: required secret key for signing and security-sensitive features.
+- `GOGO_DEBUG`: optional debug flag. Defaults to true only in development.
+- `GOGO_INSTALLED_APPS`: comma-separated installed app list.
+- `GOGO_MIDDLEWARE`: comma-separated middleware list.
+- `GOGO_ROOT_URLCONF`: root URL configuration identifier.
+- `GOGO_DEFAULT_AUTO_FIELD`: default model auto field. Defaults to `BigAutoField`.
+- `GOGO_TIME_ZONE`: application time zone. Defaults to `UTC`.
+- `GOGO_LANGUAGE_CODE`: application language code. Defaults to `en-us`.
 
-Defaults:
+Database variables:
 
-- `GOGO_ENV=development`
-- `GOGO_HTTP_ADDR=:8000`
-- `GOGO_ALLOWED_HOSTS=localhost,127.0.0.1`
+- `DATABASE_URL`: required database connection URL.
 
-Queue variables are required only when queue workers are enabled:
+Server variables:
 
-- `GOGO_BROKER_URL`
-- `GOGO_RESULT_BACKEND`
+- `GOGO_HTTP_ADDR`: HTTP bind address. Defaults to `:8000`.
+
+Static and media variables:
+
+- `GOGO_STATIC_URL`: public static URL prefix. Defaults to `/static/`.
+- `GOGO_STATIC_ROOT`: filesystem path for collected static files.
+- `GOGO_MEDIA_URL`: public media URL prefix. Defaults to `/media/`.
+- `GOGO_MEDIA_ROOT`: filesystem path for uploaded media.
+- `GOGO_TEMPLATE_DIRS`: comma-separated template directories.
+
+Queue variables:
+
+- `GOGO_BROKER_URL`: queue broker URL. Required when queue workers are enabled.
+- `GOGO_RESULT_BACKEND`: queue result backend URL. Required when task results are enabled.
+
+Cache and email variables:
+
+- `GOGO_CACHE_URL`: cache backend URL.
+- `GOGO_EMAIL_URL`: email backend URL.
+
+Session and CSRF variables:
+
+- `GOGO_SESSION_COOKIE_NAME`: session cookie name. Defaults to `gogo_sessionid`.
+- `GOGO_CSRF_COOKIE_NAME`: CSRF cookie name. Defaults to `gogo_csrftoken`.
+
+Security variables:
+
+- `GOGO_ALLOWED_HOSTS`: comma-separated allowed hosts. Required in production.
+
+## Development
+
+Run tests:
+
+```bash
+make test
+```
+
+Run checks:
+
+```bash
+GOGO_SECRET_KEY=dev DATABASE_URL=postgres://dev gogo check
+```
+
+Build the CLI:
+
+```bash
+make build
+```
 
 ## Security
 
-Gogo is intended for production-grade public products. Secrets, local databases, generated uploads, and machine-local files must not be committed.
+Gogo is intended for production-grade public products. Secrets, local databases, generated uploads, and machine-local files must not be committed. Required environment variables must fail fast during boot or checks when missing.
