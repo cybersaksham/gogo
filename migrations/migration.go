@@ -36,6 +36,16 @@ func (m Migration) Identity() string {
 	return m.AppLabel + "." + m.Name
 }
 
+// ReplacesMigration reports whether this migration replaces another migration.
+func (m Migration) ReplacesMigration(dependency Dependency) bool {
+	for _, replaced := range m.Replaces {
+		if replaced == dependency {
+			return true
+		}
+	}
+	return false
+}
+
 // Validate checks migration contract invariants.
 func (m Migration) Validate() error {
 	if m.AppLabel == "" {
