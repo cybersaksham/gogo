@@ -1,18 +1,12 @@
 package orm
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/cybersaksham/gogo/models"
 	"github.com/cybersaksham/gogo/orm/dialects"
-)
-
-var (
-	ErrInvalidQuery              = errors.New("invalid query")
-	ErrUnsupportedDialectFeature = errors.New("unsupported dialect feature")
 )
 
 // CompiledSQL stores SQL text and bound args.

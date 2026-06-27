@@ -3,14 +3,11 @@ package orm
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"sync/atomic"
 )
 
 type transactionContextKey struct{}
-
-var ErrTransactionClosed = errors.New("transaction closed")
 
 // TxOption mutates sql transaction options.
 type TxOption func(*sql.TxOptions)
