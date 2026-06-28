@@ -3,6 +3,7 @@ package templates
 import (
 	"html/template"
 	"strings"
+	"time"
 )
 
 // URLResolver resolves named routes for templates.
@@ -13,6 +14,7 @@ type HelperConfig struct {
 	URLResolver URLResolver
 	StaticURL   string
 	MediaURL    string
+	Now         time.Time
 }
 
 func WithTemplateHelpers(config HelperConfig) Option {
