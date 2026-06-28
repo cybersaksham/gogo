@@ -11,6 +11,8 @@ versioning after the first stable release.
 
 - Fixed CI and release workflow setup so public documentation dependencies are
   installed before docs checks run on clean GitHub runners.
+- Fixed manual release reruns so CLI binary metadata uses the checked-out tag
+  commit and existing release assets can be replaced without moving the tag.
 
 ## v0.1.2 - 2026-06-28
 

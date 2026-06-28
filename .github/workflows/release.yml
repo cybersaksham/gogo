@@ -96,17 +96,19 @@ jobs:
             tag="${GITHUB_REF_NAME}"
           fi
           version="${tag#v}"
+          commit="$(git rev-parse HEAD)"
           build_date="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           {
             printf 'GOGO_RELEASE_TAG=%s\n' "$tag"
             printf 'GOGO_RELEASE_VERSION=%s\n' "$version"
+            printf 'GOGO_RELEASE_COMMIT=%s\n' "$commit"
             printf 'GOGO_RELEASE_BUILD_DATE=%s\n' "$build_date"
           } >> "$GITHUB_ENV"
       - name: Validate release dry run
         run: |
           go run ./internal/release/cmd/dryrun \
             --tag "$GOGO_RELEASE_TAG" \
-            --commit "$GITHUB_SHA" \
+            --commit "$GOGO_RELEASE_COMMIT" \
             --build-date "$GOGO_RELEASE_BUILD_DATE" \
             --changelog CHANGELOG.md \
             --notes-out release-notes.md
@@ -114,7 +116,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
-          ldflags="-s -w -X github.com/cybersaksham/gogo/internal/version.Version=${GOGO_RELEASE_VERSION} -X github.com/cybersaksham/gogo/internal/version.Commit=${GITHUB_SHA} -X github.com/cybersaksham/gogo/internal/version.BuildDate=${GOGO_RELEASE_BUILD_DATE}"
+          ldflags="-s -w -X github.com/cybersaksham/gogo/internal/version.Version=${GOGO_RELEASE_VERSION} -X github.com/cybersaksham/gogo/internal/version.Commit=${GOGO_RELEASE_COMMIT} -X github.com/cybersaksham/gogo/internal/version.BuildDate=${GOGO_RELEASE_BUILD_DATE}"
           while read -r goos goarch; do
             output="dist/gogo_${GOGO_RELEASE_VERSION}_${goos}_${goarch}"
             if [ "$goos" = "windows" ]; then
@@ -135,7 +137,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh release create "$GOGO_RELEASE_TAG" dist/* \
-            --title "$GOGO_RELEASE_TAG" \
-            --notes-file release-notes.md \
-            --verify-tag
+          if gh release view "$GOGO_RELEASE_TAG" >/dev/null 2>&1; then
+            gh release edit "$GOGO_RELEASE_TAG" \
+              --title "$GOGO_RELEASE_TAG" \
+              --notes-file release-notes.md \
+              --verify-tag
+            gh release upload "$GOGO_RELEASE_TAG" dist/* --clobber
+          else
+            gh release create "$GOGO_RELEASE_TAG" dist/* \
+              --title "$GOGO_RELEASE_TAG" \
+              --notes-file release-notes.md \
+              --verify-tag
+          fi
