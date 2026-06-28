@@ -133,3 +133,12 @@ make build
 ## Security
 
 Gogo is intended for production-grade public products. Secrets, local databases, generated uploads, and machine-local files must not be committed. Required environment variables must fail fast during boot or checks when missing.
+
+## Contributing
+
+Read `CONTRIBUTING.md` before opening changes. AI-assisted contributors must
+also follow `AGENTS.md` and the workflow-specific rules in `.agent/rules/`.
+
+## License
+
+Gogo is released under the MIT License. See `LICENSE`.
