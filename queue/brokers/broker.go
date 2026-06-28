@@ -2,7 +2,6 @@ package brokers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"sync"
@@ -12,54 +11,22 @@ import (
 )
 
 var (
-	ErrQueueEmpty   = errors.New("queue empty")
-	ErrBrokerClosed = errors.New("broker closed")
+	ErrQueueEmpty   = queue.ErrQueueEmpty
+	ErrBrokerClosed = queue.ErrBrokerClosed
 )
 
 // Broker is the stable queue broker interface.
-type Broker interface {
-	Publish(context.Context, string, queue.Envelope, PublishOptions) (Message, error)
-	Consume(context.Context, string, ConsumeOptions) (Message, error)
-	Ack(context.Context, Message) error
-	Nack(context.Context, Message, bool) error
-	Requeue(context.Context, Message, time.Duration) error
-	DeclareQueue(context.Context, string, QueueOptions) error
-	PurgeQueue(context.Context, string) (int, error)
-	InspectQueues(context.Context) ([]QueueInfo, error)
-	Close() error
-}
+type Broker = queue.Broker
 
-type PublishOptions struct {
-	Priority   int
-	RoutingKey string
-	Headers    map[string]string
-}
+type PublishOptions = queue.BrokerPublishOptions
 
-type ConsumeOptions struct {
-	VisibilityTimeout time.Duration
-}
+type ConsumeOptions = queue.BrokerConsumeOptions
 
-type QueueOptions struct {
-	Durable           bool
-	VisibilityTimeout time.Duration
-}
+type QueueOptions = queue.BrokerQueueOptions
 
-type Message struct {
-	DeliveryID string
-	Queue      string
-	Envelope   queue.Envelope
-	Priority   int
-	Attempts   int
-	VisibleAt  time.Time
-	Deadline   time.Time
-}
+type Message = queue.BrokerMessage
 
-type QueueInfo struct {
-	Name     string
-	Ready    int
-	InFlight int
-	Durable  bool
-}
+type QueueInfo = queue.BrokerQueueInfo
 
 type MemoryOptions struct {
 	VisibilityTimeout time.Duration
