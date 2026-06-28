@@ -7,17 +7,20 @@ Gogo contrib packages mirror Django's optional batteries. They are installed thr
 Install only the contrib apps a project uses. Site-aware apps must list `gogo.contrib.sites` first.
 
 ```go
-InstalledApps: []string{
-	"gogo.contrib.sites",
-	"gogo.contrib.redirects",
-	"gogo.contrib.flatpages",
-	"gogo.contrib.sitemaps",
-	"gogo.contrib.syndication",
-	"gogo.contrib.humanize",
-	"gogo.contrib.admindocs",
-	"gogo.contrib.postgres",
-	"gogo.contrib.gis",
+settings := conf.Settings{
+	InstalledApps: []string{
+		"gogo.contrib.sites",
+		"gogo.contrib.redirects",
+		"gogo.contrib.flatpages",
+		"gogo.contrib.sitemaps",
+		"gogo.contrib.syndication",
+		"gogo.contrib.humanize",
+		"gogo.contrib.admindocs",
+		"gogo.contrib.postgres",
+		"gogo.contrib.gis",
+	},
 }
+_ = settings
 ```
 
 `gogo.contrib.sites` provides the `Site` model, `SITE_ID` based lookup, request host lookup, current-site middleware, admin metadata, migration metadata, and duplicate-domain checks.
@@ -43,17 +46,20 @@ InstalledApps: []string{
 Use a deterministic order. Security, host validation, session, and auth middleware should wrap requests before contrib middleware that depends on request state.
 
 ```go
-Middleware: []string{
-	"gogo.http.RequestIDMiddleware",
-	"gogo.http.PanicRecoveryMiddleware",
-	"gogo.http.HostValidationMiddleware",
-	"gogo.auth.SessionMiddleware",
-	"gogo.auth.AuthenticationMiddleware",
-	"gogo.contrib.sites.Middleware",
-	"gogo.messages.Middleware",
-	"gogo.contrib.flatpages.Middleware",
-	"gogo.contrib.redirects.Middleware",
+settings := conf.Settings{
+	Middleware: []string{
+		"gogo.http.RequestIDMiddleware",
+		"gogo.http.PanicRecoveryMiddleware",
+		"gogo.http.HostValidationMiddleware",
+		"gogo.auth.SessionMiddleware",
+		"gogo.auth.AuthenticationMiddleware",
+		"gogo.contrib.sites.Middleware",
+		"gogo.messages.Middleware",
+		"gogo.contrib.flatpages.Middleware",
+		"gogo.contrib.redirects.Middleware",
+	},
 }
+_ = settings
 ```
 
 `gogo.contrib.sites.Middleware` must run before site-aware flatpage or redirect resolution so request handlers can use the current site. `gogo.messages.Middleware` should run after session/auth storage is available and before views/templates read messages. `gogo.contrib.redirects.Middleware` should run late because it inspects 404 responses and must not redirect requests that existing routes handled.

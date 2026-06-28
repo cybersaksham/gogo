@@ -26,11 +26,12 @@ Use `forms.NewForm` for public comment submission:
 ```go
 commentForm := forms.NewForm(forms.FormOptions{
 	Fields: map[string]*forms.Field{
-		"name":  forms.NewCharField(forms.FieldOptions{Required: true}),
-		"email": forms.NewEmailField(forms.FieldOptions{Required: true}),
-		"body":  forms.NewCharField(forms.FieldOptions{Required: true}),
+		"name":  forms.CharField(forms.FieldOptions{Required: true}),
+		"email": forms.EmailField(forms.FieldOptions{Required: true}),
+		"body":  forms.CharField(forms.FieldOptions{Required: true}),
 	},
 })
+_ = commentForm
 ```
 
 Use model forms for admin-like create/update flows when the store can validate uniqueness.
@@ -42,11 +43,11 @@ Register `Author`, `Post`, `Tag`, `Comment`, and `AuditEvent`.
 For `Post`, configure:
 
 ```go
-admin.ModelAdmin{
+_ = admin.ModelAdmin{
 	ListDisplay:       []string{"title", "author", "status", "published_at"},
 	ListFilter:        []string{"status", "author", "tags"},
 	SearchFields:      []string{"title", "body", "author__name"},
-	PrepopulatedFields: map[string][]string{"slug": {"title"}},
+	PrepopulatedFields: map[string][]string{"slug": []string{"title"}},
 	ReadonlyFields:    []string{"created_at", "updated_at"},
 }
 ```
@@ -59,7 +60,10 @@ Expose a post list with `api.PageNumberPagination`:
 
 ```go
 paginator := api.PageNumberPagination{PageSize: 20}
-page := paginator.Paginate(request, rows)
+request := api.NewRequest(httptest.NewRequest("GET", "/api/posts/?page=1", nil))
+rows := []any{map[string]any{"title": "Hello"}}
+page, err := paginator.Paginate(request, rows)
+_, _ = page, err
 ```
 
 Use serializers for `Author`, `Post`, `Tag`, and `Comment`. Add filtering for status and tag slug, search on title/body, and ordering by published date.
@@ -69,6 +73,8 @@ Use serializers for `Author`, `Post`, `Tag`, and `Comment`. Add filtering for st
 Send an email after a comment is approved:
 
 ```go
+queueApp := queue.NewApp(queue.AppOptions{})
+mailer := email.NewMemoryBackend()
 _, _ = queueApp.RegisterTask("blog.email_comment_approved", func(ctx context.Context, args ...any) (any, error) {
 	message := email.Message{Subject: "Comment approved", To: []string{args[0].(string)}}
 	_, err := mailer.SendMessages(ctx, []email.Message{message})
@@ -76,6 +82,7 @@ _, _ = queueApp.RegisterTask("blog.email_comment_approved", func(ctx context.Con
 }, queue.TaskOptions{Queue: "email"})
 
 signature := queue.NewSignature("blog.email_comment_approved", "reader@example.com").WithQueue("email")
+_ = signature
 ```
 
 The `email` package supplies messages and backends. `queue.NewSignature` creates the task call.

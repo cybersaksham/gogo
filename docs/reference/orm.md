@@ -75,4 +75,5 @@ compiler := orm.NewCompiler(postgres.New())
 query := orm.NewQuery(models.Metadata{AppLabel: "blog", ModelName: "Post", TableName: "blog_post"}).
 	Select("id", "title")
 compiled, err := compiler.CompileSelect(query)
+_, _ = compiled, err
 ```

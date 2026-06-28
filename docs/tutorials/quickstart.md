@@ -25,11 +25,14 @@ gogo startapp blog
 Add the app to installed apps:
 
 ```go
-InstalledApps: []string{
-	"gogo.contrib.sites",
-	"gogo.contrib.humanize",
-	"blog",
+settings := conf.Settings{
+	InstalledApps: []string{
+		"gogo.contrib.sites",
+		"gogo.contrib.humanize",
+		"blog",
+	},
 }
+_ = settings
 ```
 
 ## 3. Define A Model

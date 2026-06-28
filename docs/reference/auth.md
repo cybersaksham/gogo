@@ -88,5 +88,5 @@ HTTP decorators:
 ```go
 store, err := auth.NewMemoryUserStore(auth.User{AbstractUser: auth.AbstractUser{Username: "admin"}})
 user, ok, err := auth.Authenticate(context.Background(), store, auth.Credentials{Username: "admin"})
-_, _ = user, ok
+_, _, _ = user, ok, err
 ```

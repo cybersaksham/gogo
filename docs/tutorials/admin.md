@@ -5,7 +5,7 @@ This tutorial customizes a `Post` admin with list columns, search, filters, read
 ## Base Registration
 
 ```go
-admin.ModelAdmin{
+_ = admin.ModelAdmin{
 	ListDisplay:  []string{"title", "author", "status", "published_at"},
 	SearchFields: []string{"title", "body", "author__name"},
 	ListFilter:   []string{"status", "author"},
@@ -17,7 +17,7 @@ admin.ModelAdmin{
 ## Form Layout
 
 ```go
-admin.ModelAdmin{
+_ = admin.ModelAdmin{
 	Fieldsets: []admin.Fieldset{
 		{Name: "Content", Fields: []string{"title", "slug", "body"}},
 		{Name: "Publishing", Fields: []string{"status", "published_at"}},
@@ -42,7 +42,7 @@ publish := admin.Action{
 	},
 }
 
-admin.ModelAdmin{
+_ = admin.ModelAdmin{
 	ActionDefinitions: []admin.Action{publish},
 	Actions:           []string{"publish_posts"},
 }
@@ -53,7 +53,7 @@ admin.ModelAdmin{
 Use `Inlines` for comments below a post:
 
 ```go
-admin.Inline{
+_ = admin.Inline{
 	Model:     "blog.Comment",
 	Kind:      admin.InlineTabular,
 	Extra:     1,
@@ -66,7 +66,7 @@ admin.Inline{
 Use `AutocompleteFields` for large relations:
 
 ```go
-admin.ModelAdmin{
+_ = admin.ModelAdmin{
 	AutocompleteFields: []string{"author", "tags"},
 }
 ```
@@ -78,7 +78,7 @@ Pair it with `SearchFields` on related admins.
 Use hooks for object-sensitive permissions:
 
 ```go
-admin.ModelAdmin{
+_ = admin.ModelAdmin{
 	Hooks: admin.ModelAdminHooks{
 		HasChangePermission: func(r *http.Request, user auth.User) bool {
 			return user.IsStaff && user.IsActive && auth.HasPerm(user, "blog.change_post")

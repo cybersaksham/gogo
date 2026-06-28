@@ -96,4 +96,5 @@ meta := models.Metadata{
 	},
 }
 label := meta.Label()
+_ = label
 ```

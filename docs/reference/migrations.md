@@ -72,4 +72,5 @@ migration := migrations.Migration{
 	},
 }
 err := migration.Validate()
+_ = err
 ```

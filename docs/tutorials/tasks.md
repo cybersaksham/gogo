@@ -25,6 +25,7 @@ _, _ = app.RegisterTask("blog.publish_post", func(ctx context.Context, args ...a
 
 ```go
 signature := queue.NewSignature("blog.publish_post", 42).WithQueue("default")
+_ = signature
 ```
 
 Route signatures through the queue router or publish envelopes through the configured broker.
@@ -42,6 +43,7 @@ Workers consume broker messages, execute registered tasks, store results, emit e
 Create periodic schedules and run beat:
 
 ```go
+store := queue.NewMemoryScheduleStore(queue.MemoryScheduleStoreOptions{})
 entry := queue.ScheduleEntry{
 	Name:      "publish-drafts",
 	Signature: queue.NewSignature("blog.publish_due_drafts"),
@@ -65,25 +67,32 @@ Canvas primitives live in `queue/canvas`.
 
 ```go
 workflow := canvas.NewChain(
-	canvas.NewSignature("blog.fetch"),
-	canvas.NewSignature("blog.render"),
-	canvas.NewSignature("blog.publish"),
+	canvas.Task(queue.NewSignature("blog.fetch")),
+	canvas.Task(queue.NewSignature("blog.render")),
+	canvas.Task(queue.NewSignature("blog.publish")),
 )
+_ = workflow
 ```
 
 `Group` runs tasks in parallel:
 
 ```go
 group := canvas.NewGroup(
-	canvas.NewSignature("blog.email_author"),
-	canvas.NewSignature("blog.email_subscribers"),
+	canvas.Task(queue.NewSignature("blog.email_author")),
+	canvas.Task(queue.NewSignature("blog.email_subscribers")),
 )
+_ = group
 ```
 
 `Chord` runs a callback after a group finishes:
 
 ```go
-chord := canvas.NewChord(group, canvas.NewSignature("blog.finalize_campaign"))
+group := canvas.NewGroup(
+	canvas.Task(queue.NewSignature("blog.email_author")),
+	canvas.Task(queue.NewSignature("blog.email_subscribers")),
+)
+chord := canvas.NewChord(group, canvas.Task(queue.NewSignature("blog.finalize_campaign")))
+_ = chord
 ```
 
 ## Retries And Failures

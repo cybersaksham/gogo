@@ -84,4 +84,5 @@ settings := conf.DefaultSettings()
 settings.SecretKey = "dev-secret"
 settings.DatabaseURL = "sqlite:///tmp/gogo.sqlite3"
 err := settings.Validate()
+_ = err
 ```

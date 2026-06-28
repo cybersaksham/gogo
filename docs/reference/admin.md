@@ -47,6 +47,8 @@ Admin site access defaults to active authenticated staff users.
 ## Example
 
 ```go
+meta := models.Metadata{AppLabel: "blog", ModelName: "Post", TableName: "blog_post"}
 registry := admin.NewRegistry()
 err := registry.RegisterMetadata(meta, admin.ModelAdmin{ListDisplay: []string{"title"}})
+_ = err
 ```
