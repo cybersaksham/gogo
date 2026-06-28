@@ -61,7 +61,7 @@ func TestLegacyGeneratedProjectFixtureMatchesContract(t *testing.T) {
 	moduleFile := readFixture(t, "generated_project_v1", "go.mod")
 	for _, want := range []string{
 		"module example.com/legacy",
-		"go 1.26",
+		"go 1.26.4",
 		"require github.com/cybersaksham/gogo v0.1.0",
 	} {
 		if !strings.Contains(moduleFile, want) {

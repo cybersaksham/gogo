@@ -9,6 +9,60 @@ versioning after the first stable release.
 
 No unreleased changes.
 
+## v0.1.2 - 2026-06-28
+
+Patch release for client-project AI-agent guidance and public documentation
+publishing.
+
+### Release Metadata
+
+- Previous release: `v0.1.1`.
+- New release: `v0.1.2`.
+- Module path: `github.com/cybersaksham/gogo`.
+- CLI install path: `github.com/cybersaksham/gogo/cmd/gogo`.
+
+### Added
+
+- Added generated `.agent/rules/gogo.md` and `.agent/rules/gogo/*` files to
+  new projects created with `gogo startproject` so downstream AI agents can
+  understand Gogo project structure, models, migrations, HTTP, admin, API,
+  auth, forms, static files, queues, settings, security, testing, and
+  deployment workflows.
+- Added an Astro Starlight public documentation site under `docs/public`
+  covering installation, project creation, feature areas, project layout,
+  settings, models, ORM, migrations, HTTP, admin, API, auth, forms, templates,
+  static files, queues, CLI usage, testing, and deployment.
+- Added a GitHub Pages workflow that audits, checks, builds, uploads, and
+  deploys the public documentation site from `docs/public/dist`.
+
+### Changed
+
+- Moved existing maintainer-oriented markdown documentation under `docs/code`
+  while keeping user-facing public documentation under `docs/public`.
+- Raised the required Go toolchain to `1.26.4` for the root module, generated
+  projects, generated Docker builds, CI, and release workflows to avoid known
+  reachable vulnerabilities in older Go `1.26.x` standard library releases.
+- Updated docs verification to include MDX files, Starlight route links, public
+  docs npm audit, Starlight type checks, and static docs builds.
+- Updated docs Makefile targets for public docs install, audit, check, and
+  build workflows.
+- Configured the public docs site for the GitHub Pages project path
+  `https://cybersaksham.github.io/gogo/`.
+
+### Verification
+
+- Passed `make ci` before tagging.
+- Passed `go test -tags=integration ./...` before tagging.
+- Passed `govulncheck ./...` with Go `1.26.4` before tagging.
+- Passed release dry run for `v0.1.2` before tagging.
+
+### Artifacts
+
+- The GitHub release workflow publishes CLI binaries for Linux, macOS, and
+  Windows on `amd64` and `arm64`.
+- The GitHub release workflow publishes `checksums.txt` with SHA256 checksums
+  for release artifacts.
+
 ## v0.1.1 - 2026-06-28
 
 Patch release for CLI install/version behavior and repository onboarding

@@ -373,7 +373,9 @@ func extractSnippets(file string) ([]snippet, error) {
 func writeSnippetModule(tmp string, root string) error {
 	content := fmt.Sprintf(`module gogo-doc-snippets
 
-go 1.26
+go 1.26.4
+
+toolchain go1.26.4
 
 require github.com/cybersaksham/gogo v0.0.0
 

@@ -16,7 +16,7 @@ static files, contrib packages, and Celery-style queues.
 
 ## Development Setup
 
-Use Go `1.26` or newer.
+Use Go `1.26.4` or newer.
 
 ```bash
 go mod download

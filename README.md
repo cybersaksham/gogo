@@ -30,7 +30,7 @@ GOPROXY=direct GONOSUMDB=github.com/cybersaksham/gogo \
 
 Requirements:
 
-- Go `1.26` or newer.
+- Go `1.26.4` or newer.
 - Git.
 
 Clone the repository:

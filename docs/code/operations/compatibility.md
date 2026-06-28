@@ -103,12 +103,12 @@ settings, middleware order, migrations, or commands is a breaking change.
 
 ## Supported Go Versions
 
-The framework currently targets Go `1.26`, matching the root `go.mod` and
-generated project templates. CI and release builds use Go `1.26`.
+The framework currently targets Go `1.26.4`, matching the root `go.mod` and
+generated project templates. CI and release builds use Go `1.26.4`.
 
 Supported Go policy:
 
-- Use the latest patch release of Go `1.26` for development, CI, and releases.
+- Use Go `1.26.4` or newer for development, CI, and releases.
 - Generated projects should keep their `go` directive aligned with the
   framework template unless an upgrade guide says otherwise.
 - A future Go minor version can be added in a minor release after CI covers it.

@@ -160,7 +160,7 @@ func TestDeploymentTemplatesAreProductionSafe(t *testing.T) {
 
 	dockerfile := files["deploy/docker/Dockerfile"]
 	for _, want := range []string{
-		"FROM golang:1.26 AS build",
+		"FROM golang:1.26.4 AS build",
 		"FROM gcr.io/distroless/static-debian12",
 		"USER nonroot:nonroot",
 		"CGO_ENABLED=0 go build",
@@ -257,7 +257,7 @@ func TestGeneratedAppCompilesAsDownstreamModule(t *testing.T) {
 	}
 
 	root := t.TempDir()
-	writeFile(t, root, "go.mod", "module sample\n\ngo 1.26\n\nrequire github.com/cybersaksham/gogo v0.0.0\n")
+	writeFile(t, root, "go.mod", "module sample\n\ngo 1.26.4\n\ntoolchain go1.26.4\n\nrequire github.com/cybersaksham/gogo v0.0.0\n")
 	repoRoot, err := filepath.Abs(filepath.Join("..", "..", ".."))
 	if err != nil {
 		t.Fatalf("resolve repo root: %v", err)
