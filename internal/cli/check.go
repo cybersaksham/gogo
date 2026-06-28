@@ -9,6 +9,7 @@ import (
 
 	"github.com/cybersaksham/gogo/checks"
 	"github.com/cybersaksham/gogo/conf"
+	"github.com/cybersaksham/gogo/internal/release"
 )
 
 // NewCheckCommand creates the built-in system check command.
@@ -34,11 +35,14 @@ func (c checkCommand) Run(ctx context.Context, args []string) error {
 	if err := settings.Validate(); err != nil {
 		return err
 	}
-	options, failLevel, err := parseCheckFlags(args)
+	options, failLevel, deploy, err := parseCheckFlags(args)
 	if err != nil {
 		return err
 	}
 	results := checks.DefaultRegistry().Run(ctx, options)
+	if deploy {
+		results = append(results, release.RunDeployChecks(release.BuildDeployConfig(ctx, settings))...)
+	}
 	if checks.HasFailures(results, failLevel) {
 		return ErrCommandFailed
 	}
@@ -46,7 +50,7 @@ func (c checkCommand) Run(ctx context.Context, args []string) error {
 }
 
 func (c checkCommand) runWithIO(ctx context.Context, args []string, stdout, _ io.Writer) error {
-	options, failLevel, err := parseCheckFlags(args)
+	options, failLevel, deploy, err := parseCheckFlags(args)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrCommandFailed, err)
 	}
@@ -62,6 +66,9 @@ func (c checkCommand) runWithIO(ctx context.Context, args []string, stdout, _ io
 
 	fmt.Fprintln(stdout, "OK config settings valid")
 	results := checks.DefaultRegistry().Run(ctx, options)
+	if deploy {
+		results = append(results, release.RunDeployChecks(release.BuildDeployConfig(ctx, settings))...)
+	}
 	for _, result := range results {
 		tag := "general"
 		if len(result.Tags) > 0 {
@@ -79,18 +86,20 @@ func (c checkCommand) runWithIO(ctx context.Context, args []string, stdout, _ io
 	return nil
 }
 
-func parseCheckFlags(args []string) (checks.Options, checks.Severity, error) {
+func parseCheckFlags(args []string) (checks.Options, checks.Severity, bool, error) {
 	flags := flag.NewFlagSet("check", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	var tags string
 	var failLevel string
+	var deploy bool
 	flags.StringVar(&tags, "tag", "", "comma-separated check tags")
 	flags.StringVar(&failLevel, "fail-level", "ERROR", "minimum severity that fails the command")
+	flags.BoolVar(&deploy, "deploy", false, "run production deployment checks")
 	if err := flags.Parse(args); err != nil {
-		return checks.Options{}, checks.SeverityError, err
+		return checks.Options{}, checks.SeverityError, false, err
 	}
 	level := parseSeverity(failLevel)
-	return checks.Options{Tags: splitCheckTags(tags)}, level, nil
+	return checks.Options{Tags: splitCheckTags(tags)}, level, deploy, nil
 }
 
 func splitCheckTags(tags string) []string {

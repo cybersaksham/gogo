@@ -31,7 +31,16 @@ Settings live in `conf.Settings` and are loaded from defaults, `.env`, and proce
 | `TimeZone` | `GOGO_TIME_ZONE` | no | `UTC` | Application time zone. |
 | `LanguageCode` | `GOGO_LANGUAGE_CODE` | no | `en-us` | Default language code. |
 | `SessionCookieName` | `GOGO_SESSION_COOKIE_NAME` | no | `gogo_sessionid` | Session cookie name. |
+| `SessionCookieSecure` | `GOGO_SESSION_COOKIE_SECURE` | deploy | false | Must be true in production deploy checks. |
 | `CSRFCookieName` | `GOGO_CSRF_COOKIE_NAME` | no | `gogo_csrftoken` | CSRF cookie name. |
+| `CSRFCookieSecure` | `GOGO_CSRF_COOKIE_SECURE` | deploy | false | Must be true in production deploy checks. |
+| `HTTPSEnabled` | `GOGO_HTTPS_ENABLED` | deploy | false | Confirms TLS, redirects, and secure proxy handling are enabled. |
+| `CSRFTrustedOrigins` | `GOGO_CSRF_TRUSTED_ORIGINS` | cross-origin forms | empty | Comma-separated HTTPS origins. |
+| `AdminPath` | `GOGO_ADMIN_PATH` | no | `/admin` | Admin URL path reviewed by deploy checks. |
+| `AdminPathReviewed` | `GOGO_ADMIN_PATH_REVIEWED` | deploy | false | Must be true after admin exposure is reviewed. |
+| `MigrationsApplied` | `GOGO_DEPLOY_MIGRATIONS_APPLIED` | deploy | false | Release marker set after migrations are applied and verified. |
+| `StaticFilesCollected` | `GOGO_DEPLOY_STATIC_COLLECTED` | deploy | false | Release marker set after static files are collected. |
+| `PasswordResetEnabled` | `GOGO_PASSWORD_RESET_ENABLED` | auth email | false | Requires `GOGO_EMAIL_URL` in deploy checks. |
 | `BrokerURL` | `GOGO_BROKER_URL` | queue workers | empty | Queue broker URL. |
 | `ResultBackend` | `GOGO_RESULT_BACKEND` | task results | empty | Queue result backend URL. |
 | `CacheURL` | `GOGO_CACHE_URL` | cache | empty | Cache backend URL. |
@@ -45,7 +54,7 @@ Root CLI commands are registered through `internal/cli`. Public users call the `
 | --- | --- | --- |
 | `gogo help` | available | List commands. |
 | `gogo version` | available | Print version. |
-| `gogo check` | available | Load settings and run system checks. |
+| `gogo check` | available | Load settings and run system checks. Use `--deploy` for production readiness checks. |
 | `gogo runserver` | available | Build middleware and run the HTTP server skeleton. |
 | `gogo startproject` | available | Generate project scaffold. |
 | `gogo startapp` | available | Generate app scaffold. |

@@ -13,5 +13,6 @@ func DefaultSettings() Settings {
 		LanguageCode:      "en-us",
 		SessionCookieName: "gogo_sessionid",
 		CSRFCookieName:    "gogo_csrftoken",
+		AdminPath:         "/admin",
 	}
 }

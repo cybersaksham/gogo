@@ -6,5 +6,8 @@ func Production() conf.Settings {
 	settings := Base()
 	settings.Env = "production"
 	settings.Debug = false
+	settings.SessionCookieSecure = true
+	settings.CSRFCookieSecure = true
+	settings.HTTPSEnabled = true
 	return settings
 }

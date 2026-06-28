@@ -94,11 +94,20 @@ Cache and email variables:
 Session and CSRF variables:
 
 - `GOGO_SESSION_COOKIE_NAME`: session cookie name. Defaults to `gogo_sessionid`.
+- `GOGO_SESSION_COOKIE_SECURE`: set to true for production session cookies.
 - `GOGO_CSRF_COOKIE_NAME`: CSRF cookie name. Defaults to `gogo_csrftoken`.
+- `GOGO_CSRF_COOKIE_SECURE`: set to true for production CSRF cookies.
+- `GOGO_CSRF_TRUSTED_ORIGINS`: comma-separated HTTPS origins allowed for trusted CSRF flows.
 
 Security variables:
 
 - `GOGO_ALLOWED_HOSTS`: comma-separated allowed hosts. Required in production.
+- `GOGO_HTTPS_ENABLED`: set to true after HTTPS redirects and secure proxy handling are enabled.
+- `GOGO_ADMIN_PATH`: admin URL path. Defaults to `/admin`.
+- `GOGO_ADMIN_PATH_REVIEWED`: set to true after admin exposure has been reviewed.
+- `GOGO_DEPLOY_MIGRATIONS_APPLIED`: set to true after production migrations are applied and verified.
+- `GOGO_DEPLOY_STATIC_COLLECTED`: set to true after static files are collected for the release.
+- `GOGO_PASSWORD_RESET_ENABLED`: set to true when password reset flows are enabled; requires `GOGO_EMAIL_URL` in deploy checks.
 
 ## Development
 

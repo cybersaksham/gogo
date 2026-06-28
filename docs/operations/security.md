@@ -20,7 +20,13 @@ Set production values explicitly. Do not rely on development defaults.
 | `GOGO_STATIC_ROOT` | Collected static file directory or mounted volume |
 | `GOGO_MEDIA_ROOT` | Writable media directory outside the code tree |
 | `GOGO_SESSION_COOKIE_NAME` | Environment-specific cookie name |
+| `GOGO_SESSION_COOKIE_SECURE` | `true` |
 | `GOGO_CSRF_COOKIE_NAME` | Environment-specific cookie name |
+| `GOGO_CSRF_COOKIE_SECURE` | `true` |
+| `GOGO_CSRF_TRUSTED_ORIGINS` | Exact HTTPS origins when cross-origin unsafe requests are needed |
+| `GOGO_HTTPS_ENABLED` | `true` after TLS and HTTPS redirects are active |
+| `GOGO_ADMIN_PATH` | Reviewed admin path, default `/admin` |
+| `GOGO_ADMIN_PATH_REVIEWED` | `true` after admin exposure is reviewed |
 | `GOGO_BROKER_URL` | Required when workers or beat are deployed |
 | `GOGO_RESULT_BACKEND` | Required when task results are persisted |
 | `GOGO_EMAIL_URL` | Required when password reset or outbound mail is enabled |
@@ -52,8 +58,8 @@ and still run host validation inside the app.
 
 ## Secure Cookies
 
-Session cookies are configured through `sessions.CookieOptions`. Production
-session cookies must use:
+Session cookies are configured through `sessions.CookieOptions` and the deploy
+marker `GOGO_SESSION_COOKIE_SECURE`. Production session cookies must use:
 
 - `Secure: true`
 - `HttpOnly: true`
@@ -63,9 +69,10 @@ session cookies must use:
 - A unique cookie name per environment to avoid local, staging, and production
   collisions.
 
-CSRF cookies are configured through `security.CSRFOptions`. Production CSRF
-cookies must use `SecureCookie: true`, `HttpOnly: true` from the framework
-middleware, and `SameSite` compatible with the project's form flow.
+CSRF cookies are configured through `security.CSRFOptions` and the deploy marker
+`GOGO_CSRF_COOKIE_SECURE`. Production CSRF cookies must use
+`SecureCookie: true`, `HttpOnly: true` from the framework middleware, and
+`SameSite` compatible with the project's form flow.
 
 Enable `DiagnoseSecureCookies` on `security.SecurityMiddleware` during
 pre-production checks to detect response cookies missing the `Secure` flag.
@@ -185,6 +192,7 @@ Before production traffic is allowed:
 - Run documentation verification with `make docs-verify`.
 - Run vulnerability scanning in CI.
 - Run `gogo check` with production environment variables.
+- Run `gogo check --deploy` after migrations and static collection are complete.
 - Confirm debug mode is disabled in the running process.
 - Confirm host validation rejects unexpected hosts.
 - Confirm HTTP redirects to HTTPS.

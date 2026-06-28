@@ -8,29 +8,38 @@ import (
 
 // Settings contains framework configuration loaded from code and environment.
 type Settings struct {
-	Env               string
-	SecretKey         string
-	Debug             bool
-	AllowedHosts      []string
-	HTTPAddr          string
-	DatabaseURL       string
-	InstalledApps     []string
-	Middleware        []string
-	RootURLConf       string
-	StaticURL         string
-	StaticRoot        string
-	MediaURL          string
-	MediaRoot         string
-	TemplateDirs      []string
-	DefaultAutoField  string
-	TimeZone          string
-	LanguageCode      string
-	SessionCookieName string
-	CSRFCookieName    string
-	BrokerURL         string
-	ResultBackend     string
-	CacheURL          string
-	EmailURL          string
+	Env                  string
+	SecretKey            string
+	Debug                bool
+	AllowedHosts         []string
+	HTTPAddr             string
+	DatabaseURL          string
+	InstalledApps        []string
+	Middleware           []string
+	RootURLConf          string
+	StaticURL            string
+	StaticRoot           string
+	MediaURL             string
+	MediaRoot            string
+	TemplateDirs         []string
+	DefaultAutoField     string
+	TimeZone             string
+	LanguageCode         string
+	SessionCookieName    string
+	SessionCookieSecure  bool
+	CSRFCookieName       string
+	CSRFCookieSecure     bool
+	HTTPSEnabled         bool
+	CSRFTrustedOrigins   []string
+	AdminPath            string
+	AdminPathReviewed    bool
+	MigrationsApplied    bool
+	StaticFilesCollected bool
+	PasswordResetEnabled bool
+	BrokerURL            string
+	ResultBackend        string
+	CacheURL             string
+	EmailURL             string
 }
 
 // Validate returns an error when required settings are missing or invalid.

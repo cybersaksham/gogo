@@ -39,6 +39,9 @@ func TestDefaultSettingsProvidesSafeDevelopmentDefaults(t *testing.T) {
 	if settings.CSRFCookieName != "gogo_csrftoken" {
 		t.Fatalf("CSRFCookieName = %q, want gogo_csrftoken", settings.CSRFCookieName)
 	}
+	if settings.AdminPath != "/admin" {
+		t.Fatalf("AdminPath = %q, want /admin", settings.AdminPath)
+	}
 }
 
 func TestDefaultSettingsStillRequiresSecretsAndDatabase(t *testing.T) {

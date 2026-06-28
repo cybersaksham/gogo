@@ -84,6 +84,51 @@ DATABASE_URL=postgres://check
 	}
 }
 
+func TestCheckCommandSupportsDeployChecks(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	staticRoot := filepath.Join(dir, "staticfiles")
+	mediaRoot := filepath.Join(dir, "media")
+	if err := os.MkdirAll(staticRoot, 0o755); err != nil {
+		t.Fatalf("mkdir static root: %v", err)
+	}
+	if err := os.MkdirAll(mediaRoot, 0o755); err != nil {
+		t.Fatalf("mkdir media root: %v", err)
+	}
+	writeTextFile(t, filepath.Join(staticRoot, "staticfiles.json"), `{}`)
+	writeTextFile(t, filepath.Join(dir, ".env"), `
+GOGO_ENV=production
+GOGO_SECRET_KEY=8aUQh2zR7mN4pL6vCx9YtB3sWk5dF1gH
+GOGO_DEBUG=false
+GOGO_ALLOWED_HOSTS=example.com,admin.example.com
+GOGO_HTTP_ADDR=:8000
+DATABASE_URL=sqlite://:memory:
+GOGO_STATIC_ROOT=`+staticRoot+`
+GOGO_MEDIA_ROOT=`+mediaRoot+`
+GOGO_SESSION_COOKIE_SECURE=true
+GOGO_CSRF_COOKIE_SECURE=true
+GOGO_CSRF_TRUSTED_ORIGINS=https://admin.example.com
+GOGO_HTTPS_ENABLED=true
+GOGO_ADMIN_PATH=/admin
+GOGO_ADMIN_PATH_REVIEWED=true
+GOGO_DEPLOY_MIGRATIONS_APPLIED=true
+GOGO_DEPLOY_STATIC_COLLECTED=true
+GOGO_BROKER_URL=memory://
+GOGO_RESULT_BACKEND=memory
+GOGO_PASSWORD_RESET_ENABLED=true
+GOGO_EMAIL_URL=smtp://mail:1025
+`)
+
+	root := NewRoot()
+	var stdout bytes.Buffer
+	if err := root.Execute(context.Background(), []string{"check", "--deploy", "--tag", "deploy"}, &stdout, io.Discard); err != nil {
+		t.Fatalf("Execute(check --deploy) error = %v\n%s", err, stdout.String())
+	}
+	if !strings.Contains(stdout.String(), "INFO deploy production deploy checks passed") {
+		t.Fatalf("deploy check output = %q", stdout.String())
+	}
+}
+
 func writeTextFile(t *testing.T, path string, contents string) {
 	t.Helper()
 

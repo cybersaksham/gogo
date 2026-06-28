@@ -26,7 +26,16 @@ var knownEnvKeys = []string{
 	"GOGO_TIME_ZONE",
 	"GOGO_LANGUAGE_CODE",
 	"GOGO_SESSION_COOKIE_NAME",
+	"GOGO_SESSION_COOKIE_SECURE",
 	"GOGO_CSRF_COOKIE_NAME",
+	"GOGO_CSRF_COOKIE_SECURE",
+	"GOGO_HTTPS_ENABLED",
+	"GOGO_CSRF_TRUSTED_ORIGINS",
+	"GOGO_ADMIN_PATH",
+	"GOGO_ADMIN_PATH_REVIEWED",
+	"GOGO_DEPLOY_MIGRATIONS_APPLIED",
+	"GOGO_DEPLOY_STATIC_COLLECTED",
+	"GOGO_PASSWORD_RESET_ENABLED",
 	"GOGO_BROKER_URL",
 	"GOGO_RESULT_BACKEND",
 	"GOGO_CACHE_URL",
@@ -151,8 +160,35 @@ func SettingsFromMap(values map[string]string) Settings {
 	if value := values["GOGO_SESSION_COOKIE_NAME"]; value != "" {
 		settings.SessionCookieName = value
 	}
+	if value, ok := values["GOGO_SESSION_COOKIE_SECURE"]; ok && strings.TrimSpace(value) != "" {
+		settings.SessionCookieSecure = parseBool(value)
+	}
 	if value := values["GOGO_CSRF_COOKIE_NAME"]; value != "" {
 		settings.CSRFCookieName = value
+	}
+	if value, ok := values["GOGO_CSRF_COOKIE_SECURE"]; ok && strings.TrimSpace(value) != "" {
+		settings.CSRFCookieSecure = parseBool(value)
+	}
+	if value, ok := values["GOGO_HTTPS_ENABLED"]; ok && strings.TrimSpace(value) != "" {
+		settings.HTTPSEnabled = parseBool(value)
+	}
+	if value := values["GOGO_CSRF_TRUSTED_ORIGINS"]; value != "" {
+		settings.CSRFTrustedOrigins = splitList(value)
+	}
+	if value := values["GOGO_ADMIN_PATH"]; value != "" {
+		settings.AdminPath = value
+	}
+	if value, ok := values["GOGO_ADMIN_PATH_REVIEWED"]; ok && strings.TrimSpace(value) != "" {
+		settings.AdminPathReviewed = parseBool(value)
+	}
+	if value, ok := values["GOGO_DEPLOY_MIGRATIONS_APPLIED"]; ok && strings.TrimSpace(value) != "" {
+		settings.MigrationsApplied = parseBool(value)
+	}
+	if value, ok := values["GOGO_DEPLOY_STATIC_COLLECTED"]; ok && strings.TrimSpace(value) != "" {
+		settings.StaticFilesCollected = parseBool(value)
+	}
+	if value, ok := values["GOGO_PASSWORD_RESET_ENABLED"]; ok && strings.TrimSpace(value) != "" {
+		settings.PasswordResetEnabled = parseBool(value)
 	}
 	if value := values["GOGO_BROKER_URL"]; value != "" {
 		settings.BrokerURL = value

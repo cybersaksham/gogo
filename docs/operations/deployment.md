@@ -30,6 +30,13 @@ GOGO_SECRET_KEY=
 GOGO_ALLOWED_HOSTS=example.com,www.example.com
 DATABASE_URL=
 GOGO_HTTP_ADDR=:8000
+GOGO_SESSION_COOKIE_SECURE=true
+GOGO_CSRF_COOKIE_SECURE=true
+GOGO_HTTPS_ENABLED=true
+GOGO_ADMIN_PATH=/admin
+GOGO_ADMIN_PATH_REVIEWED=true
+GOGO_DEPLOY_MIGRATIONS_APPLIED=true
+GOGO_DEPLOY_STATIC_COLLECTED=true
 ```
 
 Common deployment variables:
@@ -45,6 +52,8 @@ GOGO_CACHE_URL=redis://redis:6379/2
 GOGO_EMAIL_URL=
 GOGO_SESSION_COOKIE_NAME=gogo_sessionid
 GOGO_CSRF_COOKIE_NAME=gogo_csrftoken
+GOGO_CSRF_TRUSTED_ORIGINS=
+GOGO_PASSWORD_RESET_ENABLED=
 ```
 
 Keep `.env` out of Git. Store production secrets in the platform secret manager
@@ -71,6 +80,12 @@ Minimum startup order:
 5. Web process starts.
 6. Workers start.
 7. Beat starts after at least one worker pool is ready.
+
+Run deploy checks before allowing traffic:
+
+```bash
+gogo check --deploy
+```
 
 ## Migrations
 
