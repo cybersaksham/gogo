@@ -9,6 +9,7 @@ import (
 // Request wraps a standard HTTP request with API lifecycle metadata.
 type Request struct {
 	raw              *http.Request
+	pathParams       map[string]string
 	parsedBody       any
 	user             auth.User
 	authValue        any
@@ -18,7 +19,7 @@ type Request struct {
 
 // NewRequest wraps a standard HTTP request.
 func NewRequest(raw *http.Request) *Request {
-	return &Request{raw: raw}
+	return &Request{raw: raw, pathParams: map[string]string{}}
 }
 
 // Raw returns the underlying HTTP request.
@@ -29,6 +30,22 @@ func (r *Request) Raw() *http.Request {
 // QueryParam returns the first query parameter value.
 func (r *Request) QueryParam(name string) string {
 	return r.raw.URL.Query().Get(name)
+}
+
+// Method returns the HTTP request method.
+func (r *Request) Method() string {
+	return r.raw.Method
+}
+
+// WithPathParam attaches a resolved route path parameter.
+func (r *Request) WithPathParam(name, value string) *Request {
+	r.pathParams[name] = value
+	return r
+}
+
+// PathParam returns a resolved route path parameter.
+func (r *Request) PathParam(name string) string {
+	return r.pathParams[name]
 }
 
 // WithParsedBody attaches the parsed request body.

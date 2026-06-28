@@ -69,6 +69,19 @@ func (s *Serializer) Validate(input map[string]any) (map[string]any, map[string]
 	return validated, fieldErrors, len(fieldErrors) == 0
 }
 
+// ValidatePartial parses input while allowing required fields to be omitted.
+func (s *Serializer) ValidatePartial(input map[string]any) (map[string]any, map[string][]string, bool) {
+	fields := append([]SerializerField(nil), s.fields...)
+	for index := range fields {
+		fields[index].Options.Required = false
+	}
+	partial := &Serializer{
+		fields:           fields,
+		objectValidators: append([]ObjectValidator(nil), s.objectValidators...),
+	}
+	return partial.Validate(input)
+}
+
 // Render serializes an object map.
 func (s *Serializer) Render(obj map[string]any) map[string]any {
 	rendered := map[string]any{}
