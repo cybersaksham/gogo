@@ -53,7 +53,9 @@ Root CLI commands are registered through `internal/cli`. Public users call the `
 | Command | Status | Purpose |
 | --- | --- | --- |
 | `gogo help` | available | List commands. |
+| `gogo --help` | available | List commands. |
 | `gogo version` | available | Print version. |
+| `gogo --version` | available | Print version. |
 | `gogo check` | available | Load settings and run system checks. Use `--deploy` for production readiness checks. |
 | `gogo runserver` | available | Build middleware and run the HTTP server. |
 | `gogo startproject` | available | Generate project scaffold. |

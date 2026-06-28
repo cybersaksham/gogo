@@ -30,6 +30,14 @@ func (r *Root) Execute(ctx context.Context, args []string, stdout, stderr io.Wri
 	if len(args) == 0 {
 		args = []string{"help"}
 	}
+	if len(args) == 1 {
+		switch args[0] {
+		case "--help", "-h":
+			args = []string{"help"}
+		case "--version", "-version":
+			args = []string{"version"}
+		}
+	}
 
 	command, err := r.registry.Get(args[0])
 	if err != nil {

@@ -6,14 +6,14 @@ import (
 	"testing"
 )
 
-func TestReadmeDocumentsEveryEnvExampleKey(t *testing.T) {
+func TestSettingsReferenceDocumentsEveryEnvExampleKey(t *testing.T) {
 	envExample, err := os.ReadFile(".env.example")
 	if err != nil {
 		t.Fatalf("read .env.example: %v", err)
 	}
-	readme, err := os.ReadFile("README.md")
+	settingsReference, err := os.ReadFile("docs/reference/settings.md")
 	if err != nil {
-		t.Fatalf("read README.md: %v", err)
+		t.Fatalf("read docs/reference/settings.md: %v", err)
 	}
 
 	for _, line := range strings.Split(string(envExample), "\n") {
@@ -27,8 +27,8 @@ func TestReadmeDocumentsEveryEnvExampleKey(t *testing.T) {
 			continue
 		}
 
-		if !strings.Contains(string(readme), "`"+key+"`") {
-			t.Fatalf("README.md does not document %s", key)
+		if !strings.Contains(string(settingsReference), "`"+key+"`") {
+			t.Fatalf("docs/reference/settings.md does not document %s", key)
 		}
 	}
 }

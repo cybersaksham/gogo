@@ -89,6 +89,48 @@ func TestRootVersionPrintsVersionInfo(t *testing.T) {
 	}
 }
 
+func TestRootVersionFlagPrintsVersionInfo(t *testing.T) {
+	restore := setVersionMetadata("9.8.7", "commit1", "2026-06-27T00:00:00Z")
+	defer restore()
+
+	root := NewRoot()
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	err := root.Execute(context.Background(), []string{"--version"}, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("Execute(--version) error = %v", err)
+	}
+
+	want := "gogo 9.8.7 (commit commit1, built 2026-06-27T00:00:00Z)\n"
+	if stdout.String() != want {
+		t.Fatalf("stdout = %q, want %q", stdout.String(), want)
+	}
+
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q, want empty", stderr.String())
+	}
+}
+
+func TestRootHelpFlagPrintsHelp(t *testing.T) {
+	root := NewRoot()
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	err := root.Execute(context.Background(), []string{"--help"}, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("Execute(--help) error = %v", err)
+	}
+
+	if !strings.Contains(stdout.String(), "Usage: gogo <command> [args]") {
+		t.Fatalf("stdout = %q, want usage", stdout.String())
+	}
+
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q, want empty", stderr.String())
+	}
+}
+
 func TestRootCollectstaticUsesImplementedCommand(t *testing.T) {
 	root := NewRoot()
 	var stdout bytes.Buffer
