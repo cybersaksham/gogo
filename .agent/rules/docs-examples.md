@@ -7,7 +7,9 @@ Use this rule when changing public behavior, generated code, examples, or docume
 - Update reference docs when public APIs, commands, settings, or generated templates change.
 - Update tutorials when user workflows change.
 - Update operations docs when deployment, queues, database, admin, security, compatibility, upgrades, dependencies, benchmarks, or release behavior changes.
-- Keep README accurate and high-level.
+- Keep README limited to downloading/installing, local setup, contribution, security, and license information.
+- Do not put product documentation in README. Do not add feature catalogs, command catalogs, environment variable references, architecture notes, tutorials, API references, implementation status, roadmap details, or product capability descriptions there.
+- Put product documentation under `docs/`, with reference material in `docs/reference/`, workflow tutorials in `docs/tutorials/`, architecture notes in `docs/architecture/`, and operational documentation in `docs/operations/`.
 - Do not leave stale "planned", "placeholder", or skeleton language in user-facing docs unless describing historical compatibility.
 
 ## Generated Docs
@@ -26,4 +28,3 @@ Use this rule when changing public behavior, generated code, examples, or docume
 make docs-verify
 make example-blog-test
 ```
-
