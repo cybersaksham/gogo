@@ -230,9 +230,17 @@ func (f *Field) cleanValue(value any) (any, error) {
 	case "image":
 		return cleanImage(value)
 	case "float":
-		return strconv.ParseFloat(fmt.Sprint(value), 64)
+		parsed, err := strconv.ParseFloat(fmt.Sprint(value), 64)
+		if err != nil {
+			return nil, fmt.Errorf("%w: enter a valid float", ErrValidation)
+		}
+		return parsed, nil
 	case "integer":
-		return strconv.ParseInt(fmt.Sprint(value), 10, 64)
+		parsed, err := strconv.ParseInt(fmt.Sprint(value), 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("%w: enter a valid integer", ErrValidation)
+		}
+		return parsed, nil
 	case "ip":
 		return cleanIP(value)
 	case "json":
