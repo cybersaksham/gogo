@@ -9,6 +9,60 @@ versioning after the first stable release.
 
 No unreleased changes.
 
+## v0.1.1 - 2026-06-28
+
+Patch release for CLI install/version behavior and repository onboarding
+documentation.
+
+### Release Metadata
+
+- Previous release: `v0.1.0`.
+- New release: `v0.1.1`.
+- Module path: `github.com/cybersaksham/gogo`.
+- CLI install path: `github.com/cybersaksham/gogo/cmd/gogo`.
+
+### Added
+
+- Added the MIT `LICENSE` file.
+- Added `CONTRIBUTING.md` with setup, verification, security, compatibility,
+  pull request, and release contribution guidance.
+- Added an agent rule that keeps `README.md` limited to download, setup,
+  contribution, security, and license information while product documentation
+  stays under `docs/`.
+
+### Changed
+
+- Simplified `README.md` to only cover download, setup, contribution, security,
+  and license information.
+- Updated download instructions to pin `v0.1.1` and document the direct Git
+  fallback for new tags that are not yet available from the public Go checksum
+  database.
+- Updated CLI settings reference documentation to include `gogo --help` and
+  `gogo --version`.
+
+### Fixed
+
+- Added `gogo --version`, `gogo -version`, `gogo --help`, and `gogo -h` root
+  aliases.
+- Fixed source installs from `go install github.com/cybersaksham/gogo/cmd/gogo@vX.Y.Z`
+  so `gogo version` can report the Go module version when release linker flags
+  are not present.
+- Moved environment-variable documentation coverage checks from `README.md` to
+  `docs/reference/settings.md` so the README remains onboarding-only.
+
+### Verification
+
+- Passed `make ci` before tagging.
+- Passed `go test -tags=integration ./...` before tagging.
+- Passed release dry run for `v0.1.1` before tagging.
+
+### Artifacts
+
+- The GitHub release workflow publishes CLI binaries for Linux, macOS, and
+  Windows on `amd64` and `arm64`.
+- The GitHub release workflow publishes `checksums.txt` with SHA256 checksums
+  for release artifacts.
+
 ## v0.1.0 - 2026-06-28
 
 Initial pre-release of the app-structured Gogo framework.
