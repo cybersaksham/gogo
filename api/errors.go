@@ -20,4 +20,5 @@ var (
 	ErrPagination              = errors.New("pagination error")
 	ErrFilter                  = errors.New("filter error")
 	ErrUpload                  = errors.New("upload error")
+	ErrVersion                 = errors.New("version error")
 )
