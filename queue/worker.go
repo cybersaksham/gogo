@@ -43,6 +43,7 @@ type WorkerOptions struct {
 	Pool                    Pool
 	Logger                  WorkerLogger
 	MemoryUsage             func() uint64
+	Revocations             *RevocationRegistry
 }
 
 type WorkerLogger interface {
@@ -73,6 +74,7 @@ type WorkerStats struct {
 	Processed               int
 	Succeeded               int
 	Failed                  int
+	Revoked                 int
 	Acked                   int
 	Nacked                  int
 	Recycled                int
@@ -94,6 +96,7 @@ type Worker struct {
 	processed  int
 	succeeded  int
 	failed     int
+	revoked    int
 	acked      int
 	nacked     int
 	recycled   int
@@ -136,6 +139,9 @@ func NewWorker(app *App, broker Broker, backend ResultBackend, options WorkerOpt
 	}
 	if options.MemoryUsage == nil {
 		options.MemoryUsage = currentMemoryUsage
+	}
+	if options.Revocations == nil {
+		options.Revocations = NewRevocationRegistry()
 	}
 	return &Worker{
 		app:       app,
@@ -271,6 +277,7 @@ func (w *Worker) Stats() WorkerStats {
 		Processed:               w.processed,
 		Succeeded:               w.succeeded,
 		Failed:                  w.failed,
+		Revoked:                 w.revoked,
 		Acked:                   w.acked,
 		Nacked:                  w.nacked,
 		Recycled:                w.recycled,
@@ -306,6 +313,19 @@ func (w *Worker) loop(ctx context.Context) {
 }
 
 func (w *Worker) handleMessage(ctx context.Context, message BrokerMessage) error {
+	if w.options.Revocations != nil && w.options.Revocations.IsRevoked(message.Envelope) {
+		result := Result{TaskID: message.Envelope.ID, State: StateRevoked, Error: "task revoked"}
+		if err := w.backend.StoreResult(ctx, result); err != nil {
+			return err
+		}
+		if err := w.broker.Ack(ctx, message); err != nil {
+			return err
+		}
+		w.recordAck()
+		w.recordRevoked()
+		w.log(ctx, WorkerLogEntry{Event: "task.revoked", TaskID: message.Envelope.ID, TaskName: message.Envelope.Name, Queue: message.Queue, State: StateRevoked})
+		return nil
+	}
 	task, ok := w.app.Task(message.Envelope.Name)
 	if !ok {
 		err := fmt.Errorf("%w: %s", ErrTaskNotRegistered, message.Envelope.Name)
@@ -331,11 +351,18 @@ func (w *Worker) handleMessage(ctx context.Context, message BrokerMessage) error
 		w.log(ctx, WorkerLogEntry{Event: "task.started", TaskID: message.Envelope.ID, TaskName: task.Name, Queue: message.Queue, State: StateStarted})
 	}
 
+	taskCtx, cancel, timeoutKind := workerTaskContext(ctx, task.Options)
+	defer cancel()
 	w.recordRunning(1)
-	value, err := w.options.Pool.Run(ctx, func(taskCtx context.Context) (any, error) {
+	value, err := w.options.Pool.Run(taskCtx, func(taskCtx context.Context) (any, error) {
 		return task.Func(taskCtx, message.Envelope.Args...)
 	})
 	w.recordRunning(-1)
+	err = normalizeTimeoutError(err, timeoutKind)
+
+	if retry, ok := AsRetry(err); ok {
+		return w.retryMessage(ctx, message, task, retry, ackPolicy)
+	}
 
 	result := Result{TaskID: message.Envelope.ID}
 	if task.Options.IgnoreResult {
@@ -374,6 +401,93 @@ func (w *Worker) ackPolicy(task Task) AckPolicy {
 	return w.options.AckPolicy
 }
 
+func (w *Worker) retryMessage(ctx context.Context, message BrokerMessage, task Task, retry *RetryError, ackPolicy AckPolicy) error {
+	maxRetries := task.Options.MaxRetries
+	if retry.MaxRetries != nil {
+		maxRetries = *retry.MaxRetries
+	}
+	if message.Envelope.Retries >= maxRetries {
+		err := retry.Err
+		if err == nil {
+			err = ErrRetryRequested
+		}
+		result := Result{TaskID: message.Envelope.ID, State: StateFailure, Error: err.Error(), Traceback: err.Error()}
+		if storeErr := w.backend.StoreResult(ctx, result); storeErr != nil {
+			return storeErr
+		}
+		if ackPolicy == AckLate {
+			if ackErr := w.broker.Ack(ctx, message); ackErr != nil {
+				return ackErr
+			}
+			w.recordAck()
+		}
+		w.recordComplete(false)
+		w.log(ctx, WorkerLogEntry{Event: "task.retry.exhausted", TaskID: message.Envelope.ID, TaskName: task.Name, Queue: message.Queue, State: StateFailure, Error: result.Error})
+		return nil
+	}
+
+	delay := retry.Countdown
+	if delay == 0 && retry.ETA != nil {
+		delay = time.Until(*retry.ETA)
+	}
+	if delay < 0 {
+		delay = 0
+	}
+	if delay == 0 {
+		delay = ComputeRetryDelay(task.Options, message.Envelope.Retries, nil)
+	}
+	errText := retry.Error()
+	if errText == "" {
+		errText = ErrRetryRequested.Error()
+	}
+	if storeErr := w.backend.StoreResult(ctx, Result{TaskID: message.Envelope.ID, State: StateRetry, Error: errText, Traceback: errText}); storeErr != nil {
+		return storeErr
+	}
+	message.Envelope.Retries++
+	if err := w.broker.Requeue(ctx, message, delay); err != nil {
+		return err
+	}
+	w.log(ctx, WorkerLogEntry{
+		Event:    "task.retry",
+		TaskID:   message.Envelope.ID,
+		TaskName: task.Name,
+		Queue:    message.Queue,
+		State:    StateRetry,
+		Error:    errText,
+		Fields:   map[string]any{"delay": delay.String(), "retries": message.Envelope.Retries},
+	})
+	return nil
+}
+
+func workerTaskContext(ctx context.Context, options TaskOptions) (context.Context, context.CancelFunc, string) {
+	if options.HardTimeout > 0 && (options.SoftTimeout == 0 || options.HardTimeout <= options.SoftTimeout) {
+		taskCtx, cancel := context.WithTimeout(ctx, options.HardTimeout)
+		return taskCtx, cancel, "hard"
+	}
+	if options.SoftTimeout > 0 {
+		taskCtx, cancel := context.WithTimeout(ctx, options.SoftTimeout)
+		return taskCtx, cancel, "soft"
+	}
+	if options.HardTimeout > 0 {
+		taskCtx, cancel := context.WithTimeout(ctx, options.HardTimeout)
+		return taskCtx, cancel, "hard"
+	}
+	return ctx, func() {}, ""
+}
+
+func normalizeTimeoutError(err error, timeoutKind string) error {
+	if err == nil || !errors.Is(err, context.DeadlineExceeded) {
+		return err
+	}
+	if timeoutKind == "hard" {
+		return ErrHardTimeout
+	}
+	if timeoutKind == "soft" {
+		return ErrSoftTimeout
+	}
+	return err
+}
+
 func (w *Worker) validate() error {
 	if w.app == nil || w.broker == nil || w.backend == nil {
 		return ErrWorkerNotConfigured
@@ -400,6 +514,13 @@ func (w *Worker) recordNack() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.nacked++
+}
+
+func (w *Worker) recordRevoked() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.processed++
+	w.revoked++
 }
 
 func (w *Worker) recordComplete(success bool) {
