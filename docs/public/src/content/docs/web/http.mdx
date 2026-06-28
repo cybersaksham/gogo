@@ -1,0 +1,23 @@
+---
+title: HTTP
+description: Route requests, compose middleware, return responses, and keep web behavior app-structured.
+---
+
+Gogo HTTP code belongs in project and app URL files:
+
+- project root routes in `<project>/urls.go`
+- app routes in `apps/<app>/urls.go`
+- middleware wiring in project settings or `<project>/middleware.go`
+
+## Capabilities
+
+| Area | Includes |
+| --- | --- |
+| Routing | route registration, path patterns, URL reversing, app route wiring |
+| Requests and responses | request wrappers, response helpers, redirects, error responses |
+| Middleware | ordered middleware chains for security, sessions, CSRF, auth, messages, and custom behavior |
+| Views | function views, generic views, decorators, and shared handler helpers |
+| Errors | centralized error handling and consistent HTTP responses |
+
+Keep route handlers thin. Put reusable business logic in app services so admin,
+API, tasks, and tests can reuse the same code.

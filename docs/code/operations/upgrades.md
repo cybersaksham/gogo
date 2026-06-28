@@ -8,7 +8,7 @@ been reviewed.
 ## Before You Upgrade
 
 1. Read `CHANGELOG.md` for the target version.
-2. Read `docs/operations/compatibility.md` for supported Go, database, broker,
+2. Read `docs/code/operations/compatibility.md` for supported Go, database, broker,
    and generated project contracts.
 3. Confirm the target version supports the project's database, queue broker,
    result backend, and Go version.

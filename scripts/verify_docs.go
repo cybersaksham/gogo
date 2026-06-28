@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-const generatedPackagesPath = "docs/generated/public-packages.md"
+const generatedPackagesPath = "docs/code/generated/public-packages.md"
 
 type snippet struct {
 	File  string
@@ -102,17 +102,18 @@ func checkMarkdownLinks(root string) error {
 			rawPath := strings.SplitN(target, "#", 2)[0]
 			rootRelative := strings.HasPrefix(rawPath, "/")
 			rawPath = strings.TrimPrefix(rawPath, "/")
+			rawPath = strings.TrimSuffix(rawPath, "/")
+			if rawPath == "" {
+				continue
+			}
 			path := rawPath
 			path, err = filepath.Localize(path)
 			if err != nil {
 				problems = append(problems, fmt.Sprintf("%s has invalid link %q", rel(root, file), target))
 				continue
 			}
-			candidate := filepath.Join(filepath.Dir(file), path)
-			if rootRelative {
-				candidate = filepath.Join(root, path)
-			}
-			if _, err := os.Stat(candidate); err != nil {
+			candidates := markdownLinkCandidates(root, file, path, rootRelative)
+			if !markdownTargetExists(candidates) {
 				problems = append(problems, fmt.Sprintf("%s has missing link target %q", rel(root, file), target))
 			}
 		}
@@ -244,9 +245,12 @@ func markdownFiles(root string) ([]string, error) {
 			return err
 		}
 		if entry.IsDir() {
+			if skipMarkdownDir(entry.Name()) {
+				return filepath.SkipDir
+			}
 			return nil
 		}
-		if strings.EqualFold(filepath.Ext(path), ".md") {
+		if isMarkdownPath(path) {
 			files = append(files, path)
 		}
 		return nil
@@ -255,6 +259,57 @@ func markdownFiles(root string) ([]string, error) {
 	}
 	sort.Strings(files)
 	return files, nil
+}
+
+func markdownLinkCandidates(root string, file string, path string, rootRelative bool) []string {
+	if rootRelative {
+		candidates := []string{}
+		if isPublicDocsContent(root, file) {
+			candidates = append(candidates, filepath.Join(root, "docs", "public", "src", "content", "docs", path))
+		}
+		return append(candidates, filepath.Join(root, path))
+	}
+	return []string{filepath.Join(filepath.Dir(file), path)}
+}
+
+func markdownTargetExists(candidates []string) bool {
+	for _, candidate := range candidates {
+		if pathExists(candidate) {
+			return true
+		}
+		trimmed := strings.TrimRight(candidate, string(os.PathSeparator))
+		if pathExists(trimmed+".md") || pathExists(trimmed+".mdx") {
+			return true
+		}
+		if pathExists(filepath.Join(candidate, "index.md")) || pathExists(filepath.Join(candidate, "index.mdx")) {
+			return true
+		}
+	}
+	return false
+}
+
+func pathExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+func isPublicDocsContent(root string, file string) bool {
+	relative := rel(root, file)
+	return strings.HasPrefix(relative, "docs/public/src/content/docs/")
+}
+
+func isMarkdownPath(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	return ext == ".md" || ext == ".mdx"
+}
+
+func skipMarkdownDir(name string) bool {
+	switch name {
+	case "node_modules", "dist", ".astro":
+		return true
+	default:
+		return false
+	}
 }
 
 func skipLinkTarget(target string) bool {

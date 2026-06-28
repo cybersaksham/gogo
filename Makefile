@@ -1,4 +1,6 @@
-.PHONY: test race race-concurrency lint fmt-check build check integration deps vuln-check bench ci example-blog-test docs-links docs-examples docs-generated docs-generated-update docs-tutorials docs-verify
+DOCS_NODE ?= npx -y node@22.12.0
+
+.PHONY: test race race-concurrency lint fmt-check build check integration deps vuln-check bench ci example-blog-test docs-public-install docs-public-audit docs-public-check docs-public-build docs-links docs-examples docs-generated docs-generated-update docs-tutorials docs-verify
 
 test:
 	go test ./...
@@ -55,8 +57,23 @@ docs-generated:
 docs-generated-update:
 	go run ./scripts/verify_docs.go update-generated
 
+docs-public-install:
+	npm --prefix docs/public install
+
+docs-public-audit:
+	npm --prefix docs/public audit --audit-level=moderate
+
+docs-public-check:
+	cd docs/public && $(DOCS_NODE) node_modules/.bin/astro check
+
+docs-public-build:
+	cd docs/public && $(DOCS_NODE) node_modules/.bin/astro build
+
 docs-tutorials:
 	go run ./scripts/verify_docs.go tutorials
 
 docs-verify:
 	go run ./scripts/verify_docs.go all
+	$(MAKE) docs-public-audit
+	$(MAKE) docs-public-check
+	$(MAKE) docs-public-build

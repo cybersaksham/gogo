@@ -10,7 +10,8 @@ Use this rule when adding, moving, or reviewing files.
 - Generated downstream project templates belong under `internal/cli/templates/project`.
 - Generated downstream app templates belong under `internal/cli/templates/app`.
 - Release-only code belongs under `internal/release`.
-- Documentation belongs under `docs/architecture`, `docs/reference`, `docs/tutorials`, `docs/operations`, or `docs/generated`.
+- Code-maintainer documentation belongs under `docs/code/architecture`, `docs/code/reference`, `docs/code/tutorials`, `docs/code/operations`, or `docs/code/generated`.
+- Public static documentation belongs under `docs/public` and must not replace the maintainer docs under `docs/code`.
 
 ## Generated Project Contract
 
@@ -24,4 +25,3 @@ Use this rule when adding, moving, or reviewing files.
 - Public packages need package tests unless the package only holds generated migration declarations.
 - Put behavioral tests beside the package being changed.
 - Put downstream generated-project checks in `internal/cli/*generated_project*_test.go`.
-

@@ -1,0 +1,57 @@
+---
+title: Models and Fields
+description: Define model metadata, fields, indexes, constraints, and permissions.
+---
+
+Model metadata is the source of truth for fields, validation, migrations, admin,
+serializers, permissions, and ORM query compilation.
+
+## Public packages
+
+| Package | Purpose |
+| --- | --- |
+| `models` | model metadata, registry, lifecycle state, indexes, constraints, inheritance, permissions, and validation hooks |
+| `models/fields` | Django-style field constructors and field-level conversion and validation |
+| `models/constraints` | index and constraint metadata helpers |
+| `models/hooks` | model lifecycle hooks |
+| `models/validation` | structured validation errors |
+
+## Field families
+
+| Category | Examples |
+| --- | --- |
+| Integer | auto, big auto, small auto, integer, big integer, small integer, positive integer |
+| Decimal and float | decimal, float |
+| Text and boolean | boolean, char, text, email, URL, slug, UUID |
+| Temporal | date, datetime, time, duration |
+| Binary and JSON | binary, JSON |
+| Files | file, image, file path |
+| Network | generic IP address |
+| Generated | generated field |
+| Relations | foreign key, one-to-one, many-to-many |
+| PostgreSQL | array, hstore, integer ranges, decimal ranges, date ranges, datetime ranges |
+| GIS | geometry, point, line string, polygon, multipoint, multilinestring, multipolygon, geometry collection, raster |
+
+## Example metadata
+
+```go
+package blog
+
+import "github.com/cybersaksham/gogo/models"
+
+func PostMetadata() models.Metadata {
+	return models.Metadata{
+		AppLabel:  "blog",
+		ModelName: "Post",
+		TableName: "blog_post",
+		Fields: []models.FieldMeta{
+			{Name: "id", Column: "id", PrimaryKey: true},
+			{Name: "title", Column: "title"},
+		},
+	}
+}
+```
+
+Add explicit field names, column names, defaults, null and blank behavior,
+choices, validators, indexes, constraints, and custom permissions when those
+rules affect database, admin, API, or auth behavior.

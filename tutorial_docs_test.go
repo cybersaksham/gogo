@@ -7,16 +7,16 @@ import (
 )
 
 func TestTutorialDocsCoverRequiredFlows(t *testing.T) {
-	checkTutorial(t, "docs/tutorials/quickstart.md", []string{
+	checkTutorial(t, "docs/code/tutorials/quickstart.md", []string{
 		"gogo startproject", "gogo startapp", "models.Metadata", "gogo makemigrations", "gogo migrate", "gogo createsuperuser", "admin.ModelAdmin", "api.NewRouter", "gogo runserver",
 	})
-	checkTutorial(t, "docs/tutorials/blog.md", []string{
+	checkTutorial(t, "docs/code/tutorials/blog.md", []string{
 		"Author", "Post", "Tag", "Comment", "forms.NewForm", "ListFilter", "PageNumberPagination", "email", "queue.NewSignature",
 	})
-	checkTutorial(t, "docs/tutorials/admin.md", []string{
+	checkTutorial(t, "docs/code/tutorials/admin.md", []string{
 		"ListDisplay", "SearchFields", "ListFilter", "ReadonlyFields", "Actions", "Inlines", "AutocompleteFields", "HasChangePermission",
 	})
-	checkTutorial(t, "docs/tutorials/tasks.md", []string{
+	checkTutorial(t, "docs/code/tutorials/tasks.md", []string{
 		"MaxRetries", "RetryBackoff", "gogo beat", "Chain", "Group", "Chord", "SoftTimeout", "HardTimeout",
 	})
 }

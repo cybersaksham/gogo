@@ -1,0 +1,34 @@
+---
+title: Migrations
+description: Generate, inspect, apply, squash, and optimize database schema changes.
+---
+
+Migrations live in each app's `migrations/` directory and describe schema
+changes with explicit operations.
+
+## Main workflow
+
+```bash
+gogo makemigrations
+gogo sqlmigrate blog 0001_initial
+gogo migrate
+gogo showmigrations
+```
+
+## Maintenance commands
+
+```bash
+gogo squashmigrations blog 0001 0005
+gogo optimizemigration blog 0005
+```
+
+## Rules
+
+- Add migrations whenever model metadata changes database schema.
+- Review generated operations before applying destructive changes.
+- Keep data migrations idempotent and reversible where possible.
+- Prefer additive schema changes in production systems.
+- Do not edit already-applied migrations unless the project is private and the task explicitly asks for migration history cleanup.
+
+Migration SQL rendering uses the configured dialect so teams can review the
+exact SQL before rollout.

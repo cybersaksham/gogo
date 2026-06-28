@@ -1,0 +1,56 @@
+---
+title: Create a Project
+description: Generate a Gogo project and add apps to it.
+---
+
+## Generate the project
+
+```bash
+gogo startproject mysite
+cd mysite
+cp .env.example .env
+```
+
+Generated projects include:
+
+- `go.mod` and `manage.go`
+- grouped `.env.example`
+- grouped `.gitignore`
+- project settings, URLs, middleware, admin, and queue wiring
+- `apps/`, `templates/`, `static/`, `media/`, `fixtures/`, and `tests/`
+- Docker deployment templates
+- `.agent/rules/gogo.md` and `.agent/rules/gogo/*` for AI agents working inside the client project
+
+## Add an app
+
+```bash
+gogo startapp blog apps/blog
+```
+
+An app keeps its feature code together:
+
+```text
+apps/blog/
+  app.go
+  models.go
+  admin.go
+  urls.go
+  api.go
+  serializers.go
+  forms.go
+  services.go
+  tasks.go
+  permissions.go
+  migrations/
+  templates/blog/
+  static/blog/
+  tests/
+```
+
+After creating an app, add it to the project settings or installed app list and
+run tests:
+
+```bash
+go mod tidy
+go test ./...
+```

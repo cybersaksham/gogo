@@ -11,9 +11,10 @@ func TestSettingsReferenceDocumentsEveryEnvExampleKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read .env.example: %v", err)
 	}
-	settingsReference, err := os.ReadFile("docs/reference/settings.md")
+	const settingsReferencePath = "docs/code/reference/settings.md"
+	settingsReference, err := os.ReadFile(settingsReferencePath)
 	if err != nil {
-		t.Fatalf("read docs/reference/settings.md: %v", err)
+		t.Fatalf("read %s: %v", settingsReferencePath, err)
 	}
 
 	for _, line := range strings.Split(string(envExample), "\n") {
@@ -28,7 +29,7 @@ func TestSettingsReferenceDocumentsEveryEnvExampleKey(t *testing.T) {
 		}
 
 		if !strings.Contains(string(settingsReference), "`"+key+"`") {
-			t.Fatalf("docs/reference/settings.md does not document %s", key)
+			t.Fatalf("%s does not document %s", settingsReferencePath, key)
 		}
 	}
 }

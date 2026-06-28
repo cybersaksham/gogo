@@ -27,7 +27,7 @@ issue requires faster removal.
 
 The public API is the set of exported identifiers in documented non-internal
 packages under `github.com/cybersaksham/gogo`. The generated list in
-`docs/generated/public-packages.md` is the source of truth for public package
+`docs/code/generated/public-packages.md` is the source of truth for public package
 visibility.
 
 Stable public surfaces include:

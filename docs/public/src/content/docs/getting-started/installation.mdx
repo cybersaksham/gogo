@@ -1,0 +1,43 @@
+---
+title: Installation
+description: Install the Gogo CLI and add the framework module to a Go project.
+---
+
+## Requirements
+
+- Go `1.26` or newer.
+- Git.
+- Node is only needed when working on this documentation site.
+
+## Install the CLI
+
+Install the published CLI:
+
+```bash
+go install github.com/cybersaksham/gogo/cmd/gogo@v0.1.1
+```
+
+Check the installed binary:
+
+```bash
+gogo --version
+```
+
+If a newly published tag is not visible through the public Go checksum database
+yet, install directly from Git:
+
+```bash
+GOPROXY=direct GONOSUMDB=github.com/cybersaksham/gogo \
+  go install github.com/cybersaksham/gogo/cmd/gogo@v0.1.1
+```
+
+## Use Gogo as a dependency
+
+Add the framework module to an application:
+
+```bash
+go get github.com/cybersaksham/gogo@v0.1.1
+```
+
+Generated projects already reference the public module path. Run `go mod tidy`
+after changing apps or imports.

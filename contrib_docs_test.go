@@ -7,9 +7,10 @@ import (
 )
 
 func TestContribDocsCoverInstallationMiddlewareAndDatabaseRequirements(t *testing.T) {
-	body, err := os.ReadFile("docs/contrib.md")
+	const contribDocsPath = "docs/code/contrib.md"
+	body, err := os.ReadFile(contribDocsPath)
 	if err != nil {
-		t.Fatalf("read docs/contrib.md: %v", err)
+		t.Fatalf("read %s: %v", contribDocsPath, err)
 	}
 	docs := string(body)
 	for _, want := range []string{
@@ -36,7 +37,7 @@ func TestContribDocsCoverInstallationMiddlewareAndDatabaseRequirements(t *testin
 		"gogo check",
 	} {
 		if !strings.Contains(docs, want) {
-			t.Fatalf("docs/contrib.md does not document %s", want)
+			t.Fatalf("%s does not document %s", contribDocsPath, want)
 		}
 	}
 }

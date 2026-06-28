@@ -1,0 +1,37 @@
+---
+title: Deployment
+description: Prepare Gogo applications for production.
+---
+
+## Production checklist
+
+- Set `GOGO_ENV=production`.
+- Set `GOGO_DEBUG=false`.
+- Configure `GOGO_SECRET_KEY`, `DATABASE_URL`, and `GOGO_ALLOWED_HOSTS`.
+- Enable secure session and CSRF cookies when HTTPS is enabled.
+- Review `GOGO_ADMIN_PATH` exposure and set `GOGO_ADMIN_PATH_REVIEWED=true`.
+- Apply migrations before serving code that depends on new schema.
+- Collect static files before deploying static asset changes.
+- Run web, worker, and beat from the same project version.
+- Keep old application versions available until migrations, workers, beat, and smoke tests are verified.
+
+Run deploy checks:
+
+```bash
+gogo check --deploy
+```
+
+## Services
+
+| Service | Setting |
+| --- | --- |
+| Database | `DATABASE_URL` |
+| Queue broker | `GOGO_BROKER_URL` |
+| Result backend | `GOGO_RESULT_BACKEND` |
+| Cache | `GOGO_CACHE_URL` |
+| Email | `GOGO_EMAIL_URL` |
+
+Use secret managers or deployment platform secret storage for production values.
+Never commit `.env`, database credentials, broker credentials, email
+credentials, private keys, certificates, uploaded files, local databases, or
+customer data.

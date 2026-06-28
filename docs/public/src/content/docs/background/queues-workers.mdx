@@ -1,0 +1,51 @@
+---
+title: Queues and Workers
+description: Run background tasks, workers, beat schedules, retries, timeouts, and canvas workflows.
+---
+
+The queue package provides Celery-style task registration, signatures,
+envelopes, brokers, result backends, retries, worker execution, beat schedules,
+routing, rate limits, events, inspection, security, admin metadata, and canvas
+primitives.
+
+## Register a task
+
+```go
+package docs
+
+import (
+	"context"
+
+	"github.com/cybersaksham/gogo/queue"
+)
+
+func RegisterTask(app *queue.App) error {
+	_, err := app.RegisterTask("blog.publish", func(context.Context, ...any) (any, error) {
+		return "ok", nil
+	}, queue.TaskOptions{Queue: "default"})
+	return err
+}
+```
+
+## Run queue processes
+
+```bash
+gogo worker
+gogo beat
+gogo inspect
+gogo queues
+```
+
+## Reliability settings
+
+Configure retries, retry delays, backoff, jitter, soft and hard timeouts, queue,
+routing key, priority, acknowledgement policy, result handling, rate limits, and
+idempotency expectations explicitly for production tasks.
+
+## Brokers and backends
+
+Broker packages include in-memory queues, Redis, and RabbitMQ. Result backend
+packages include in-memory, Redis, and SQL-backed storage.
+
+Canvas workflows live under `queue/canvas` and include chains, groups, chords,
+chunks, maps, and serialized workflow types.

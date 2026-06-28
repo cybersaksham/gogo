@@ -1,0 +1,38 @@
+---
+title: Admin
+description: Register model admin screens and configure staff workflows.
+---
+
+The admin package provides model registration, sites, staff access policies,
+auth views, index pages, change lists, change forms, delete confirmation,
+history, filters, search, autocomplete, widgets, inlines, actions, static
+assets, and queue/admin docs integrations.
+
+## Model admin options
+
+Admin registrations can configure list display, list filters, ordering, search,
+readonly fields, fieldsets, forms, inlines, autocomplete fields, raw ID fields,
+prepopulated fields, actions, custom URLs, computed columns, and lifecycle
+hooks.
+
+## Register metadata
+
+```go
+package blog
+
+import (
+	"github.com/cybersaksham/gogo/admin"
+	"github.com/cybersaksham/gogo/models"
+)
+
+func RegisterAdmin(registry *admin.Registry) error {
+	meta := models.Metadata{AppLabel: "blog", ModelName: "Post", TableName: "blog_post"}
+	return registry.RegisterMetadata(meta, admin.ModelAdmin{
+		ListDisplay: []string{"title"},
+		SearchFields: []string{"title"},
+	})
+}
+```
+
+Admin access should stay behind active staff and permission checks. Keep
+destructive actions auditable and require explicit permissions where needed.

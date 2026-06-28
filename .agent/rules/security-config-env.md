@@ -12,7 +12,7 @@ Use this rule for settings, auth, sessions, CSRF, signing, deployment checks, or
 
 - Root `.env.example` documents framework env variables.
 - `internal/cli/templates/project/env.example.tmpl` defines generated client project variables.
-- When env variables change, update both files and `docs/reference/settings.md`.
+- When env variables change, update both files, `docs/code/reference/settings.md`, and the relevant public docs under `docs/public/src/content/docs`.
 - Blank values in `.env.example` mean required values unless a documented default exists.
 
 ## Runtime Validation
@@ -25,4 +25,3 @@ Use this rule for settings, auth, sessions, CSRF, signing, deployment checks, or
 - Preserve constant-time comparisons for tokens and passwords.
 - Preserve password hash compatibility fixtures.
 - Keep session and CSRF cookies secure in production settings.
-
