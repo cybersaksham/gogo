@@ -1,4 +1,4 @@
-.PHONY: test race race-concurrency lint fmt-check build check integration deps vuln-check ci example-blog-test docs-links docs-examples docs-generated docs-generated-update docs-tutorials docs-verify
+.PHONY: test race race-concurrency lint fmt-check build check integration deps vuln-check bench ci example-blog-test docs-links docs-examples docs-generated docs-generated-update docs-tutorials docs-verify
 
 test:
 	go test ./...
@@ -34,6 +34,9 @@ vuln-check:
 	else \
 		echo "govulncheck not installed; skipping local vulnerability scan"; \
 	fi
+
+bench:
+	go test -run '^$$' -bench . -benchmem ./benchmarks
 
 ci: fmt-check lint test integration race-concurrency example-blog-test docs-verify deps vuln-check
 

@@ -10,6 +10,7 @@
 | `github.com/cybersaksham/gogo/app` | `app` | - |
 | `github.com/cybersaksham/gogo/auth` | `auth` | - |
 | `github.com/cybersaksham/gogo/auth/migrations` | `migrations` | - |
+| `github.com/cybersaksham/gogo/benchmarks` | `benchmarks` | - |
 | `github.com/cybersaksham/gogo/cache` | `cache` | - |
 | `github.com/cybersaksham/gogo/checks` | `checks` | - |
 | `github.com/cybersaksham/gogo/conf` | `conf` | - |
