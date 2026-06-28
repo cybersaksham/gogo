@@ -124,6 +124,7 @@ type ModelAdmin struct {
 	ViewOnSite              bool
 	CustomURLs              []URLPattern
 	ComputedColumns         map[string]ComputedColumn
+	ActionDefinitions       []Action
 	Hooks                   ModelAdminHooks
 }
 
@@ -213,6 +214,7 @@ func (a ModelAdmin) clone() ModelAdmin {
 	a.SortableBy = append([]string(nil), a.SortableBy...)
 	a.CustomURLs = cloneURLs(a.CustomURLs)
 	a.ComputedColumns = cloneComputedColumns(a.ComputedColumns)
+	a.ActionDefinitions = append([]Action(nil), a.ActionDefinitions...)
 	return a
 }
 
