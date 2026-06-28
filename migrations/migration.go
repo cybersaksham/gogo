@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -13,6 +14,23 @@ var migrationNamePattern = regexp.MustCompile(`^\d{4}_[a-z0-9_]+$`)
 type Dependency struct {
 	AppLabel string
 	Name     string
+}
+
+// UnmarshalJSON accepts current and legacy dependency field names.
+func (d *Dependency) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		AppLabel      string `json:"AppLabel"`
+		AppLabelSnake string `json:"app_label"`
+		App           string `json:"app"`
+		Name          string `json:"Name"`
+		NameLower     string `json:"name"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	d.AppLabel = firstNonEmpty(raw.AppLabel, raw.AppLabelSnake, raw.App)
+	d.Name = firstNonEmpty(raw.Name, raw.NameLower)
+	return nil
 }
 
 // Identity returns app.name.
@@ -114,4 +132,13 @@ func slugify(value string) string {
 		}
 	}
 	return strings.Trim(builder.String(), "_")
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
 }
