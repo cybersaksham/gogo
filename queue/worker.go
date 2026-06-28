@@ -44,6 +44,7 @@ type WorkerOptions struct {
 	Logger                  WorkerLogger
 	MemoryUsage             func() uint64
 	Revocations             *RevocationRegistry
+	RateLimiter             *RateLimiter
 }
 
 type WorkerLogger interface {
@@ -75,6 +76,7 @@ type WorkerStats struct {
 	Succeeded               int
 	Failed                  int
 	Revoked                 int
+	RateLimited             int
 	Acked                   int
 	Nacked                  int
 	Recycled                int
@@ -88,20 +90,21 @@ type Worker struct {
 	options   WorkerOptions
 	autoscale AutoscaleState
 
-	mu         sync.Mutex
-	cancel     context.CancelFunc
-	done       chan struct{}
-	wg         sync.WaitGroup
-	started    bool
-	processed  int
-	succeeded  int
-	failed     int
-	revoked    int
-	acked      int
-	nacked     int
-	recycled   int
-	running    int
-	childTasks int
+	mu          sync.Mutex
+	cancel      context.CancelFunc
+	done        chan struct{}
+	wg          sync.WaitGroup
+	started     bool
+	processed   int
+	succeeded   int
+	failed      int
+	revoked     int
+	rateLimited int
+	acked       int
+	nacked      int
+	recycled    int
+	running     int
+	childTasks  int
 }
 
 func NewWorker(app *App, broker Broker, backend ResultBackend, options WorkerOptions) *Worker {
@@ -142,6 +145,9 @@ func NewWorker(app *App, broker Broker, backend ResultBackend, options WorkerOpt
 	}
 	if options.Revocations == nil {
 		options.Revocations = NewRevocationRegistry()
+	}
+	if options.RateLimiter == nil {
+		options.RateLimiter = NewRateLimiter(RateLimiterOptions{})
 	}
 	return &Worker{
 		app:       app,
@@ -278,6 +284,7 @@ func (w *Worker) Stats() WorkerStats {
 		Succeeded:               w.succeeded,
 		Failed:                  w.failed,
 		Revoked:                 w.revoked,
+		RateLimited:             w.rateLimited,
 		Acked:                   w.acked,
 		Nacked:                  w.nacked,
 		Recycled:                w.recycled,
@@ -335,6 +342,22 @@ func (w *Worker) handleMessage(ctx context.Context, message BrokerMessage) error
 		}
 		w.recordNack()
 		return err
+	}
+	if w.options.RateLimiter != nil {
+		if allowed, delay := w.options.RateLimiter.Allow(task.Name, task.Options.RateLimit); !allowed {
+			if err := w.broker.Requeue(ctx, message, delay); err != nil {
+				return err
+			}
+			w.recordRateLimited()
+			w.log(ctx, WorkerLogEntry{
+				Event:    "task.rate_limited",
+				TaskID:   message.Envelope.ID,
+				TaskName: task.Name,
+				Queue:    message.Queue,
+				Fields:   map[string]any{"delay": delay.String()},
+			})
+			return nil
+		}
 	}
 
 	ackPolicy := w.ackPolicy(task)
@@ -521,6 +544,12 @@ func (w *Worker) recordRevoked() {
 	defer w.mu.Unlock()
 	w.processed++
 	w.revoked++
+}
+
+func (w *Worker) recordRateLimited() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.rateLimited++
 }
 
 func (w *Worker) recordComplete(success bool) {
