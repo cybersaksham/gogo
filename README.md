@@ -2,23 +2,29 @@
 
 ## Download
 
-Install the CLI from the latest published release:
+Install the CLI from the published release:
 
 ```bash
-go install github.com/cybersaksham/gogo/cmd/gogo@latest
+go install github.com/cybersaksham/gogo/cmd/gogo@v0.1.0
 ```
 
 Use the framework as a Go module:
 
 ```bash
-go get github.com/cybersaksham/gogo@latest
+go get github.com/cybersaksham/gogo@v0.1.0
 ```
-
-To pin a specific release, replace `latest` with a tag such as `v0.1.0`.
 
 Prebuilt CLI binaries and checksums are available from GitHub Releases:
 
 https://github.com/cybersaksham/gogo/releases
+
+If a newly published tag is not available from the public Go checksum database
+yet, install directly from Git:
+
+```bash
+GOPROXY=direct GONOSUMDB=github.com/cybersaksham/gogo \
+  go install github.com/cybersaksham/gogo/cmd/gogo@v0.1.0
+```
 
 ## Setup
 
