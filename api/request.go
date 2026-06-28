@@ -1,0 +1,87 @@
+package api
+
+import (
+	"net/http"
+
+	"github.com/cybersaksham/gogo/auth"
+)
+
+// Request wraps a standard HTTP request with API lifecycle metadata.
+type Request struct {
+	raw              *http.Request
+	parsedBody       any
+	user             auth.User
+	authValue        any
+	version          string
+	acceptedRenderer string
+}
+
+// NewRequest wraps a standard HTTP request.
+func NewRequest(raw *http.Request) *Request {
+	return &Request{raw: raw}
+}
+
+// Raw returns the underlying HTTP request.
+func (r *Request) Raw() *http.Request {
+	return r.raw
+}
+
+// QueryParam returns the first query parameter value.
+func (r *Request) QueryParam(name string) string {
+	return r.raw.URL.Query().Get(name)
+}
+
+// WithParsedBody attaches the parsed request body.
+func (r *Request) WithParsedBody(body any) *Request {
+	r.parsedBody = body
+	return r
+}
+
+// ParsedBody returns the parsed request body.
+func (r *Request) ParsedBody() any {
+	return r.parsedBody
+}
+
+// WithUser attaches the authenticated user.
+func (r *Request) WithUser(user auth.User) *Request {
+	r.user = user
+	return r
+}
+
+// User returns the authenticated user.
+func (r *Request) User() auth.User {
+	return r.user
+}
+
+// WithAuth attaches authentication metadata.
+func (r *Request) WithAuth(value any) *Request {
+	r.authValue = value
+	return r
+}
+
+// Auth returns authentication metadata.
+func (r *Request) Auth() any {
+	return r.authValue
+}
+
+// WithVersion attaches the resolved API version.
+func (r *Request) WithVersion(version string) *Request {
+	r.version = version
+	return r
+}
+
+// Version returns the resolved API version.
+func (r *Request) Version() string {
+	return r.version
+}
+
+// WithAcceptedRenderer attaches the selected renderer name.
+func (r *Request) WithAcceptedRenderer(renderer string) *Request {
+	r.acceptedRenderer = renderer
+	return r
+}
+
+// AcceptedRenderer returns the selected renderer name.
+func (r *Request) AcceptedRenderer() string {
+	return r.acceptedRenderer
+}
