@@ -22,18 +22,19 @@ func NewWriter(dir string) Writer {
 func (w Writer) Write(migration Migration) (string, error) {
 	var builder strings.Builder
 	builder.WriteString("package migrations\n\n")
+	builder.WriteString("import gogomigrations \"github.com/cybersaksham/gogo/migrations\"\n\n")
 	builder.WriteString("// GeneratedMigration describes this generated migration.\n")
-	builder.WriteString("var GeneratedMigration = Migration{\n")
+	builder.WriteString("var GeneratedMigration = gogomigrations.Migration{\n")
 	builder.WriteString(fmt.Sprintf("\tAppLabel: %q,\n", migration.AppLabel))
 	builder.WriteString(fmt.Sprintf("\tName: %q,\n", migration.Name))
-	builder.WriteString("\tDependencies: []Dependency{\n")
+	builder.WriteString("\tDependencies: []gogomigrations.Dependency{\n")
 	for _, dependency := range migration.Dependencies {
 		builder.WriteString(fmt.Sprintf("\t\t{AppLabel: %q, Name: %q},\n", dependency.AppLabel, dependency.Name))
 	}
 	builder.WriteString("\t},\n")
-	builder.WriteString("\tOperations: []Operation{\n")
+	builder.WriteString("\tOperations: []gogomigrations.Operation{\n")
 	for _, operation := range migration.Operations {
-		builder.WriteString(fmt.Sprintf("\t\tManifestOperation{NameValue: %q},\n", operation.Name()))
+		builder.WriteString(fmt.Sprintf("\t\tgogomigrations.ManifestOperation{NameValue: %q},\n", operation.Name()))
 	}
 	builder.WriteString("\t},\n")
 	builder.WriteString("}\n")

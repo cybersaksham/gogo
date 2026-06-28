@@ -2,6 +2,7 @@ package migrations
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -23,7 +24,8 @@ func TestLoaderLoadsMigrationManifests(t *testing.T) {
 }
 
 func TestWriterWritesDeterministicGoMigration(t *testing.T) {
-	dir := t.TempDir()
+	root := t.TempDir()
+	dir := filepath.Join(root, "blog", "migrations")
 	migration := testMigration("blog", "0002_add_post")
 	migration.Dependencies = []Dependency{{AppLabel: "blog", Name: "0001_initial"}}
 	writer := NewWriter(dir)
@@ -39,7 +41,7 @@ func TestWriterWritesDeterministicGoMigration(t *testing.T) {
 		t.Fatalf("ReadFile() error = %v", err)
 	}
 	text := string(content)
-	for _, want := range []string{"package migrations", `AppLabel: "blog"`, `"0002_add_post"`, `Dependencies:`} {
+	for _, want := range []string{"package migrations", `gogomigrations.Migration`, `AppLabel: "blog"`, `"0002_add_post"`, `Dependencies:`} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("written migration missing %q:\n%s", want, text)
 		}
@@ -51,5 +53,34 @@ func TestWriterWritesDeterministicGoMigration(t *testing.T) {
 	again, _ := os.ReadFile(pathAgain)
 	if string(again) != text {
 		t.Fatalf("writer output was not deterministic")
+	}
+
+	repoRoot, err := filepath.Abs("..")
+	if err != nil {
+		t.Fatalf("resolve repo root: %v", err)
+	}
+	writeTextFile(t, filepath.Join(root, "go.mod"), "module generated-migration\n\ngo 1.26\n\nrequire github.com/cybersaksham/gogo v0.0.0\n")
+	runTestCommand(t, root, "go", "mod", "edit", "-replace", "github.com/cybersaksham/gogo="+filepath.ToSlash(repoRoot))
+	runTestCommand(t, root, "go", "mod", "tidy")
+	runTestCommand(t, root, "go", "test", "./blog/migrations")
+}
+
+func writeTextFile(t *testing.T, path string, contents string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", path, err)
+	}
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+func runTestCommand(t *testing.T, dir string, name string, args ...string) {
+	t.Helper()
+	cmd := exec.Command(name, args...)
+	cmd.Dir = dir
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("%s %s failed in %s: %v\n%s", name, strings.Join(args, " "), dir, err, output)
 	}
 }
