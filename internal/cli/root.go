@@ -144,7 +144,7 @@ func plannedCommands(root *Root) []Command {
 		NewOptimizeMigrationCommand(),
 		NewCreateSuperuserCommand(defaultAuthStore),
 		NewChangePasswordCommand(defaultAuthStore),
-		unavailableCommand{name: "collectstatic", summary: "Collect static files", phase: "10-forms-templates-static-files"},
+		NewCollectstaticCommand(nil),
 		NewShellCommand(nil),
 		unavailableCommand{name: "dbshell", summary: "Open a database shell", phase: "05-orm-query-engine"},
 		unavailableCommand{name: "test", summary: "Run project tests", phase: "13-testing-docs-examples"},
