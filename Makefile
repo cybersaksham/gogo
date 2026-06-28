@@ -58,15 +58,15 @@ docs-generated-update:
 	go run ./scripts/verify_docs.go update-generated
 
 docs-public-install:
-	npm --prefix docs/public install
+	npm --prefix docs/public ci
 
 docs-public-audit:
 	npm --prefix docs/public audit --audit-level=moderate
 
-docs-public-check:
+docs-public-check: docs-public-install
 	cd docs/public && $(DOCS_NODE) node_modules/.bin/astro check
 
-docs-public-build:
+docs-public-build: docs-public-install
 	cd docs/public && $(DOCS_NODE) node_modules/.bin/astro build
 
 docs-tutorials:

@@ -7,7 +7,10 @@ versioning after the first stable release.
 
 ## Unreleased
 
-No unreleased changes.
+### Fixed
+
+- Fixed CI and release workflow setup so public documentation dependencies are
+  installed before docs checks run on clean GitHub runners.
 
 ## v0.1.2 - 2026-06-28
 
