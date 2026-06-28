@@ -3,6 +3,7 @@ import starlight from '@astrojs/starlight';
 
 export default defineConfig({
   site: 'https://cybersaksham.github.io/gogo',
+  base: '/gogo',
   integrations: [
     starlight({
       title: 'Gogo',

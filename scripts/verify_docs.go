@@ -102,6 +102,7 @@ func checkMarkdownLinks(root string) error {
 			rawPath := strings.SplitN(target, "#", 2)[0]
 			rootRelative := strings.HasPrefix(rawPath, "/")
 			rawPath = strings.TrimPrefix(rawPath, "/")
+			rawPath = strings.TrimPrefix(rawPath, "./")
 			rawPath = strings.TrimSuffix(rawPath, "/")
 			if rawPath == "" {
 				continue
