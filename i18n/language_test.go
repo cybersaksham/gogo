@@ -16,3 +16,20 @@ func TestLanguageContextAndNegotiation(t *testing.T) {
 		t.Fatalf("NegotiateLanguage() = %q, want fr", got)
 	}
 }
+
+func TestTranslationCatalogLazyValuesAndDefaultLanguage(t *testing.T) {
+	catalog := NewMemoryCatalog(map[string]map[string]string{
+		"fr": {"hello": "bonjour"},
+	})
+	ctx := WithLanguage(context.Background(), "fr")
+	if got := Translate(ctx, catalog, "hello"); got != "bonjour" {
+		t.Fatalf("Translate() = %q", got)
+	}
+	lazy := Lazy("hello", catalog)
+	if got := lazy.String(ctx); got != "bonjour" {
+		t.Fatalf("Lazy.String() = %q", got)
+	}
+	if got := LanguageFromContext(WithDefaultLanguage(context.Background(), "en")); got != "en" {
+		t.Fatalf("default language = %q", got)
+	}
+}

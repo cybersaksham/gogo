@@ -7,6 +7,7 @@ import (
 )
 
 type languageContextKey struct{}
+type defaultLanguageContextKey struct{}
 
 // WithLanguage stores the active language in context.
 func WithLanguage(ctx context.Context, language string) context.Context {
@@ -16,7 +17,65 @@ func WithLanguage(ctx context.Context, language string) context.Context {
 // LanguageFromContext returns the active language from context.
 func LanguageFromContext(ctx context.Context) string {
 	language, _ := ctx.Value(languageContextKey{}).(string)
+	if language == "" {
+		language, _ = ctx.Value(defaultLanguageContextKey{}).(string)
+	}
 	return language
+}
+
+func WithDefaultLanguage(ctx context.Context, language string) context.Context {
+	return context.WithValue(ctx, defaultLanguageContextKey{}, language)
+}
+
+type Catalog interface {
+	Translate(language string, messageID string) (string, bool)
+}
+
+type MemoryCatalog struct {
+	values map[string]map[string]string
+}
+
+func NewMemoryCatalog(values map[string]map[string]string) MemoryCatalog {
+	cloned := make(map[string]map[string]string, len(values))
+	for language, translations := range values {
+		cloned[language] = make(map[string]string, len(translations))
+		for key, value := range translations {
+			cloned[language][key] = value
+		}
+	}
+	return MemoryCatalog{values: cloned}
+}
+
+func (c MemoryCatalog) Translate(language string, messageID string) (string, bool) {
+	translations := c.values[language]
+	if translations == nil {
+		return "", false
+	}
+	value, ok := translations[messageID]
+	return value, ok
+}
+
+func Translate(ctx context.Context, catalog Catalog, messageID string) string {
+	if catalog == nil {
+		return messageID
+	}
+	if translated, ok := catalog.Translate(LanguageFromContext(ctx), messageID); ok {
+		return translated
+	}
+	return messageID
+}
+
+type LazyValue struct {
+	messageID string
+	catalog   Catalog
+}
+
+func Lazy(messageID string, catalog Catalog) LazyValue {
+	return LazyValue{messageID: messageID, catalog: catalog}
+}
+
+func (v LazyValue) String(ctx context.Context) string {
+	return Translate(ctx, v.catalog, v.messageID)
 }
 
 // NegotiateLanguage chooses the best supported language from an Accept-Language header.
