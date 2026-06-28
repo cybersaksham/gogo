@@ -152,7 +152,7 @@ func plannedCommands(root *Root) []Command {
 		unavailableCommand{name: "beat", summary: "Run the queue scheduler", phase: "11-queue-workers-beat-canvas"},
 		unavailableCommand{name: "inspect", summary: "Inspect queue workers", phase: "11-queue-workers-beat-canvas"},
 		unavailableCommand{name: "queues", summary: "Inspect queues", phase: "11-queue-workers-beat-canvas"},
-		unavailableCommand{name: "dumpdata", summary: "Dump fixture data", phase: "10-forms-templates-static-files"},
-		unavailableCommand{name: "loaddata", summary: "Load fixture data", phase: "10-forms-templates-static-files"},
+		NewDumpdataCommand(nil),
+		NewLoaddataCommand(nil),
 	}
 }

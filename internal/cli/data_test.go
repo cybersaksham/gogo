@@ -1,0 +1,142 @@
+package cli
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"io"
+	"os"
+	"path/filepath"
+	"reflect"
+	"strings"
+	"testing"
+)
+
+func TestDumpdataCommandFiltersNaturalKeysAndDatabase(t *testing.T) {
+	store := &recordingFixtureStore{
+		records: []FixtureRecord{{
+			Model:      "contenttypes.ContentType",
+			PK:         1,
+			NaturalKey: []any{"blog", "article"},
+			Fields:     map[string]any{"app_label": "blog", "model": "article"},
+		}},
+	}
+	command := NewDumpdataCommand(store)
+	var stdout bytes.Buffer
+
+	err := command.(interface {
+		runWithIO(context.Context, []string, io.Writer, io.Writer) error
+	}).runWithIO(context.Background(), []string{
+		"--format", "json",
+		"--indent", "2",
+		"--database", "replica",
+		"--natural-primary",
+		"contenttypes.ContentType",
+	}, &stdout, &bytes.Buffer{})
+	if err != nil {
+		t.Fatalf("dumpdata error = %v", err)
+	}
+	if store.query.Database != "replica" || !store.query.NaturalPrimary || !reflect.DeepEqual(store.query.Labels, []string{"contenttypes.ContentType"}) {
+		t.Fatalf("query = %#v", store.query)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, `"natural_key":`) || strings.Contains(output, `"pk":`) {
+		t.Fatalf("dump output = %s", output)
+	}
+}
+
+func TestFixtureSerializersJSONLXMLAndCustom(t *testing.T) {
+	records := []FixtureRecord{{Model: "blog.Article", PK: 1, Fields: map[string]any{"title": "Go"}}}
+	registry := NewFixtureSerializerRegistry()
+	registry.Register(customFixtureSerializer{})
+
+	for _, format := range []string{"json", "jsonl", "xml", "custom"} {
+		serializer, ok := registry.Get(format)
+		if !ok {
+			t.Fatalf("missing serializer %s", format)
+		}
+		encoded, err := serializer.Dump(records, 2)
+		if err != nil {
+			t.Fatalf("Dump(%s) error = %v", format, err)
+		}
+		decoded, err := serializer.Load(encoded)
+		if err != nil {
+			t.Fatalf("Load(%s) error = %v; encoded=%s", format, err, encoded)
+		}
+		if len(decoded) != 1 || decoded[0].Model != "blog.Article" {
+			t.Fatalf("decoded(%s) = %#v", format, decoded)
+		}
+	}
+}
+
+func TestLoaddataCommandRejectsDuplicateFixtures(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "fixtures.jsonl")
+	content := `{"model":"blog.Article","pk":1,"fields":{"title":"A"}}` + "\n" +
+		`{"model":"blog.Article","pk":1,"fields":{"title":"B"}}` + "\n"
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	store := &recordingFixtureStore{}
+	command := NewLoaddataCommand(store)
+	err := command.Run(context.Background(), []string{"--format", "jsonl", "--database", "replica", path})
+	if !errors.Is(err, ErrInvalidFixture) {
+		t.Fatalf("loaddata duplicate error = %v, want ErrInvalidFixture", err)
+	}
+	if len(store.loaded) != 0 {
+		t.Fatalf("store loaded duplicate records: %#v", store.loaded)
+	}
+}
+
+func TestLoaddataCommandLoadsWithTransaction(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "fixtures.json")
+	content := `[{"model":"auth.Permission","natural_key":["blog","article","view"],"fields":{"codename":"view_article"}}]`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	store := &recordingFixtureStore{}
+	command := NewLoaddataCommand(store)
+	if err := command.Run(context.Background(), []string{"--format", "json", "--database", "default", "--transaction", path}); err != nil {
+		t.Fatalf("loaddata error = %v", err)
+	}
+	if store.loadOptions.Database != "default" || !store.loadOptions.Transaction {
+		t.Fatalf("load options = %#v", store.loadOptions)
+	}
+	if len(store.loaded) != 1 || store.loaded[0].Model != "auth.Permission" {
+		t.Fatalf("loaded = %#v", store.loaded)
+	}
+}
+
+type recordingFixtureStore struct {
+	query       FixtureQuery
+	records     []FixtureRecord
+	loaded      []FixtureRecord
+	loadOptions FixtureLoadOptions
+}
+
+func (s *recordingFixtureStore) Dump(_ context.Context, query FixtureQuery) ([]FixtureRecord, error) {
+	s.query = query
+	return append([]FixtureRecord(nil), s.records...), nil
+}
+
+func (s *recordingFixtureStore) Load(_ context.Context, records []FixtureRecord, options FixtureLoadOptions) error {
+	s.loaded = append([]FixtureRecord(nil), records...)
+	s.loadOptions = options
+	return nil
+}
+
+type customFixtureSerializer struct{}
+
+func (customFixtureSerializer) Format() string { return "custom" }
+
+func (customFixtureSerializer) Dump(records []FixtureRecord, _ int) ([]byte, error) {
+	return []byte("custom:" + records[0].Model), nil
+}
+
+func (customFixtureSerializer) Load(data []byte) ([]FixtureRecord, error) {
+	parts := strings.SplitN(string(data), ":", 2)
+	return []FixtureRecord{{Model: parts[1], Fields: map[string]any{}}}, nil
+}
