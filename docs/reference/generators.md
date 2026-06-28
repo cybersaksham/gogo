@@ -1,0 +1,79 @@
+# Project Generators Reference
+
+Gogo generators create downstream projects and apps that import only public framework packages. Generated files are starting points for application code and should be owned by the client project after creation.
+
+## Commands
+
+```bash
+gogo startproject [--force] <name> [path]
+gogo startapp [--force] <name> [path]
+```
+
+`--force` allows generation into a non-empty directory without deleting existing files. It never removes user files.
+
+`<name>` must be a valid Go identifier. When `[path]` is omitted, the generator writes into a directory named after `<name>`.
+
+## Generated Project Files
+
+| Path | Responsibility |
+| --- | --- |
+| `go.mod` | Declares the downstream module. Run `go mod tidy` after adding the framework dependency. |
+| `manage.go` | Project command entrypoint placeholder until public project CLI wiring is exposed. |
+| `.env.example` | Complete grouped environment contract. Blank values are required; default values are safe defaults. |
+| `.gitignore` | Excludes `.env`, local databases, build outputs, coverage, editor files, uploads, media, and collected static files. |
+| `Makefile` | Standard local commands for tests, checks, running, and tidying. |
+| `<project>/settings/*.go` | Base, local, test, and production settings constructors. |
+| `<project>/urls.go` | Root HTTP route registration. |
+| `<project>/admin.go` | Admin registry and site construction. |
+| `<project>/middleware.go` | Project middleware list. |
+| `<project>/queue.go` | Queue app construction. |
+| `apps/` | First-party application packages. |
+| `templates/` | Project templates. |
+| `static/` | Project static assets. |
+| `media/` | Local uploaded media, ignored by Git. |
+| `fixtures/` | Data fixtures. |
+| `tests/integration/` | Project-level integration tests. |
+| `deploy/docker/*` | Multi-stage Dockerfile and Compose stack for app, PostgreSQL, Redis, and optional RabbitMQ. |
+
+## Generated App Files
+
+| Path | Responsibility |
+| --- | --- |
+| `app.go` | App config and public registry resource declarations. |
+| `models.go` | Initial model metadata and `ModelMetadata` registry helper. |
+| `admin.go` | Model admin registration. |
+| `urls.go` | HTTP routes and views. |
+| `api.go` | API routes and views. |
+| `serializers.go` | API serializers. |
+| `forms.go` | Form constructors. |
+| `services.go` | App services and business logic. |
+| `tasks.go` | Queue task registration. |
+| `permissions.go` | App permission constants and helpers. |
+| `migrations/` | Generated migration files. |
+| `templates/<app>/` | App templates. |
+| `static/<app>/` | App static assets. |
+| `tests/<app>_test.go` | App scaffold test. |
+
+## Environment Rules
+
+Copy `.env.example` to `.env` for local development. Commit `.env.example`; never commit `.env`.
+
+Blank values in `.env.example` are required values. The generated project must fail validation when required framework settings such as `GOGO_SECRET_KEY` or `DATABASE_URL` are missing.
+
+Deployment service credentials such as `POSTGRES_PASSWORD` are blank in `.env.example`. Compose uses `.env` and fails fast when required deployment values are missing.
+
+Keep `.env.example` grouped by use case and synchronized with settings whenever new environment variables are introduced.
+
+## Adding Application Code
+
+Add an app with `gogo startapp blog apps/blog`, then add `blog` to generated settings or the runtime installed app list.
+
+Define models in `models.go` by returning `models.Metadata` from `ModelMeta`. Add fields, indexes, constraints, custom permissions, and relationship metadata there.
+
+Register admin entries in `admin.go` with `admin.Registry.RegisterMetadata` or `Register`. Keep list displays, search fields, filters, readonly fields, inlines, actions, and prepopulated fields close to the model they configure.
+
+Expose HTTP routes in `urls.go` with the framework HTTP router. Expose JSON APIs in `api.go` with the API router and serializers from `serializers.go`.
+
+Register background work in `tasks.go` with `queue.App.RegisterTask`. Keep task names namespaced as `<app>.<task>` and set queue, retry, timeout, and ack options explicitly.
+
+Keep reusable business rules in `services.go`, and keep permission names in `permissions.go` so views, admin hooks, API policies, and tasks share the same constants.
