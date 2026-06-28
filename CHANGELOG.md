@@ -9,6 +9,29 @@ versioning after the first stable release.
 
 ### Added
 
+None.
+
+### Changed
+
+None.
+
+### Fixed
+
+None.
+
+## v0.1.3 - 2026-06-29
+
+Patch release for release readiness and agent guidance completeness.
+
+### Release Metadata
+
+- Previous release: `v0.1.2`.
+- New release: `v0.1.3`.
+- Module path: `github.com/cybersaksham/gogo`.
+- CLI install path: `github.com/cybersaksham/gogo/cmd/gogo`.
+
+### Added
+
 - Added public documentation pages for the complete public package map and
   contrib/cross-cutting framework features.
 - Added a generated client-project agent rule containing the public package
@@ -21,7 +44,7 @@ versioning after the first stable release.
   feature coverage for models, fields, migrations, HTTP, admin, APIs, auth,
   forms, templates, static files, uploads, queues, settings, testing,
   deployment, contrib apps, and cross-cutting framework services.
-- Updated public and README installation instructions to pin `v0.1.2`.
+- Updated public and README installation instructions to pin `v0.1.3`.
 
 ### Fixed
 
