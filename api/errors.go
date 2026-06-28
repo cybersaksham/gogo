@@ -7,4 +7,5 @@ var (
 	ErrParse                = errors.New("parse error")
 	ErrBodyTooLarge         = errors.New("body too large")
 	ErrNotAcceptable        = errors.New("not acceptable")
+	ErrValidation           = errors.New("validation error")
 )
