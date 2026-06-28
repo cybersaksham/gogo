@@ -100,6 +100,56 @@ func TestProjectTemplatesRenderParseablePublicGoFiles(t *testing.T) {
 	}
 }
 
+func TestDeploymentTemplatesAreProductionSafe(t *testing.T) {
+	files, err := ProjectFiles(ProjectData{ProjectName: "myproject", ModulePath: "myproject"})
+	if err != nil {
+		t.Fatalf("ProjectFiles() error = %v", err)
+	}
+
+	dockerfile := files["deploy/docker/Dockerfile"]
+	for _, want := range []string{
+		"FROM golang:1.26 AS build",
+		"FROM gcr.io/distroless/static-debian12",
+		"USER nonroot:nonroot",
+		"CGO_ENABLED=0 go build",
+	} {
+		if !strings.Contains(dockerfile, want) {
+			t.Fatalf("Dockerfile missing %q:\n%s", want, dockerfile)
+		}
+	}
+
+	compose := files["deploy/docker/docker-compose.yml"]
+	for _, want := range []string{
+		"  app:",
+		"  db:",
+		"  redis:",
+		"  rabbitmq:",
+		"env_file:",
+		"postgres-data:",
+		"redis-data:",
+		"rabbitmq-data:",
+		"static-data:",
+		"media-data:",
+		"POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}",
+		"profiles:",
+	} {
+		if !strings.Contains(compose, want) {
+			t.Fatalf("compose template missing %q:\n%s", want, compose)
+		}
+	}
+
+	for _, forbidden := range []string{
+		"POSTGRES_PASSWORD: gogo",
+		"guest:guest",
+		"CorrectHorseBatteryStaple",
+		"secret-value",
+	} {
+		if strings.Contains(compose, forbidden) || strings.Contains(files[".env.example"], forbidden) {
+			t.Fatalf("deployment templates contain forbidden secret-like value %q", forbidden)
+		}
+	}
+}
+
 func TestAppFilesRenderExpectedStructure(t *testing.T) {
 	files, err := AppFiles(AppData{AppName: "blog", AppLabel: "blog"})
 	if err != nil {
