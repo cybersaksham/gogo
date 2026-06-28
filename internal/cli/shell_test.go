@@ -1,10 +1,10 @@
 package cli
 
 import (
+	"bytes"
 	"context"
-	"errors"
+	"io"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -38,7 +38,7 @@ DATABASE_URL=postgres://shell
 	}
 }
 
-func TestShellDefaultExecutorReturnsGuidance(t *testing.T) {
+func TestShellDefaultExecutorRunsCommand(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
 	writeTextFile(t, filepath.Join(dir, ".env"), `
@@ -47,11 +47,17 @@ DATABASE_URL=postgres://shell
 `)
 
 	command := NewShellCommand(nil)
-	err := command.Run(context.Background(), []string{"--command", "print apps"})
-	if !errors.Is(err, ErrCommandUnavailable) {
-		t.Fatalf("Run() error = %v, want ErrCommandUnavailable", err)
+	runner, ok := command.(interface {
+		runWithIO(context.Context, []string, io.Writer, io.Writer) error
+	})
+	if !ok {
+		t.Fatal("shell command does not expose runWithIO")
 	}
-	if !strings.Contains(err.Error(), "interactive shell") {
-		t.Fatalf("Run() error = %q, want shell guidance", err.Error())
+	var stdout bytes.Buffer
+	if err := runner.runWithIO(context.Background(), []string{"--command", "printf shell-ok"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if stdout.String() != "shell-ok" {
+		t.Fatalf("stdout = %q, want shell-ok", stdout.String())
 	}
 }

@@ -89,25 +89,17 @@ func TestRootVersionPrintsVersionInfo(t *testing.T) {
 	}
 }
 
-func TestRootUnavailableCommandReturnsPhaseError(t *testing.T) {
-	dir := t.TempDir()
-	t.Chdir(dir)
-	writeTextFile(t, ".env", `
-GOGO_SECRET_KEY=root-secret
-DATABASE_URL=postgres://root
-`)
-
+func TestRootCollectstaticUsesImplementedCommand(t *testing.T) {
 	root := NewRoot()
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
 	err := root.Execute(context.Background(), []string{"collectstatic"}, &stdout, &stderr)
-	if !errors.Is(err, ErrCommandUnavailable) {
-		t.Fatalf("Execute(collectstatic) error = %v, want ErrCommandUnavailable", err)
+	if !errors.Is(err, ErrCommandFailed) {
+		t.Fatalf("Execute(collectstatic) error = %v, want ErrCommandFailed", err)
 	}
-
-	if !strings.Contains(err.Error(), "10-forms-templates-static-files") {
-		t.Fatalf("Execute(collectstatic) error = %q, want phase name", err.Error())
+	if !strings.Contains(err.Error(), "static destination is required") {
+		t.Fatalf("Execute(collectstatic) error = %q, want destination validation", err.Error())
 	}
 }
 

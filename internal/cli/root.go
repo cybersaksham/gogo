@@ -110,25 +110,8 @@ func (c versionCommand) runWithIO(_ context.Context, _ []string, stdout, _ io.Wr
 	return nil
 }
 
-type unavailableCommand struct {
-	name    string
-	summary string
-	phase   string
-}
-
-func (c unavailableCommand) Name() string {
-	return c.name
-}
-
-func (c unavailableCommand) Summary() string {
-	return c.summary
-}
-
-func (c unavailableCommand) Run(context.Context, []string) error {
-	return fmt.Errorf("%w: %s is planned for %s", ErrCommandUnavailable, c.name, c.phase)
-}
-
 func plannedCommands(root *Root) []Command {
+	fixtureStore := NewMemoryFixtureStore()
 	return []Command{
 		helpCommand{root: root},
 		versionCommand{},
@@ -146,13 +129,13 @@ func plannedCommands(root *Root) []Command {
 		NewChangePasswordCommand(defaultAuthStore),
 		NewCollectstaticCommand(nil),
 		NewShellCommand(nil),
-		unavailableCommand{name: "dbshell", summary: "Open a database shell", phase: "05-orm-query-engine"},
-		unavailableCommand{name: "test", summary: "Run project tests", phase: "13-testing-docs-examples"},
+		NewDBShellCommand(nil),
+		NewTestCommand(nil),
 		NewWorkerCommand(defaultQueueRuntime),
 		NewBeatCommand(defaultQueueRuntime),
 		NewInspectCommand(defaultQueueRuntime),
 		NewQueuesCommand(defaultQueueRuntime),
-		NewDumpdataCommand(nil),
-		NewLoaddataCommand(nil),
+		NewDumpdataCommand(fixtureStore),
+		NewLoaddataCommand(fixtureStore),
 	}
 }

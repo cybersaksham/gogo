@@ -55,20 +55,21 @@ Root CLI commands are registered through `internal/cli`. Public users call the `
 | `gogo help` | available | List commands. |
 | `gogo version` | available | Print version. |
 | `gogo check` | available | Load settings and run system checks. Use `--deploy` for production readiness checks. |
-| `gogo runserver` | available | Build middleware and run the HTTP server skeleton. |
+| `gogo runserver` | available | Build middleware and run the HTTP server. |
 | `gogo startproject` | available | Generate project scaffold. |
 | `gogo startapp` | available | Generate app scaffold. |
 | `gogo makemigrations` | available | Write migration files. |
-| `gogo migrate` | planned through migrations runtime | Apply migrations. |
-| `gogo showmigrations` | planned through migrations runtime | Show migration status. |
-| `gogo sqlmigrate` | planned through migrations runtime | Render migration SQL. |
-| `gogo squashmigrations` | planned through migrations runtime | Squash migration history. |
+| `gogo migrate` | available | Apply migrations. |
+| `gogo showmigrations` | available | Show migration status. |
+| `gogo sqlmigrate` | available | Render migration SQL. |
+| `gogo squashmigrations` | available | Squash migration history. |
+| `gogo optimizemigration` | available | Optimize migration operations. |
 | `gogo createsuperuser` | available auth command shell | Create an admin user. |
 | `gogo changepassword` | available auth command shell | Change a user password. |
 | `gogo collectstatic` | available static command shell | Collect static files. |
 | `gogo shell` | available | Start app shell context. |
-| `gogo dbshell` | planned | Open database shell. |
-| `gogo test` | planned | Run project tests. |
+| `gogo dbshell` | available | Open database shell. |
+| `gogo test` | available | Run project tests. |
 | `gogo worker` | available queue command shell | Run queue workers. |
 | `gogo beat` | available queue command shell | Run beat scheduler. |
 | `gogo inspect` | available queue command shell | Inspect workers. |

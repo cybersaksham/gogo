@@ -1,33 +1,33 @@
 # Gogo
 
-Gogo is a Go backend framework planned around Django-style applications, models, migrations, admin, auth, APIs, and Celery-style queues.
+Gogo is a Go backend framework built around Django-style applications, models, migrations, admin, auth, APIs, forms, templates, static files, and Celery-style queues.
 
 ## Current Status
 
-Implementation is proceeding task by task from the incremental plans in `.plans/`.
+The framework implementation follows the incremental product plans in `.plans/`. The repository now contains the planned framework packages, generated client-project templates, docs, CI/release workflows, compatibility tests, benchmarks, deployment checks, and end-to-end generated-project verification.
 
-Completed foundation pieces:
+Core implemented areas:
 
-- Go module: `github.com/cybersaksham/gogo`
-- Root package metadata
-- Version metadata package
-- CLI command registry
-- Root CLI with planned commands
-- Settings model and validation
-- Environment loader and defaults
-- Configuration check command
-- Runserver command skeleton
+- App/project lifecycle with `startproject`, `startapp`, app registry, discovery, and lifecycle hooks.
+- HTTP routing, middleware, views, URL reversing, static mounting, and `runserver`.
+- Models, fields, metadata, validation, constraints, indexes, hooks, inheritance, and composition.
+- ORM query engine, dialects, expressions, lookups, querysets, managers, transactions, and raw SQL.
+- Migrations, operations, graph, writer/loader, recorder, executor, safety checks, and migration CLI commands.
+- Built-in auth, users, groups, permissions, content types, sessions, password hashing, forms, middleware, admin registration, and auth CLI commands.
+- Admin site, model registration, change lists, forms, inlines, actions, widgets, templates, static assets, delete, and history.
+- API request/response handling, parsers, renderers, serializers, model serializers, viewsets, router, auth, permissions, pagination, filters, throttling, uploads, versioning, metadata, and OpenAPI generation.
+- Forms, widgets, formsets, model forms, template engine, Django-compatible tags/filters, file storage, static collection, and fixtures.
+- Queue task registry, brokers, result backends, workers, retries, timeouts, revocation, routing, beat schedules, canvas workflows, events, inspection, monitoring, message security, and queue CLI/admin integration.
+- Cross-cutting cache, email, messages, signing, CSRF, security middleware, signals, i18n, health checks, observability, and system checks.
+- Django contrib-style sites, redirects, flatpages, sitemaps, syndication, humanize, admin docs, PostgreSQL helpers, and GIS metadata/helpers.
 
 ## CLI
 
-Implemented commands:
+Available commands:
 
 - `gogo help`
 - `gogo version`
 - `gogo check`
-
-Planned commands with explicit unavailable errors until their phase lands:
-
 - `gogo runserver`
 - `gogo startproject`
 - `gogo startapp`
@@ -36,6 +36,7 @@ Planned commands with explicit unavailable errors until their phase lands:
 - `gogo showmigrations`
 - `gogo sqlmigrate`
 - `gogo squashmigrations`
+- `gogo optimizemigration`
 - `gogo createsuperuser`
 - `gogo changepassword`
 - `gogo collectstatic`

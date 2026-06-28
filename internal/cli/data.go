@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 var ErrInvalidFixture = errors.New("invalid fixture")
@@ -43,6 +44,48 @@ type FixtureLoadOptions struct {
 type FixtureStore interface {
 	Dump(context.Context, FixtureQuery) ([]FixtureRecord, error)
 	Load(context.Context, []FixtureRecord, FixtureLoadOptions) error
+}
+
+// MemoryFixtureStore is a deterministic fixture store for tests and local project wiring.
+type MemoryFixtureStore struct {
+	mu      sync.RWMutex
+	records []FixtureRecord
+}
+
+func NewMemoryFixtureStore(records ...FixtureRecord) *MemoryFixtureStore {
+	return &MemoryFixtureStore{records: cloneFixtureRecords(records)}
+}
+
+func (s *MemoryFixtureStore) Dump(_ context.Context, query FixtureQuery) ([]FixtureRecord, error) {
+	if s == nil {
+		return nil, nil
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if len(query.Labels) == 0 {
+		return cloneFixtureRecords(s.records), nil
+	}
+	labels := map[string]struct{}{}
+	for _, label := range query.Labels {
+		labels[label] = struct{}{}
+	}
+	var records []FixtureRecord
+	for _, record := range s.records {
+		if _, ok := labels[record.Model]; ok {
+			records = append(records, cloneFixtureRecord(record))
+		}
+	}
+	return records, nil
+}
+
+func (s *MemoryFixtureStore) Load(_ context.Context, records []FixtureRecord, _ FixtureLoadOptions) error {
+	if s == nil {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.records = append(s.records, cloneFixtureRecords(records)...)
+	return nil
 }
 
 // FixtureSerializer encodes and decodes fixture records.
@@ -79,11 +122,17 @@ func (r *FixtureSerializerRegistry) Get(format string) (FixtureSerializer, bool)
 
 // NewDumpdataCommand creates the dumpdata command.
 func NewDumpdataCommand(store FixtureStore, serializers ...FixtureSerializer) Command {
+	if store == nil {
+		store = NewMemoryFixtureStore()
+	}
 	return dataCommand{name: "dumpdata", summary: "Dump fixture data", store: store, serializers: fixtureRegistry(serializers...)}
 }
 
 // NewLoaddataCommand creates the loaddata command.
 func NewLoaddataCommand(store FixtureStore, serializers ...FixtureSerializer) Command {
+	if store == nil {
+		store = NewMemoryFixtureStore()
+	}
 	return dataCommand{name: "loaddata", summary: "Load fixture data", store: store, serializers: fixtureRegistry(serializers...)}
 }
 
@@ -102,9 +151,6 @@ func (c dataCommand) Run(ctx context.Context, args []string) error {
 }
 
 func (c dataCommand) runWithIO(ctx context.Context, args []string, stdout, _ io.Writer) error {
-	if c.store == nil {
-		return fmt.Errorf("%w: %s is planned for 10-forms-templates-static-files", ErrCommandUnavailable, c.name)
-	}
 	switch c.name {
 	case "dumpdata":
 		return c.runDumpdata(ctx, args, stdout)
@@ -288,6 +334,20 @@ func cloneFixtureFields(fields map[string]any) map[string]any {
 		cloned[key] = value
 	}
 	return cloned
+}
+
+func cloneFixtureRecords(records []FixtureRecord) []FixtureRecord {
+	cloned := make([]FixtureRecord, len(records))
+	for index, record := range records {
+		cloned[index] = cloneFixtureRecord(record)
+	}
+	return cloned
+}
+
+func cloneFixtureRecord(record FixtureRecord) FixtureRecord {
+	record.NaturalKey = append([]any(nil), record.NaturalKey...)
+	record.Fields = cloneFixtureFields(record.Fields)
+	return record
 }
 
 type jsonFixtureSerializer struct{}

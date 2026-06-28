@@ -110,6 +110,27 @@ func TestLoaddataCommandLoadsWithTransaction(t *testing.T) {
 	}
 }
 
+func TestRootDataCommandsShareDefaultFixtureStore(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "fixtures.json")
+	content := `[{"model":"blog.Post","pk":1,"fields":{"title":"Loaded"}}]`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	root := NewRoot()
+	if err := root.Execute(context.Background(), []string{"loaddata", "--format", "json", path}, io.Discard, io.Discard); err != nil {
+		t.Fatalf("loaddata error = %v", err)
+	}
+	var stdout bytes.Buffer
+	if err := root.Execute(context.Background(), []string{"dumpdata", "--format", "json", "blog.Post"}, &stdout, io.Discard); err != nil {
+		t.Fatalf("dumpdata error = %v", err)
+	}
+	if !strings.Contains(stdout.String(), `"model":"blog.Post"`) || !strings.Contains(stdout.String(), `"title":"Loaded"`) {
+		t.Fatalf("dumpdata output = %s", stdout.String())
+	}
+}
+
 type recordingFixtureStore struct {
 	query       FixtureQuery
 	records     []FixtureRecord

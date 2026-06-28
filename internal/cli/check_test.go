@@ -33,7 +33,7 @@ DATABASE_URL=postgres://check
 	output := stdout.String()
 	for _, want := range []string{
 		"OK config settings valid",
-		"WARN apps app registry checks unavailable until phase 02-app-project-lifecycle",
+		"INFO apps app registry checks registered",
 	} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("check output = %q, want it to contain %q", output, want)

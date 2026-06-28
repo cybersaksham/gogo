@@ -4,6 +4,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"strings"
 
 	"github.com/cybersaksham/gogo/app"
 	"github.com/cybersaksham/gogo/conf"
@@ -14,6 +18,8 @@ type ShellConfig struct {
 	Command  string
 	Settings conf.Settings
 	Registry *app.Registry
+	Stdout   io.Writer
+	Stderr   io.Writer
 }
 
 // ShellExecutor executes shell commands with resolved project context.
@@ -22,7 +28,7 @@ type ShellExecutor func(context.Context, ShellConfig) error
 // NewShellCommand creates the shell command.
 func NewShellCommand(executor ShellExecutor) Command {
 	if executor == nil {
-		executor = unavailableShellExecutor
+		executor = defaultShellExecutor
 	}
 	return shellCommand{executor: executor}
 }
@@ -40,7 +46,12 @@ func (c shellCommand) Summary() string {
 }
 
 func (c shellCommand) Run(ctx context.Context, args []string) error {
+	return c.runWithIO(ctx, args, io.Discard, io.Discard)
+}
+
+func (c shellCommand) runWithIO(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("shell", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
 	command := flags.String("command", "", "non-interactive command to execute")
 	if err := flags.Parse(args); err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidArguments, err)
@@ -58,9 +69,34 @@ func (c shellCommand) Run(ctx context.Context, args []string) error {
 		Command:  *command,
 		Settings: settings,
 		Registry: app.NewRegistry(),
+		Stdout:   stdout,
+		Stderr:   stderr,
 	})
 }
 
-func unavailableShellExecutor(context.Context, ShellConfig) error {
-	return fmt.Errorf("%w: interactive shell execution is planned for phase 02 app registry integration", ErrCommandUnavailable)
+func defaultShellExecutor(ctx context.Context, config ShellConfig) error {
+	shell := strings.TrimSpace(os.Getenv("SHELL"))
+	if shell == "" {
+		shell = "sh"
+	}
+
+	args := []string(nil)
+	if config.Command != "" {
+		args = []string{"-c", config.Command}
+	}
+
+	command := exec.CommandContext(ctx, shell, args...)
+	if config.Command == "" {
+		command.Stdin = os.Stdin
+	}
+	if config.Stdout != nil {
+		command.Stdout = config.Stdout
+	}
+	if config.Stderr != nil {
+		command.Stderr = config.Stderr
+	}
+	if err := command.Run(); err != nil {
+		return fmt.Errorf("%w: shell command failed: %v", ErrCommandFailed, err)
+	}
+	return nil
 }

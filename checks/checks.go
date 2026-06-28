@@ -103,7 +103,7 @@ func DefaultRegistry() *Registry {
 	registry := NewRegistry()
 	defaults := []Check{
 		{ID: "settings.I001", Tags: []string{"settings"}, Severity: SeverityInfo, Message: "settings loaded"},
-		{ID: "apps.W001", Tags: []string{"apps"}, Severity: SeverityWarning, Message: "app registry checks unavailable until phase 02-app-project-lifecycle"},
+		{ID: "apps.I001", Tags: []string{"apps"}, Severity: SeverityInfo, Message: "app registry checks registered"},
 		{ID: "models.I001", Tags: []string{"models"}, Severity: SeverityInfo, Message: "model metadata checks registered"},
 		{ID: "migrations.I001", Tags: []string{"migrations"}, Severity: SeverityInfo, Message: "migration graph checks registered"},
 		{ID: "auth.I001", Tags: []string{"auth"}, Severity: SeverityInfo, Message: "auth checks registered"},

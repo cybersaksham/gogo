@@ -14,6 +14,9 @@ type StaticCollector func(context.Context, static.CollectOptions) (static.Collec
 
 // NewCollectstaticCommand creates the collectstatic command.
 func NewCollectstaticCommand(collector StaticCollector) Command {
+	if collector == nil {
+		collector = static.Collect
+	}
 	return collectstaticCommand{collector: collector}
 }
 
@@ -34,9 +37,6 @@ func (c collectstaticCommand) Run(ctx context.Context, args []string) error {
 }
 
 func (c collectstaticCommand) runWithIO(ctx context.Context, args []string, stdout, _ io.Writer) error {
-	if c.collector == nil {
-		return fmt.Errorf("%w: collectstatic is planned for 10-forms-templates-static-files", ErrCommandUnavailable)
-	}
 	options, err := parseCollectstaticFlags(args)
 	if err != nil {
 		return err

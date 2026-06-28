@@ -14,7 +14,4 @@ var (
 
 	// ErrCommandFailed indicates a command failed while running.
 	ErrCommandFailed = errors.New("command failed")
-
-	// ErrCommandUnavailable indicates a planned command is not implemented yet.
-	ErrCommandUnavailable = errors.New("command unavailable")
 )
