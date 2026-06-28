@@ -122,6 +122,7 @@ type ModelAdmin struct {
 	SortableBy              []string
 	ViewOnSite              bool
 	CustomURLs              []URLPattern
+	ComputedColumns         map[string]ComputedColumn
 	Hooks                   ModelAdminHooks
 }
 
@@ -210,6 +211,7 @@ func (a ModelAdmin) clone() ModelAdmin {
 	a.SearchFields = append([]string(nil), a.SearchFields...)
 	a.SortableBy = append([]string(nil), a.SortableBy...)
 	a.CustomURLs = cloneURLs(a.CustomURLs)
+	a.ComputedColumns = cloneComputedColumns(a.ComputedColumns)
 	return a
 }
 
@@ -223,4 +225,15 @@ func cloneFieldsets(values []Fieldset) []Fieldset {
 
 func cloneURLs(values []URLPattern) []URLPattern {
 	return append([]URLPattern(nil), values...)
+}
+
+func cloneComputedColumns(values map[string]ComputedColumn) map[string]ComputedColumn {
+	if values == nil {
+		return nil
+	}
+	copied := make(map[string]ComputedColumn, len(values))
+	for key, value := range values {
+		copied[key] = value
+	}
+	return copied
 }
