@@ -1,0 +1,12 @@
+{{define "content"}}
+<form method="post" class="change-form">
+  {{range .Fieldsets}}
+    <fieldset>
+      <legend>{{.Name}}</legend>
+      {{range .Fields}}<div class="form-row" data-field="{{.}}">{{.}}</div>{{end}}
+    </fieldset>
+  {{end}}
+  <button type="submit" name="_save" value="1">Save</button>
+</form>
+{{end}}
+{{template "base" .}}

@@ -1,0 +1,20 @@
+{{define "content"}}
+<section aria-labelledby="admin-index-title">
+  <h2 id="admin-index-title">{{or .IndexTitle "Site administration"}}</h2>
+  {{range .Apps}}
+    <section class="app-group" aria-label="{{.AppLabel}}">
+      <h3>{{.AppLabel}}</h3>
+      <ul>
+        {{range .Models}}
+          <li><a href="{{.ChangeURL}}">{{.Name}}</a>{{if .AddURL}} <a href="{{.AddURL}}">Add</a>{{end}}</li>
+        {{else}}
+          <li>No models available.</li>
+        {{end}}
+      </ul>
+    </section>
+  {{else}}
+    <p>No applications are available.</p>
+  {{end}}
+</section>
+{{end}}
+{{template "base" .}}

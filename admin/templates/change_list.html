@@ -1,0 +1,15 @@
+{{define "content"}}
+<form method="post">
+  <table class="change-list">
+    <thead><tr>{{range .Columns}}<th scope="col">{{.Name}}</th>{{end}}</tr></thead>
+    <tbody>
+      {{range .Rows}}
+        <tr>{{range $name, $value := .Values}}<td data-field="{{$name}}">{{$value}}</td>{{end}}</tr>
+      {{else}}
+        <tr><td>No results.</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</form>
+{{end}}
+{{template "base" .}}

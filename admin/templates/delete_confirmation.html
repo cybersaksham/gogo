@@ -1,0 +1,9 @@
+{{define "content"}}
+<section aria-labelledby="delete-title">
+  <h2 id="delete-title">Confirm deletion</h2>
+  {{if .Protected}}<p>Protected related objects prevent deletion.</p>{{end}}
+  <ul>{{range .Objects}}<li>{{.}}</li>{{end}}</ul>
+  <form method="post"><button type="submit">Yes, delete</button></form>
+</section>
+{{end}}
+{{template "base" .}}
