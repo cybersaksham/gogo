@@ -18,4 +18,5 @@ var (
 	ErrRouteConflict           = errors.New("route conflict")
 	ErrReverse                 = errors.New("reverse error")
 	ErrPagination              = errors.New("pagination error")
+	ErrFilter                  = errors.New("filter error")
 )
