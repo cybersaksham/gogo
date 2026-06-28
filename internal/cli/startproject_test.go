@@ -106,6 +106,7 @@ func expectedProjectFiles(projectName string) []string {
 		filepath.Join(".agent", "rules", "gogo", "forms-templates-static.md"),
 		filepath.Join(".agent", "rules", "gogo", "http-admin-api-auth.md"),
 		filepath.Join(".agent", "rules", "gogo", "models-orm-migrations.md"),
+		filepath.Join(".agent", "rules", "gogo", "package-feature-index.md"),
 		filepath.Join(".agent", "rules", "gogo", "project-structure.md"),
 		filepath.Join(".agent", "rules", "gogo", "queue-workers.md"),
 		filepath.Join(".agent", "rules", "gogo", "settings-security.md"),

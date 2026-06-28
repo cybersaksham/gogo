@@ -35,6 +35,7 @@ var projectTemplateFiles = []templateFile{
 	{TemplatePath: "project/Makefile.tmpl", TargetPath: "Makefile"},
 	{TemplatePath: "project/README.md.tmpl", TargetPath: "README.md"},
 	{TemplatePath: "project/agent/rules/gogo.md.tmpl", TargetPath: ".agent/rules/gogo.md"},
+	{TemplatePath: "project/agent/rules/gogo/package-feature-index.md.tmpl", TargetPath: ".agent/rules/gogo/package-feature-index.md"},
 	{TemplatePath: "project/agent/rules/gogo/project-structure.md.tmpl", TargetPath: ".agent/rules/gogo/project-structure.md"},
 	{TemplatePath: "project/agent/rules/gogo/models-orm-migrations.md.tmpl", TargetPath: ".agent/rules/gogo/models-orm-migrations.md"},
 	{TemplatePath: "project/agent/rules/gogo/http-admin-api-auth.md.tmpl", TargetPath: ".agent/rules/gogo/http-admin-api-auth.md"},

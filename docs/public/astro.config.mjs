@@ -34,6 +34,8 @@ export default defineConfig({
           label: 'Framework',
           items: [
             { label: 'Feature Map', slug: 'framework/features' },
+            { label: 'Package Index', slug: 'framework/package-index' },
+            { label: 'Contrib and Cross-Cutting', slug: 'framework/contrib-cross-cutting' },
             { label: 'Project Layout', slug: 'framework/project-layout' },
             { label: 'Settings', slug: 'framework/settings' },
           ],

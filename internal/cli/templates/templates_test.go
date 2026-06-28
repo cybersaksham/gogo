@@ -25,6 +25,7 @@ func TestProjectFilesRenderExpectedStructure(t *testing.T) {
 		filepath.Join(".agent", "rules", "gogo", "forms-templates-static.md"),
 		filepath.Join(".agent", "rules", "gogo", "http-admin-api-auth.md"),
 		filepath.Join(".agent", "rules", "gogo", "models-orm-migrations.md"),
+		filepath.Join(".agent", "rules", "gogo", "package-feature-index.md"),
 		filepath.Join(".agent", "rules", "gogo", "project-structure.md"),
 		filepath.Join(".agent", "rules", "gogo", "queue-workers.md"),
 		filepath.Join(".agent", "rules", "gogo", "settings-security.md"),
@@ -74,6 +75,7 @@ func TestProjectTemplatesRenderGogoAgentRules(t *testing.T) {
 	base := files[filepath.Join(".agent", "rules", "gogo.md")]
 	for _, want := range []string{
 		"Project type: Gogo client project.",
+		".agent/rules/gogo/package-feature-index.md",
 		".agent/rules/gogo/project-structure.md",
 		".agent/rules/gogo/models-orm-migrations.md",
 		".agent/rules/gogo/http-admin-api-auth.md",
@@ -84,6 +86,19 @@ func TestProjectTemplatesRenderGogoAgentRules(t *testing.T) {
 	} {
 		if !strings.Contains(base, want) {
 			t.Fatalf("gogo.md missing %q:\n%s", want, base)
+		}
+	}
+
+	index := files[filepath.Join(".agent", "rules", "gogo", "package-feature-index.md")]
+	for _, want := range []string{
+		"Public Package Map",
+		"github.com/cybersaksham/gogo/contrib/sites",
+		"gogo makemigrations",
+		"gogo loaddata",
+		"go doc github.com/cybersaksham/gogo/<package>",
+	} {
+		if !strings.Contains(index, want) {
+			t.Fatalf("package-feature-index.md missing %q:\n%s", want, index)
 		}
 	}
 

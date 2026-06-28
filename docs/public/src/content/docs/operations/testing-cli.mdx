@@ -18,7 +18,8 @@ Generated projects also include a `Makefile` for common workflows.
 | Command | Purpose |
 | --- | --- |
 | `gogo help` | show available commands |
-| `gogo version` or `gogo --version` | print CLI version metadata |
+| `gogo --help` or `gogo -h` | show available commands |
+| `gogo version`, `gogo --version`, or `gogo -version` | print CLI version metadata |
 | `gogo check` | run settings and system checks |
 | `gogo runserver` | run the development HTTP server |
 | `gogo startproject` | create a project scaffold |
@@ -44,3 +45,12 @@ Generated projects also include a `Makefile` for common workflows.
 
 Report any skipped external integration checks when PostgreSQL, Redis, or
 RabbitMQ are not available in local verification.
+
+Generated project `Makefile` commands wrap common workflows:
+
+| Command | Purpose |
+| --- | --- |
+| `make test` | run project tests |
+| `make check` | run `gogo check` |
+| `make run` | run the development server |
+| `make tidy` | run `go mod tidy` |

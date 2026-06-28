@@ -7,6 +7,22 @@ versioning after the first stable release.
 
 ## Unreleased
 
+### Added
+
+- Added public documentation pages for the complete public package map and
+  contrib/cross-cutting framework features.
+- Added a generated client-project agent rule containing the public package
+  index, contrib package index, CLI command surface, and feature discovery
+  workflow.
+
+### Changed
+
+- Expanded generated client-project Gogo agent rules with more complete
+  feature coverage for models, fields, migrations, HTTP, admin, APIs, auth,
+  forms, templates, static files, uploads, queues, settings, testing,
+  deployment, contrib apps, and cross-cutting framework services.
+- Updated public and README installation instructions to pin `v0.1.2`.
+
 ### Fixed
 
 - Fixed CI and release workflow setup so public documentation dependencies are

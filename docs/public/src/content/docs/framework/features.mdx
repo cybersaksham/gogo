@@ -19,8 +19,12 @@ Gogo is organized as a single framework made of public Go packages and a CLI.
 | Forms and templates | forms, widgets, formsets, model forms, template rendering, tags, filters, template inheritance, static files, file storage, uploads, messages, and i18n helpers. |
 | Queues | task registration, signatures, brokers, result backends, workers, beat schedules, retries, timeouts, routing, rate limits, events, inspection, and canvas workflows. |
 | Operations | deploy checks, environment validation, testing helpers, fixture commands, collectstatic, database shell, app shell, health checks, observability, cache, email, and security helpers. |
+| Contrib apps | sites, redirects, flatpages, sitemaps, syndication, humanize, admin docs, PostgreSQL helpers, and GIS/PostGIS helpers. |
 
 The framework keeps public application code outside `github.com/cybersaksham/gogo/internal`.
 Generated projects should import only public packages such as `app`, `models`,
 `orm`, `migrations`, `http`, `admin`, `api`, `auth`, `forms`, `queue`, and
 `conf`.
+
+Use the [package index](./package-index/) when an agent or developer needs the
+complete public import-path map.

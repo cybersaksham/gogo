@@ -11,6 +11,10 @@ Framework module: `github.com/cybersaksham/gogo`.
 - Name tasks with an app namespace, such as `<app>.<task>`.
 - Keep task payloads small, serializable, and stable.
 - Keep task business logic in services so HTTP/API/admin paths can share it.
+- Queue task coverage includes task registration, task options, signatures,
+  kwargs, headers, envelopes, JSON/raw/gob serialization, compression,
+  trusted serializer checks, routing, priorities, countdown, ETA, expiration,
+  results, events, inspection, security signing, and admin metadata.
 
 ## Brokers And Results
 
@@ -19,12 +23,19 @@ Framework module: `github.com/cybersaksham/gogo`.
   are required.
 - Supported queue integrations include in-memory/local behavior for tests and
   Redis/RabbitMQ/SQL-backed integrations where configured.
+- Broker packages include shared broker interfaces, Redis broker integration,
+  and RabbitMQ broker integration. Result backend packages include shared
+  backend interfaces, Redis results, SQL results, and memory/local test
+  behavior.
 
 ## Reliability
 
 - Set retries, retry delay/backoff, timeout, expiration, routing key, queue,
   acknowledgement behavior, and idempotency expectations explicitly for
   production tasks.
+- Worker coverage includes solo, goroutine, and process-pool strategy hooks,
+  concurrency, prefetch, acknowledgement policy, retries, hard and soft
+  timeouts, rate limits, cancellation, result storage, and error reporting.
 - Design tasks to be safe on retry. Use idempotency keys or database guards for
   side effects.
 - Do not put secrets in queue payloads or task names.
@@ -36,6 +47,10 @@ Framework module: `github.com/cybersaksham/gogo`.
 - Use beat schedules for periodic jobs.
 - Use chains, groups, chords, and other canvas workflows when task ordering or
   fan-out/fan-in matters.
+- Beat schedule coverage includes interval, crontab, clocked, and solar-style
+  schedule metadata plus schedule stores and locks.
+- Canvas coverage includes chains, groups, chords, chunks, maps, workflow
+  serialization, and fan-out/fan-in result coordination.
 - Keep schedule definitions close to app task registration unless they are
   project-level operations.
 

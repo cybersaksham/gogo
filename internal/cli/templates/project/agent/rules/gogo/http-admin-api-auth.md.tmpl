@@ -11,6 +11,11 @@ Framework module: `github.com/cybersaksham/gogo`.
 - Put app routes and handlers in each app's `urls.go`.
 - Use Gogo HTTP request/response helpers, route patterns, URL reversing,
   middleware, decorators, redirects, generic views, and error handling.
+- Built-in HTTP helpers include method decorators, conditional requests, ETag
+  and Last-Modified handling, gzip responses, Vary headers, cache-control
+  decorators, frame-options decorators, CSRF decorators, request IDs, panic
+  recovery, access logs, host validation, static mounting, and safe server
+  timeouts.
 - Keep middleware order explicit in project settings or middleware wiring.
 
 ## Admin
@@ -18,6 +23,10 @@ Framework module: `github.com/cybersaksham/gogo`.
 - Register admin entries in app `admin.go` files or project admin wiring.
 - Configure list display, search, filters, readonly fields, inlines, widgets,
   actions, autocomplete, delete behavior, and history intentionally.
+- Admin package coverage includes sites, registries, URL generation, index
+  pages, change lists, change forms, delete confirmation, deletion collection,
+  object history, log entries, fieldsets, custom actions, search, filters,
+  inlines, widgets, static assets, and admin templates.
 - Gate admin access through staff/superuser and permission checks.
 - Keep admin actions auditable and avoid destructive bulk actions without
   confirmation or explicit permission checks.
@@ -27,6 +36,12 @@ Framework module: `github.com/cybersaksham/gogo`.
 - Use Gogo API serializers, model serializers, views, viewsets, routers,
   parsers, renderers, authentication, permissions, pagination, filtering,
   throttling, uploads, metadata, versioning, validation, and OpenAPI helpers.
+- API coverage includes JSON/form/multipart/raw parsers, JSON/plain/browsable
+  renderers, serializer fields, nested serializers, method fields, object and
+  list validation, exception handling, route metadata, exact/search/ordering
+  filters, page-number/limit-offset/cursor pagination, session/token auth,
+  object permissions, upload validation, version negotiation, and OpenAPI
+  components.
 - Keep serializers responsible for transport validation and conversion.
 - Keep business rules in services so admin, HTTP, API, and tasks share behavior.
 - Return consistent API errors through Gogo API response/error helpers.
@@ -35,6 +50,13 @@ Framework module: `github.com/cybersaksham/gogo`.
 
 - Use the built-in Gogo auth toolkit for users, groups, permissions, password
   hashing, forms, tokens, middleware, decorators, and content types.
+- Built-in auth tables and metadata mirror Django-style `auth_user`,
+  `auth_group`, `auth_permission`, and content types. Default permissions are
+  `add`, `change`, `delete`, and `view`; app-specific custom permissions
+  should be declared near model metadata.
+- `AbstractBaseUser` and `AbstractUser` are the extension path for custom user
+  types. Do not replace the whole auth backend unless the framework version
+  explicitly supports configurable auth.
 - Extend/inherit from the built-in auth models rather than replacing the auth
   system unless a future Gogo version explicitly supports configurable auth.
 - Store authorization rules in permission constants/helpers and reuse them in

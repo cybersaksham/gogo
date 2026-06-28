@@ -34,10 +34,13 @@ Inside an app:
 
 ## Imports
 
-- Import only public Gogo packages, such as `github.com/cybersaksham/gogo/app`,
-  `github.com/cybersaksham/gogo/models`, `github.com/cybersaksham/gogo/http`,
-  `github.com/cybersaksham/gogo/admin`, `github.com/cybersaksham/gogo/api`,
-  `github.com/cybersaksham/gogo/forms`, and `github.com/cybersaksham/gogo/queue`.
+- Import only public Gogo packages. The complete package map lives in
+  `.agent/rules/gogo/package-feature-index.md`.
+- Common public packages include `app`, `conf`, `checks`, `models`,
+  `models/fields`, `models/constraints`, `orm`, `migrations`, `http`,
+  `security`, `sessions`, `admin`, `api`, `auth`, `forms`, `templates`,
+  `static`, `files`, `messages`, `i18n`, `signals`, `queue`, `cache`, `email`,
+  `health`, `observability`, `testing`, and `contrib/*`.
 - Do not import `github.com/cybersaksham/gogo/internal`.
 - Keep project-specific packages under this module path, not inside the Gogo
   framework module.

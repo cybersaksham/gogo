@@ -5,13 +5,13 @@
 Install the CLI from the published release:
 
 ```bash
-go install github.com/cybersaksham/gogo/cmd/gogo@v0.1.1
+go install github.com/cybersaksham/gogo/cmd/gogo@v0.1.2
 ```
 
 Use the framework as a Go module:
 
 ```bash
-go get github.com/cybersaksham/gogo@v0.1.1
+go get github.com/cybersaksham/gogo@v0.1.2
 ```
 
 Prebuilt CLI binaries and checksums are available from GitHub Releases:
@@ -23,7 +23,7 @@ yet, install directly from Git:
 
 ```bash
 GOPROXY=direct GONOSUMDB=github.com/cybersaksham/gogo \
-  go install github.com/cybersaksham/gogo/cmd/gogo@v0.1.1
+  go install github.com/cybersaksham/gogo/cmd/gogo@v0.1.2
 ```
 
 ## Setup

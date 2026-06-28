@@ -13,6 +13,14 @@ Framework module: `github.com/cybersaksham/gogo`.
 - Use appropriate field families: scalar, text, numeric, temporal, binary,
   JSON, relation, file, network, PostgreSQL-specific, GIS, generated, and
   choice fields.
+- Field coverage includes auto IDs, big auto IDs, small auto IDs, integers,
+  big integers, small integers, positive integers, decimals, floats, booleans,
+  char/text/email/URL/slug/UUID fields, date/datetime/time/duration fields,
+  binary fields, JSON fields, file/image/file-path fields, generic IP fields,
+  generated fields, foreign keys, one-to-one relations, many-to-many relations,
+  arrays, hstore, integer ranges, decimal ranges, date ranges, datetime ranges,
+  geometry, point, line string, polygon, multipoint, multilinestring,
+  multipolygon, geometry collection, raster, and grouped choices.
 - Keep permissions and content-type expectations close to the app model
   metadata when admin/API/auth behavior depends on them.
 
@@ -32,6 +40,9 @@ Framework module: `github.com/cybersaksham/gogo`.
 
 - Add migrations whenever model metadata changes database schema.
 - Keep migration files under the owning app's `migrations/` directory.
+- Use public migration operations for creating, altering, renaming, deleting
+  models and fields, indexes, constraints, raw SQL, data migrations, and
+  safety annotations.
 - Review generated operations for destructive changes before applying them.
 - Keep data migrations idempotent and reversible when possible.
 - Use migration commands for normal workflow:
@@ -41,6 +52,8 @@ gogo makemigrations
 gogo sqlmigrate <app> <migration>
 gogo migrate
 gogo showmigrations
+gogo squashmigrations <app> <start> <end>
+gogo optimizemigration <app> <migration>
 ```
 
 ## Safety

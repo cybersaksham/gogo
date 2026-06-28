@@ -12,6 +12,7 @@ Read the specific rule files that match the task:
 
 | Task Area | Rule File |
 | --- | --- |
+| Complete public package map, feature index, CLI commands, and agent discovery workflow | `.agent/rules/gogo/package-feature-index.md` |
 | Project layout, app boundaries, imports, and generated ownership | `.agent/rules/gogo/project-structure.md` |
 | Models, fields, ORM queries, managers, and migrations | `.agent/rules/gogo/models-orm-migrations.md` |
 | HTTP routes, admin, APIs, auth, sessions, and permissions | `.agent/rules/gogo/http-admin-api-auth.md` |
@@ -24,6 +25,8 @@ Read the specific rule files that match the task:
 
 - Prefer public framework packages under `github.com/cybersaksham/gogo`.
 - Never import `github.com/cybersaksham/gogo/internal` from this project.
+- When using a Gogo feature, first check `.agent/rules/gogo/package-feature-index.md`
+  for the owning package and then inspect public symbols with `go doc`.
 - Keep first-party apps under `apps/`; keep project wiring under `{{.ProjectName}}/`.
 - Keep generated structure app-based: each app owns models, migrations, admin
   registrations, API views, forms, templates, static assets, tasks, services,
@@ -43,6 +46,12 @@ make test
 make check
 make run
 make tidy
+gogo help
+gogo version
+gogo check
+gogo check --deploy
 ```
 
 Use `gogo check --deploy` before production deployment.
+
+The full CLI command list is in `.agent/rules/gogo/package-feature-index.md`.
