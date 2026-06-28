@@ -141,11 +141,13 @@ jobs:
             gh release edit "$GOGO_RELEASE_TAG" \
               --title "$GOGO_RELEASE_TAG" \
               --notes-file release-notes.md \
+              --target "$GOGO_RELEASE_COMMIT" \
               --verify-tag
             gh release upload "$GOGO_RELEASE_TAG" dist/* --clobber
           else
             gh release create "$GOGO_RELEASE_TAG" dist/* \
               --title "$GOGO_RELEASE_TAG" \
               --notes-file release-notes.md \
+              --target "$GOGO_RELEASE_COMMIT" \
               --verify-tag
           fi
