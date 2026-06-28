@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
+	"strconv"
+	"time"
 )
 
 const DefaultBodyLimit int64 = 32 << 20
@@ -82,7 +85,12 @@ func (v APIView) AsView() View {
 // DefaultExceptionHandler returns safe, normalized API errors.
 func DefaultExceptionHandler(_ context.Context, _ *Request, err error) Response {
 	status, code, message := apiErrorStatus(err)
-	return Error(status, APIError{Code: code, Message: message})
+	response := Error(status, APIError{Code: code, Message: message})
+	var throttleErr *ThrottleError
+	if errors.As(err, &throttleErr) {
+		response.Header().Set("Retry-After", strconv.Itoa(retryAfterSeconds(throttleErr.RetryAfter)))
+	}
+	return response
 }
 
 func (v APIView) initialize(ctx context.Context, request *Request) (*Request, error) {
@@ -90,6 +98,14 @@ func (v APIView) initialize(ctx context.Context, request *Request) (*Request, er
 		return request, nil
 	}
 	return v.InitializeRequest(ctx, request)
+}
+
+func retryAfterSeconds(duration time.Duration) int {
+	seconds := int(math.Ceil(duration.Seconds()))
+	if seconds < 1 {
+		return 1
+	}
+	return seconds
 }
 
 func (v APIView) exception(ctx context.Context, request *Request, err error) Response {

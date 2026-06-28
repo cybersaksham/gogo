@@ -21,6 +21,7 @@ type Response struct {
 	contentType string
 	filePath    string
 	noBody      bool
+	header      http.Header
 }
 
 // JSON creates a JSON response.
@@ -53,8 +54,21 @@ func File(path, contentType string) Response {
 	return Response{status: http.StatusOK, filePath: path, contentType: contentType}
 }
 
+// Header returns mutable response headers.
+func (r *Response) Header() http.Header {
+	if r.header == nil {
+		r.header = http.Header{}
+	}
+	return r.header
+}
+
 // Write writes the response to a standard response writer.
 func (r Response) Write(w http.ResponseWriter) error {
+	for key, values := range r.header {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
 	if r.contentType != "" {
 		w.Header().Set("Content-Type", r.contentType)
 	}

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"net"
 	"net/http"
 
 	"github.com/cybersaksham/gogo/auth"
@@ -35,6 +36,15 @@ func (r *Request) QueryParam(name string) string {
 // Method returns the HTTP request method.
 func (r *Request) Method() string {
 	return r.raw.Method
+}
+
+// RemoteIP returns the request remote address without a port when possible.
+func (r *Request) RemoteIP() string {
+	host, _, err := net.SplitHostPort(r.raw.RemoteAddr)
+	if err == nil {
+		return host
+	}
+	return r.raw.RemoteAddr
 }
 
 // WithPathParam attaches a resolved route path parameter.
