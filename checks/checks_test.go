@@ -32,6 +32,46 @@ func TestResultOrdering(t *testing.T) {
 	}
 }
 
+func TestContribChecksCatchDependenciesSettingsUnsafeRedirectsAndDialect(t *testing.T) {
+	results := ContribChecks(ContribConfig{
+		InstalledApps:        []string{"gogo.contrib.redirects", "gogo.contrib.flatpages", "gogo.contrib.postgres", "gogo.contrib.gis"},
+		Middleware:           []string{"gogo.contrib.redirects.Middleware", "gogo.contrib.sites.Middleware"},
+		SiteID:               0,
+		AllowUnsafeRedirects: true,
+		DatabaseDialect:      "sqlite",
+	})
+	ids := resultIDs(results)
+	for _, want := range []string{"contrib.E001", "contrib.E002", "contrib.E003", "contrib.E004", "contrib.E005", "contrib.E006", "contrib.E007", "contrib.W001"} {
+		if !contains(ids, want) {
+			t.Fatalf("contrib check IDs = %#v, missing %s", ids, want)
+		}
+	}
+
+	valid := ContribChecks(ContribConfig{
+		InstalledApps:        []string{"gogo.contrib.sites", "gogo.contrib.redirects", "gogo.contrib.flatpages", "gogo.contrib.postgres", "gogo.contrib.gis"},
+		Middleware:           []string{"gogo.contrib.sites.Middleware", "gogo.messages.Middleware", "gogo.contrib.flatpages.Middleware", "gogo.contrib.redirects.Middleware"},
+		SiteID:               1,
+		DatabaseDialect:      "postgres",
+		DatabaseExtensions:   []string{"postgis", "pg_trgm"},
+		AllowUnsafeRedirects: false,
+	})
+	if len(valid) != 0 {
+		t.Fatalf("valid contrib checks = %#v", valid)
+	}
+}
+
+func TestRegisterContribChecksAddsDynamicCheck(t *testing.T) {
+	registry := NewRegistry()
+	RegisterContribChecks(registry, ContribConfig{
+		InstalledApps:   []string{"gogo.contrib.gis"},
+		DatabaseDialect: "sqlite",
+	})
+	results := registry.Run(context.Background(), Options{Tags: []string{"contrib"}})
+	if got := resultIDs(results); !contains(got, "contrib.E006") {
+		t.Fatalf("registered contrib check IDs = %#v", got)
+	}
+}
+
 func resultIDs(results []Result) []string {
 	ids := make([]string, len(results))
 	for i, result := range results {
