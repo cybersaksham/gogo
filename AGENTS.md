@@ -40,7 +40,7 @@ Read the specific rule files that match the task:
 | Forms, templates, static files, files, fixtures | `.agent/rules/templates-forms-static-files.md` |
 | Django contrib-style packages | `.agent/rules/contrib-apps.md` |
 | Docs, tutorials, examples, generated docs | `.agent/rules/docs-examples.md` |
-| GitHub Actions, releases, changelog, dependencies | `.agent/rules/ci-release.md` |
+| GitHub Actions, manual release publishing, changelog, dependencies | `.agent/rules/ci-release.md` |
 | Final audit and review pass | `.agent/rules/audit-review.md` |
 
 ## Default Verification
@@ -64,4 +64,3 @@ go test -race ./queue/... ./orm/... ./http/...
 ```
 
 If a command cannot run, report the exact reason and the risk left unverified.
-
