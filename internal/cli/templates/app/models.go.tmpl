@@ -1,0 +1,35 @@
+package {{.AppName}}
+
+import "github.com/cybersaksham/gogo/models"
+
+type Item struct {
+	models.BaseModel
+	Name string
+	Slug string
+}
+
+func (Item) ModelMeta() models.Metadata {
+	return models.Metadata{
+		AppLabel:   AppLabel,
+		ModelName:  "Item",
+		TableName:  AppLabel + "_item",
+		DBTable:    AppLabel + "_item",
+		VerboseName: "item",
+		VerboseNamePlural: "items",
+		DefaultPermissions: []string{"add", "change", "delete", "view"},
+		Fields: []models.FieldMeta{
+			{Name: "id", Column: "id", PrimaryKey: true},
+			{Name: "name", Column: "name"},
+			{Name: "slug", Column: "slug"},
+			{Name: "created_at", Column: "created_at"},
+			{Name: "updated_at", Column: "updated_at"},
+		},
+		Constraints: []models.Constraint{
+			{Name: AppLabel + "_item_slug_uniq", Type: models.ConstraintUnique, Fields: []models.IndexField{models.Asc("slug")}},
+		},
+	}
+}
+
+func ModelMetadata() []models.Metadata {
+	return []models.Metadata{Item{}.ModelMeta()}
+}

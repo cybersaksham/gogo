@@ -1,0 +1,17 @@
+package {{.AppName}}
+
+import "github.com/cybersaksham/gogo/admin"
+
+func RegisterAdmin(registry *admin.Registry) error {
+	for _, meta := range ModelMetadata() {
+		if err := registry.RegisterMetadata(meta, admin.ModelAdmin{
+			ListDisplay:        []string{"name", "slug", "updated_at"},
+			SearchFields:       []string{"name", "slug"},
+			PrepopulatedFields: map[string][]string{"slug": []string{"name"}},
+			ReadonlyFields:     []string{"created_at", "updated_at"},
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}

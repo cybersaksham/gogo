@@ -9,12 +9,17 @@ import (
 	texttemplate "text/template"
 )
 
-//go:embed project
+//go:embed project app
 var templateFS embed.FS
 
 type ProjectData struct {
 	ProjectName string
 	ModulePath  string
+}
+
+type AppData struct {
+	AppName  string
+	AppLabel string
 }
 
 type templateFile struct {
@@ -50,6 +55,26 @@ var projectKeepFiles = []string{
 	"tests/integration/.keep",
 }
 
+var appTemplateFiles = []templateFile{
+	{TemplatePath: "app/app.go.tmpl", TargetPath: "app.go"},
+	{TemplatePath: "app/models.go.tmpl", TargetPath: "models.go"},
+	{TemplatePath: "app/admin.go.tmpl", TargetPath: "admin.go"},
+	{TemplatePath: "app/urls.go.tmpl", TargetPath: "urls.go"},
+	{TemplatePath: "app/api.go.tmpl", TargetPath: "api.go"},
+	{TemplatePath: "app/serializers.go.tmpl", TargetPath: "serializers.go"},
+	{TemplatePath: "app/forms.go.tmpl", TargetPath: "forms.go"},
+	{TemplatePath: "app/services.go.tmpl", TargetPath: "services.go"},
+	{TemplatePath: "app/tasks.go.tmpl", TargetPath: "tasks.go"},
+	{TemplatePath: "app/permissions.go.tmpl", TargetPath: "permissions.go"},
+	{TemplatePath: "app/tests.go.tmpl", TargetPath: "tests/{{.AppLabel}}_test.go"},
+}
+
+var appKeepFiles = []string{
+	"migrations/.keep",
+	"templates/{{.AppLabel}}/.keep",
+	"static/{{.AppLabel}}/.keep",
+}
+
 func ProjectFiles(data ProjectData) (map[string]string, error) {
 	if strings.TrimSpace(data.ProjectName) == "" {
 		return nil, fmt.Errorf("project name is required")
@@ -72,6 +97,35 @@ func ProjectFiles(data ProjectData) (map[string]string, error) {
 	files["templates/base.html"] = "<!doctype html>\n<html><body>{{ block \"content\" . }}{{ end }}</body></html>\n"
 	for _, keep := range projectKeepFiles {
 		files[filepath.FromSlash(keep)] = ""
+	}
+	return files, nil
+}
+
+func AppFiles(data AppData) (map[string]string, error) {
+	if strings.TrimSpace(data.AppName) == "" {
+		return nil, fmt.Errorf("app name is required")
+	}
+	if strings.TrimSpace(data.AppLabel) == "" {
+		data.AppLabel = data.AppName
+	}
+	files := make(map[string]string, len(appTemplateFiles)+len(appKeepFiles))
+	for _, item := range appTemplateFiles {
+		targetPath, err := renderString(item.TargetPath, data)
+		if err != nil {
+			return nil, err
+		}
+		contents, err := renderTemplate(item.TemplatePath, data)
+		if err != nil {
+			return nil, err
+		}
+		files[filepath.FromSlash(targetPath)] = contents
+	}
+	for _, keep := range appKeepFiles {
+		targetPath, err := renderString(keep, data)
+		if err != nil {
+			return nil, err
+		}
+		files[filepath.FromSlash(targetPath)] = ""
 	}
 	return files, nil
 }

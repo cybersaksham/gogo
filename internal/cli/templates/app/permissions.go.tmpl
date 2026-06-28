@@ -1,0 +1,12 @@
+package {{.AppName}}
+
+import "github.com/cybersaksham/gogo/auth"
+
+const (
+	ViewItemPermission   = AppLabel + ".view_item"
+	ChangeItemPermission = AppLabel + ".change_item"
+)
+
+func CanViewItem(user auth.User) bool {
+	return auth.HasPerm(user, ViewItemPermission)
+}

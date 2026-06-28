@@ -1,0 +1,19 @@
+package {{.AppName}}
+
+import (
+	"context"
+	"net/http"
+
+	"github.com/cybersaksham/gogo/api"
+)
+
+func RegisterAPI(router *api.Router) error {
+	return router.Handle(AppLabel+"-item-list", AppLabel+"/items", ListItems, http.MethodGet)
+}
+
+func ListItems(context.Context, *api.Request) api.Response {
+	return api.JSON(http.StatusOK, map[string]any{
+		"count":   0,
+		"results": []map[string]any{},
+	})
+}

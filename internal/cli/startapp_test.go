@@ -82,6 +82,6 @@ func expectedAppFiles(appLabel string) []string {
 		filepath.Join("migrations", ".keep"),
 		filepath.Join("templates", appLabel, ".keep"),
 		filepath.Join("static", appLabel, ".keep"),
-		filepath.Join("tests", ".keep"),
+		filepath.Join("tests", appLabel+"_test.go"),
 	}
 }

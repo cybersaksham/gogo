@@ -3,6 +3,8 @@ package templates
 import (
 	"go/parser"
 	"go/token"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -98,6 +100,74 @@ func TestProjectTemplatesRenderParseablePublicGoFiles(t *testing.T) {
 	}
 }
 
+func TestAppFilesRenderExpectedStructure(t *testing.T) {
+	files, err := AppFiles(AppData{AppName: "blog", AppLabel: "blog"})
+	if err != nil {
+		t.Fatalf("AppFiles() error = %v", err)
+	}
+
+	got := sortedKeys(files)
+	want := []string{
+		"admin.go",
+		"api.go",
+		"app.go",
+		"forms.go",
+		"migrations/.keep",
+		"models.go",
+		"permissions.go",
+		"serializers.go",
+		"services.go",
+		"static/blog/.keep",
+		"tasks.go",
+		"templates/blog/.keep",
+		"tests/blog_test.go",
+		"urls.go",
+	}
+	sort.Strings(want)
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("app files = %#v, want %#v", got, want)
+	}
+}
+
+func TestAppTemplatesRenderParseablePublicGoFiles(t *testing.T) {
+	files, err := AppFiles(AppData{AppName: "blog", AppLabel: "blog"})
+	if err != nil {
+		t.Fatalf("AppFiles() error = %v", err)
+	}
+
+	for path, contents := range files {
+		if filepath.Ext(path) != ".go" {
+			continue
+		}
+		if strings.Contains(contents, "github.com/cybersaksham/gogo/internal") {
+			t.Fatalf("%s imports internal framework package", path)
+		}
+		if _, err := parser.ParseFile(token.NewFileSet(), path, contents, parser.AllErrors); err != nil {
+			t.Fatalf("%s is not parseable Go: %v\n%s", path, err, contents)
+		}
+	}
+}
+
+func TestGeneratedAppCompilesAsDownstreamModule(t *testing.T) {
+	files, err := AppFiles(AppData{AppName: "blog", AppLabel: "blog"})
+	if err != nil {
+		t.Fatalf("AppFiles() error = %v", err)
+	}
+
+	root := t.TempDir()
+	writeFile(t, root, "go.mod", "module sample\n\ngo 1.26\n\nrequire github.com/cybersaksham/gogo v0.0.0\n")
+	repoRoot, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	if err != nil {
+		t.Fatalf("resolve repo root: %v", err)
+	}
+	runCommand(t, root, "go", "mod", "edit", "-replace", "github.com/cybersaksham/gogo="+filepath.ToSlash(repoRoot))
+	for path, contents := range files {
+		writeFile(t, root, filepath.Join("apps", "blog", path), contents)
+	}
+	runCommand(t, root, "go", "mod", "tidy")
+	runCommand(t, root, "go", "test", "./apps/blog/...")
+}
+
 func sortedKeys(values map[string]string) []string {
 	keys := make([]string, 0, len(values))
 	for key := range values {
@@ -105,4 +175,25 @@ func sortedKeys(values map[string]string) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func writeFile(t *testing.T, root string, path string, contents string) {
+	t.Helper()
+	fullPath := filepath.Join(root, path)
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", path, err)
+	}
+	if err := os.WriteFile(fullPath, []byte(contents), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+func runCommand(t *testing.T, dir string, name string, args ...string) {
+	t.Helper()
+	cmd := exec.Command(name, args...)
+	cmd.Dir = dir
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("%s %s failed in %s: %v\n%s", name, strings.Join(args, " "), dir, err, output)
+	}
 }

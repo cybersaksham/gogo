@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	gogotemplates "github.com/cybersaksham/gogo/internal/cli/templates"
 )
 
 // NewStartappCommand creates the app generator command.
@@ -49,7 +51,11 @@ func (c startappCommand) Run(_ context.Context, args []string) error {
 		return err
 	}
 
-	for relativePath, contents := range appFiles(appName) {
+	files, err := gogotemplates.AppFiles(gogotemplates.AppData{AppName: appName, AppLabel: appName})
+	if err != nil {
+		return fmt.Errorf("%w: render app templates: %v", ErrCommandFailed, err)
+	}
+	for relativePath, contents := range files {
 		path := filepath.Join(target, relativePath)
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			return fmt.Errorf("%w: create directory for %s: %v", ErrCommandFailed, relativePath, err)
@@ -60,27 +66,4 @@ func (c startappCommand) Run(_ context.Context, args []string) error {
 	}
 
 	return nil
-}
-
-func appFiles(appName string) map[string]string {
-	return map[string]string{
-		"app.go":                             appPackageFile(appName, "App configuration."),
-		"models.go":                          appPackageFile(appName, "Models."),
-		"admin.go":                           appPackageFile(appName, "Admin registrations."),
-		"urls.go":                            appPackageFile(appName, "Routes."),
-		"api.go":                             appPackageFile(appName, "API routes."),
-		"serializers.go":                     appPackageFile(appName, "Serializers."),
-		"forms.go":                           appPackageFile(appName, "Forms."),
-		"services.go":                        appPackageFile(appName, "Application services."),
-		"tasks.go":                           appPackageFile(appName, "Queue tasks."),
-		"permissions.go":                     appPackageFile(appName, "Permissions."),
-		filepath.Join("migrations", ".keep"): "",
-		filepath.Join("templates", appName, ".keep"): "",
-		filepath.Join("static", appName, ".keep"):    "",
-		filepath.Join("tests", ".keep"):              "",
-	}
-}
-
-func appPackageFile(packageName string, comment string) string {
-	return fmt.Sprintf("// %s\npackage %s\n", comment, packageName)
 }
