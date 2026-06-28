@@ -19,4 +19,5 @@ var (
 	ErrReverse                 = errors.New("reverse error")
 	ErrPagination              = errors.New("pagination error")
 	ErrFilter                  = errors.New("filter error")
+	ErrUpload                  = errors.New("upload error")
 )
