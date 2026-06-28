@@ -116,6 +116,7 @@ func expectedProjectFiles(projectName string) []string {
 		filepath.Join("apps", ".keep"),
 		filepath.Join("templates", "base.html"),
 		filepath.Join("static", ".keep"),
+		filepath.Join("media", ".keep"),
 		filepath.Join("fixtures", ".keep"),
 		filepath.Join("tests", "integration", ".keep"),
 		filepath.Join("deploy", "docker", "Dockerfile"),

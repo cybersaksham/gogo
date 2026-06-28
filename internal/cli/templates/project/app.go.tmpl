@@ -1,0 +1,21 @@
+package {{.ProjectName}}
+
+import (
+	"os"
+	"path/filepath"
+
+	"github.com/cybersaksham/gogo/app"
+)
+
+func NewConfig() app.BaseConfig {
+	root, err := os.Getwd()
+	if err != nil {
+		root = "."
+	}
+	return app.BaseConfig{
+		AppName:        "{{.ProjectName}}",
+		AppLabel:       "{{.ProjectName}}",
+		AppPath:        filepath.Join(root, "{{.ProjectName}}"),
+		AppVerboseName: "{{.ProjectName}}",
+	}
+}

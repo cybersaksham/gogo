@@ -1,0 +1,11 @@
+package settings
+
+import "github.com/cybersaksham/gogo/conf"
+
+func Local() conf.Settings {
+	settings := Base()
+	settings.Env = "development"
+	settings.Debug = true
+	settings.AllowedHosts = []string{"localhost", "127.0.0.1"}
+	return settings
+}

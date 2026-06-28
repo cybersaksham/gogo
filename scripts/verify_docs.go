@@ -218,6 +218,13 @@ func checkTutorials(root string) error {
 	if err := run(root, "go", "run", "./cmd/gogo", "startapp", "blog", appDir); err != nil {
 		return err
 	}
+	replace := "github.com/cybersaksham/gogo=" + filepath.ToSlash(root)
+	if err := run(projectDir, "go", "mod", "edit", "-replace", replace); err != nil {
+		return err
+	}
+	if err := run(projectDir, "go", "mod", "tidy"); err != nil {
+		return err
+	}
 	if err := run(projectDir, "go", "test", "./..."); err != nil {
 		return err
 	}

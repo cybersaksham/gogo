@@ -1,0 +1,13 @@
+package {{.ProjectName}}
+
+import "github.com/cybersaksham/gogo/admin"
+
+func NewAdminRegistry() *admin.Registry {
+	return admin.NewRegistry()
+}
+
+func NewAdminSite() *admin.Site {
+	site := admin.DefaultSite()
+	site.ModelRegistry = NewAdminRegistry()
+	return site
+}
