@@ -1,0 +1,51 @@
+# Gogo Models, ORM, And Migrations Rules
+
+Use this rule when adding model fields, relationships, query logic, managers,
+constraints, indexes, or migrations.
+
+Framework module: `github.com/cybersaksham/gogo`.
+
+## Models And Fields
+
+- Define model metadata with public `models` and `models/fields` APIs.
+- Prefer explicit field names, column names, defaults, null/blank behavior,
+  validators, choices, indexes, constraints, and relationship metadata.
+- Use appropriate field families: scalar, text, numeric, temporal, binary,
+  JSON, relation, file, network, PostgreSQL-specific, GIS, generated, and
+  choice fields.
+- Keep permissions and content-type expectations close to the app model
+  metadata when admin/API/auth behavior depends on them.
+
+## ORM
+
+- Use Gogo ORM querysets, managers, expressions, lookups, aggregates, joins,
+  ordering, slicing, prefetch planning, transactions, and locking instead of
+  ad hoc SQL.
+- Use raw SQL only when the ORM cannot express the query; keep it parameterized
+  and close to the app service that owns the behavior.
+- Keep query construction in services or managers when it is shared by HTTP,
+  admin, API, tasks, or tests.
+- Map dialect-specific behavior through public dialect APIs, such as PostgreSQL
+  or SQLite dialect packages.
+
+## Migrations
+
+- Add migrations whenever model metadata changes database schema.
+- Keep migration files under the owning app's `migrations/` directory.
+- Review generated operations for destructive changes before applying them.
+- Keep data migrations idempotent and reversible when possible.
+- Use migration commands for normal workflow:
+
+```bash
+gogo makemigrations
+gogo sqlmigrate <app> <migration>
+gogo migrate
+gogo showmigrations
+```
+
+## Safety
+
+- Do not change existing migration semantics silently.
+- Do not edit already-applied migrations unless the project is still private and
+  the task explicitly asks for migration history cleanup.
+- Prefer additive schema changes for production systems.

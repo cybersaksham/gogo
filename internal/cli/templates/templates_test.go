@@ -21,6 +21,14 @@ func TestProjectFilesRenderExpectedStructure(t *testing.T) {
 	got := sortedKeys(files)
 	want := []string{
 		".env.example",
+		filepath.Join(".agent", "rules", "gogo.md"),
+		filepath.Join(".agent", "rules", "gogo", "forms-templates-static.md"),
+		filepath.Join(".agent", "rules", "gogo", "http-admin-api-auth.md"),
+		filepath.Join(".agent", "rules", "gogo", "models-orm-migrations.md"),
+		filepath.Join(".agent", "rules", "gogo", "project-structure.md"),
+		filepath.Join(".agent", "rules", "gogo", "queue-workers.md"),
+		filepath.Join(".agent", "rules", "gogo", "settings-security.md"),
+		filepath.Join(".agent", "rules", "gogo", "testing-deployment.md"),
 		".gitignore",
 		"Makefile",
 		"README.md",
@@ -47,6 +55,50 @@ func TestProjectFilesRenderExpectedStructure(t *testing.T) {
 	sort.Strings(want)
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("project files = %#v, want %#v", got, want)
+	}
+}
+
+func TestProjectTemplatesRenderGogoAgentRules(t *testing.T) {
+	files, err := ProjectFiles(ProjectData{ProjectName: "myproject", ModulePath: "myproject"})
+	if err != nil {
+		t.Fatalf("ProjectFiles() error = %v", err)
+	}
+
+	if _, ok := files["AGENTS.md"]; ok {
+		t.Fatalf("generated project must not include root AGENTS.md")
+	}
+	if _, ok := files["CLAUDE.md"]; ok {
+		t.Fatalf("generated project must not include root CLAUDE.md")
+	}
+
+	base := files[filepath.Join(".agent", "rules", "gogo.md")]
+	for _, want := range []string{
+		"Project type: Gogo client project.",
+		".agent/rules/gogo/project-structure.md",
+		".agent/rules/gogo/models-orm-migrations.md",
+		".agent/rules/gogo/http-admin-api-auth.md",
+		".agent/rules/gogo/forms-templates-static.md",
+		".agent/rules/gogo/queue-workers.md",
+		".agent/rules/gogo/settings-security.md",
+		".agent/rules/gogo/testing-deployment.md",
+	} {
+		if !strings.Contains(base, want) {
+			t.Fatalf("gogo.md missing %q:\n%s", want, base)
+		}
+	}
+
+	for path, contents := range files {
+		if !strings.HasPrefix(path, filepath.Join(".agent", "rules", "gogo")) {
+			continue
+		}
+		for _, want := range []string{
+			"github.com/cybersaksham/gogo",
+			"gogo",
+		} {
+			if !strings.Contains(contents, want) {
+				t.Fatalf("%s missing %q:\n%s", path, want, contents)
+			}
+		}
 	}
 }
 

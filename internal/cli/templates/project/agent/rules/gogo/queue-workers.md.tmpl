@@ -1,0 +1,49 @@
+# Gogo Queue Worker Rules
+
+Use this rule when adding background jobs, worker commands, beat schedules,
+retries, timeouts, result handling, or canvas workflows.
+
+Framework module: `github.com/cybersaksham/gogo`.
+
+## Tasks
+
+- Register tasks in app `tasks.go` files with the public Gogo queue APIs.
+- Name tasks with an app namespace, such as `<app>.<task>`.
+- Keep task payloads small, serializable, and stable.
+- Keep task business logic in services so HTTP/API/admin paths can share it.
+
+## Brokers And Results
+
+- Configure brokers with `GOGO_BROKER_URL`.
+- Configure result backends with `GOGO_RESULT_BACKEND` only when task results
+  are required.
+- Supported queue integrations include in-memory/local behavior for tests and
+  Redis/RabbitMQ/SQL-backed integrations where configured.
+
+## Reliability
+
+- Set retries, retry delay/backoff, timeout, expiration, routing key, queue,
+  acknowledgement behavior, and idempotency expectations explicitly for
+  production tasks.
+- Design tasks to be safe on retry. Use idempotency keys or database guards for
+  side effects.
+- Do not put secrets in queue payloads or task names.
+- Capture errors in logs/observability and expose worker inspection where
+  needed.
+
+## Scheduling And Canvas
+
+- Use beat schedules for periodic jobs.
+- Use chains, groups, chords, and other canvas workflows when task ordering or
+  fan-out/fan-in matters.
+- Keep schedule definitions close to app task registration unless they are
+  project-level operations.
+
+## Commands
+
+```bash
+gogo worker
+gogo beat
+gogo inspect
+gogo queues
+```

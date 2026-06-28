@@ -1,0 +1,42 @@
+# Gogo HTTP, Admin, API, And Auth Rules
+
+Use this rule when adding routes, middleware, views, admin screens, APIs, auth,
+sessions, groups, permissions, or access checks.
+
+Framework module: `github.com/cybersaksham/gogo`.
+
+## HTTP
+
+- Put root URL wiring in `{{.ProjectName}}/urls.go`.
+- Put app routes and handlers in each app's `urls.go`.
+- Use Gogo HTTP request/response helpers, route patterns, URL reversing,
+  middleware, decorators, redirects, generic views, and error handling.
+- Keep middleware order explicit in project settings or middleware wiring.
+
+## Admin
+
+- Register admin entries in app `admin.go` files or project admin wiring.
+- Configure list display, search, filters, readonly fields, inlines, widgets,
+  actions, autocomplete, delete behavior, and history intentionally.
+- Gate admin access through staff/superuser and permission checks.
+- Keep admin actions auditable and avoid destructive bulk actions without
+  confirmation or explicit permission checks.
+
+## API
+
+- Use Gogo API serializers, model serializers, views, viewsets, routers,
+  parsers, renderers, authentication, permissions, pagination, filtering,
+  throttling, uploads, metadata, versioning, validation, and OpenAPI helpers.
+- Keep serializers responsible for transport validation and conversion.
+- Keep business rules in services so admin, HTTP, API, and tasks share behavior.
+- Return consistent API errors through Gogo API response/error helpers.
+
+## Auth, Sessions, And Permissions
+
+- Use the built-in Gogo auth toolkit for users, groups, permissions, password
+  hashing, forms, tokens, middleware, decorators, and content types.
+- Extend/inherit from the built-in auth models rather than replacing the auth
+  system unless a future Gogo version explicitly supports configurable auth.
+- Store authorization rules in permission constants/helpers and reuse them in
+  admin, API, HTTP views, and tasks.
+- Keep session and CSRF settings secure in production.

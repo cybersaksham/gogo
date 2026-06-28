@@ -1,0 +1,53 @@
+# Gogo Testing, Deployment, And Upgrade Rules
+
+Use this rule when adding tests, changing commands, deploying, upgrading Gogo,
+or verifying production readiness.
+
+Framework module: `github.com/cybersaksham/gogo`.
+
+## Testing
+
+- Add focused tests for changed behavior.
+- Run app/package tests before broad project tests.
+- Use Gogo testing helpers for HTTP clients, settings, databases, fixtures,
+  mail, queues, admin assertions, and framework behavior.
+- Keep tests independent of production services unless explicitly marked as
+  integration coverage.
+
+## Common Commands
+
+```bash
+make test
+make check
+make tidy
+gogo check
+```
+
+For generated project or deployment changes, also run:
+
+```bash
+gogo check --deploy
+```
+
+## External Integrations
+
+- PostgreSQL integration requires a database URL.
+- Redis integration requires Redis connection settings.
+- RabbitMQ integration requires RabbitMQ connection settings.
+- Report which external integrations were not exercised when verification
+  skips them.
+
+## Deployment
+
+- Run web, worker, and beat from the same project version.
+- Apply migrations before serving code that depends on new schema.
+- Collect static files before deploying static asset changes.
+- Keep old application versions available until migrations, workers, beat, and
+  smoke tests are verified.
+
+## Upgrades
+
+- Pin `github.com/cybersaksham/gogo` in `go.mod`.
+- Read Gogo `CHANGELOG.md` before upgrading.
+- Verify generated project behavior after dependency updates.
+- Confirm `gogo version` matches the intended framework version.

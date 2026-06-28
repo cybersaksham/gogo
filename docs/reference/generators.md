@@ -22,6 +22,8 @@ gogo startapp [--force] <name> [path]
 | `.env.example` | Complete grouped environment contract. Blank values are required; default values are safe defaults. |
 | `.gitignore` | Excludes `.env`, local databases, build outputs, coverage, editor files, uploads, media, and collected static files. |
 | `Makefile` | Standard local commands for tests, checks, running, and tidying. |
+| `.agent/rules/gogo.md` | Base AI-agent guidance for using Gogo inside the generated project. |
+| `.agent/rules/gogo/*` | Feature-specific AI-agent rules for Gogo project structure, models, ORM, migrations, HTTP, admin, API, auth, forms, templates, static files, queues, settings, security, testing, and deployment. |
 | `<project>/settings/*.go` | Base, local, test, and production settings constructors. |
 | `<project>/urls.go` | Root HTTP route registration. |
 | `<project>/admin.go` | Admin registry and site construction. |

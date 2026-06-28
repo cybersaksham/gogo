@@ -1,0 +1,47 @@
+# Gogo Settings, Environment, And Security Rules
+
+Use this rule when changing settings, `.env.example`, secrets, middleware,
+sessions, CSRF, deployment safety, or production checks.
+
+Framework module: `github.com/cybersaksham/gogo`.
+
+## Environment
+
+- Copy `.env.example` to `.env` for local development.
+- Commit `.env.example`; never commit `.env`.
+- Keep `.env.example` grouped by use case and synchronized with settings.
+- Required values must be blank or fail-fast placeholders in `.env.example`.
+- Required runtime values must fail validation when missing.
+
+## Sensitive Values
+
+Never commit:
+
+- `GOGO_SECRET_KEY`
+- database credentials or production `DATABASE_URL`
+- broker/result backend credentials
+- email credentials
+- session cookies, CSRF tokens, auth tokens, password reset links
+- private keys, certificates, customer data, uploads, local databases
+
+## Production Security
+
+- Set `GOGO_ENV=production` in production.
+- Set `GOGO_DEBUG=false` in production.
+- Set secure session and CSRF cookies when HTTPS is enabled.
+- Configure `GOGO_ALLOWED_HOSTS`.
+- Review `GOGO_ADMIN_PATH` exposure and set `GOGO_ADMIN_PATH_REVIEWED=true`
+  only after access controls are confirmed.
+- Run deploy checks before release:
+
+```bash
+gogo check --deploy
+```
+
+## Middleware And Auth
+
+- Keep security, session, CSRF, auth, and message middleware order intentional.
+- Use Gogo auth/password/session/permission APIs instead of custom ad hoc
+  security code.
+- Keep password reset, email, and token flows disabled unless configured with
+  secure email settings.

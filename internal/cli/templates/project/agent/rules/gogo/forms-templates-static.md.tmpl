@@ -1,0 +1,40 @@
+# Gogo Forms, Templates, Static, And Cross-Cutting Rules
+
+Use this rule when changing forms, templates, static files, uploads, fixtures,
+cache, email, messages, i18n, health checks, observability, or signals.
+
+Framework module: `github.com/cybersaksham/gogo`.
+
+## Forms
+
+- Use Gogo forms, widgets, formsets, model forms, field validation, and error
+  handling for HTML form workflows.
+- Keep form validation close to user input boundaries.
+- Put reusable domain validation in services or model validation helpers when
+  APIs, admin, and tasks also need it.
+
+## Templates
+
+- Keep project templates in `templates/`.
+- Keep app templates under each app's `templates/<app>/` directory.
+- Use the Gogo template engine, tags, filters, inheritance, and context helpers.
+- Avoid embedding secrets, credentials, or environment-specific values in
+  templates.
+
+## Static Files And Uploads
+
+- Keep project static assets in `static/` and app assets under each app's
+  `static/<app>/` directory.
+- Use Gogo static collection and file storage APIs for deployed assets.
+- Keep uploaded media under `media/` locally and out of Git.
+- Validate file uploads by size, content type, extension, storage path, and
+  authorization requirements.
+
+## Fixtures, Cache, Email, Messages, I18n, Signals
+
+- Use Gogo fixtures for import/export workflows.
+- Use cache backends through Gogo cache APIs; namespace keys by app/domain.
+- Use Gogo email backends and message objects; never hard-code credentials.
+- Use Gogo messages for user-facing request messages.
+- Keep i18n language/timezone settings centralized in settings.
+- Use signals for cross-cutting notifications, not as hidden business logic.
