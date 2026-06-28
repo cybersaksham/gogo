@@ -97,6 +97,7 @@ type SendOptions struct {
 	ReplyTo       string
 	CorrelationID string
 	CreatedAt     time.Time
+	Events        EventSink
 }
 
 func (a *App) SendTask(ctx context.Context, broker Broker, signature Signature, options SendOptions) (BrokerMessage, error) {
@@ -134,7 +135,14 @@ func (a *App) SendTask(ctx context.Context, broker Broker, signature Signature, 
 		CorrelationID: options.CorrelationID,
 		CreatedAt:     options.CreatedAt,
 	})
-	return broker.Publish(ctx, route.Queue, envelope, BrokerPublishOptions{Priority: route.Priority, RoutingKey: route.RoutingKey, Headers: route.Headers})
+	message, err := broker.Publish(ctx, route.Queue, envelope, BrokerPublishOptions{Priority: route.Priority, RoutingKey: route.RoutingKey, Headers: route.Headers})
+	if err != nil {
+		return BrokerMessage{}, err
+	}
+	if options.Events != nil {
+		options.Events.EmitQueueEvent(ctx, Event{Type: EventTaskSent, TaskID: envelope.ID, TaskName: envelope.Name, Queue: route.Queue, At: envelope.CreatedAt})
+	}
+	return message, nil
 }
 
 func cloneRoute(route Route) Route {

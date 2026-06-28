@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"time"
 )
 
 // AppOptions configures the queue app defaults.
@@ -85,6 +86,31 @@ func (a *App) Tasks() []Task {
 		tasks[i] = a.tasks[name]
 	}
 	return tasks
+}
+
+func (a *App) SetTaskRateLimit(name string, limit RateLimit) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	task, ok := a.tasks[name]
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrTaskNotRegistered, name)
+	}
+	task.Options.RateLimit = limit
+	a.tasks[name] = task
+	return nil
+}
+
+func (a *App) SetTaskTimeLimit(name string, soft time.Duration, hard time.Duration) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	task, ok := a.tasks[name]
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrTaskNotRegistered, name)
+	}
+	task.Options.SoftTimeout = soft
+	task.Options.HardTimeout = hard
+	a.tasks[name] = task
+	return nil
 }
 
 func (a *App) withDefaults(options TaskOptions) TaskOptions {

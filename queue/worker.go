@@ -42,6 +42,7 @@ type WorkerOptions struct {
 	Autoscale               AutoscaleConfig
 	Pool                    Pool
 	Logger                  WorkerLogger
+	Events                  EventSink
 	MemoryUsage             func() uint64
 	Revocations             *RevocationRegistry
 	RateLimiter             *RateLimiter
@@ -105,6 +106,7 @@ type Worker struct {
 	recycled    int
 	running     int
 	childTasks  int
+	active      map[string]ActiveTask
 }
 
 func NewWorker(app *App, broker Broker, backend ResultBackend, options WorkerOptions) *Worker {
@@ -155,6 +157,7 @@ func NewWorker(app *App, broker Broker, backend ResultBackend, options WorkerOpt
 		backend:   backend,
 		options:   options,
 		autoscale: ResolveAutoscale(options.Concurrency, options.Autoscale),
+		active:    map[string]ActiveTask{},
 	}
 }
 
@@ -178,9 +181,11 @@ func (w *Worker) Start(ctx context.Context) error {
 		w.wg.Add(1)
 		go w.loop(runCtx)
 	}
+	w.emit(ctx, Event{Type: EventWorkerOnline})
 	go func() {
 		w.wg.Wait()
 		_ = w.options.Pool.Close(context.Background())
+		w.emit(context.Background(), Event{Type: EventWorkerOffline})
 		w.mu.Lock()
 		w.started = false
 		w.cancel = nil
@@ -192,6 +197,10 @@ func (w *Worker) Start(ctx context.Context) error {
 		}
 	}()
 	return nil
+}
+
+func (w *Worker) Heartbeat(ctx context.Context) {
+	w.emit(ctx, Event{Type: EventWorkerHeartbeat})
 }
 
 func (w *Worker) Run(ctx context.Context) error {
@@ -268,6 +277,50 @@ func (w *Worker) MemoryLimitExceeded() bool {
 	return limit > 0 && w.options.MemoryUsage() > limit
 }
 
+func (w *Worker) Grow(delta int) {
+	if delta < 1 {
+		return
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.options.Concurrency += delta
+	w.autoscale = ResolveAutoscale(w.options.Concurrency, w.options.Autoscale)
+}
+
+func (w *Worker) Shrink(delta int) {
+	if delta < 1 {
+		return
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.options.Concurrency -= delta
+	if w.options.Concurrency < 1 {
+		w.options.Concurrency = 1
+	}
+	w.autoscale = ResolveAutoscale(w.options.Concurrency, w.options.Autoscale)
+}
+
+func (w *Worker) RestartPool(ctx context.Context) error {
+	w.mu.Lock()
+	pool := w.options.Pool
+	w.options.Pool = NewGoroutinePool()
+	w.mu.Unlock()
+	if pool != nil {
+		return pool.Close(ctx)
+	}
+	return nil
+}
+
+func (w *Worker) ActiveTasks() []ActiveTask {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	tasks := make([]ActiveTask, 0, len(w.active))
+	for _, task := range w.active {
+		tasks = append(tasks, task)
+	}
+	return tasks
+}
+
 func (w *Worker) Stats() WorkerStats {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -320,6 +373,7 @@ func (w *Worker) loop(ctx context.Context) {
 }
 
 func (w *Worker) handleMessage(ctx context.Context, message BrokerMessage) error {
+	w.emit(ctx, Event{Type: EventTaskReceived, TaskID: message.Envelope.ID, TaskName: message.Envelope.Name, Queue: message.Queue})
 	if w.options.Revocations != nil && w.options.Revocations.IsRevoked(message.Envelope) {
 		result := Result{TaskID: message.Envelope.ID, State: StateRevoked, Error: "task revoked"}
 		if err := w.backend.StoreResult(ctx, result); err != nil {
@@ -330,6 +384,7 @@ func (w *Worker) handleMessage(ctx context.Context, message BrokerMessage) error
 		}
 		w.recordAck()
 		w.recordRevoked()
+		w.emit(ctx, Event{Type: EventTaskRevoked, TaskID: message.Envelope.ID, TaskName: message.Envelope.Name, Queue: message.Queue, State: StateRevoked})
 		w.log(ctx, WorkerLogEntry{Event: "task.revoked", TaskID: message.Envelope.ID, TaskName: message.Envelope.Name, Queue: message.Queue, State: StateRevoked})
 		return nil
 	}
@@ -371,11 +426,14 @@ func (w *Worker) handleMessage(ctx context.Context, message BrokerMessage) error
 		if err := w.backend.StoreResult(ctx, Result{TaskID: message.Envelope.ID, State: StateStarted}); err != nil {
 			return err
 		}
+		w.emit(ctx, Event{Type: EventTaskStarted, TaskID: message.Envelope.ID, TaskName: task.Name, Queue: message.Queue, State: StateStarted})
 		w.log(ctx, WorkerLogEntry{Event: "task.started", TaskID: message.Envelope.ID, TaskName: task.Name, Queue: message.Queue, State: StateStarted})
 	}
 
 	taskCtx, cancel, timeoutKind := workerTaskContext(ctx, task.Options)
 	defer cancel()
+	w.recordActive(message, task)
+	defer w.clearActive(message.Envelope.ID)
 	w.recordRunning(1)
 	value, err := w.options.Pool.Run(taskCtx, func(taskCtx context.Context) (any, error) {
 		return task.Func(taskCtx, message.Envelope.Args...)
@@ -409,10 +467,12 @@ func (w *Worker) handleMessage(ctx context.Context, message BrokerMessage) error
 	}
 	if result.State == StateFailure {
 		w.recordComplete(false)
+		w.emit(ctx, Event{Type: EventTaskFailed, TaskID: message.Envelope.ID, TaskName: task.Name, Queue: message.Queue, State: result.State, Error: result.Error})
 		w.log(ctx, WorkerLogEntry{Event: "task.failed", TaskID: message.Envelope.ID, TaskName: task.Name, Queue: message.Queue, State: result.State, Error: result.Error})
 		return nil
 	}
 	w.recordComplete(true)
+	w.emit(ctx, Event{Type: EventTaskSucceeded, TaskID: message.Envelope.ID, TaskName: task.Name, Queue: message.Queue, State: result.State})
 	w.log(ctx, WorkerLogEntry{Event: "task.succeeded", TaskID: message.Envelope.ID, TaskName: task.Name, Queue: message.Queue, State: result.State})
 	return nil
 }
@@ -445,6 +505,7 @@ func (w *Worker) retryMessage(ctx context.Context, message BrokerMessage, task T
 			w.recordAck()
 		}
 		w.recordComplete(false)
+		w.emit(ctx, Event{Type: EventTaskFailed, TaskID: message.Envelope.ID, TaskName: task.Name, Queue: message.Queue, State: StateFailure, Error: result.Error})
 		w.log(ctx, WorkerLogEntry{Event: "task.retry.exhausted", TaskID: message.Envelope.ID, TaskName: task.Name, Queue: message.Queue, State: StateFailure, Error: result.Error})
 		return nil
 	}
@@ -470,6 +531,7 @@ func (w *Worker) retryMessage(ctx context.Context, message BrokerMessage, task T
 	if err := w.broker.Requeue(ctx, message, delay); err != nil {
 		return err
 	}
+	w.emit(ctx, Event{Type: EventTaskRetried, TaskID: message.Envelope.ID, TaskName: task.Name, Queue: message.Queue, State: StateRetry, Error: errText, Fields: map[string]any{"delay": delay.String(), "retries": message.Envelope.Retries}})
 	w.log(ctx, WorkerLogEntry{
 		Event:    "task.retry",
 		TaskID:   message.Envelope.ID,
@@ -552,6 +614,24 @@ func (w *Worker) recordRateLimited() {
 	w.rateLimited++
 }
 
+func (w *Worker) recordActive(message BrokerMessage, task Task) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.active[message.Envelope.ID] = ActiveTask{
+		ID:        message.Envelope.ID,
+		Name:      task.Name,
+		Queue:     message.Queue,
+		Hostname:  w.options.Hostname,
+		StartedAt: time.Now().UTC(),
+	}
+}
+
+func (w *Worker) clearActive(taskID string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	delete(w.active, taskID)
+}
+
 func (w *Worker) recordComplete(success bool) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -577,6 +657,17 @@ func (w *Worker) log(ctx context.Context, entry WorkerLogEntry) {
 		entry.At = time.Now().UTC()
 	}
 	w.options.Logger.LogWorkerEvent(ctx, entry)
+}
+
+func (w *Worker) emit(ctx context.Context, event Event) {
+	if w.options.Events == nil {
+		return
+	}
+	event.Hostname = w.options.Hostname
+	if event.At.IsZero() {
+		event.At = time.Now().UTC()
+	}
+	w.options.Events.EmitQueueEvent(ctx, event)
 }
 
 func defaultHostname() string {
