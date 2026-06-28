@@ -15,4 +15,6 @@ var (
 	ErrNotFound                = errors.New("not found")
 	ErrMethodNotAllowed        = errors.New("method not allowed")
 	ErrInternal                = errors.New("internal error")
+	ErrRouteConflict           = errors.New("route conflict")
+	ErrReverse                 = errors.New("reverse error")
 )
