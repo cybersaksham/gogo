@@ -2,13 +2,20 @@ package api
 
 // Serializer validates input and renders output using ordered fields.
 type Serializer struct {
-	fields []SerializerField
+	fields           []SerializerField
+	objectValidators []ObjectValidator
 }
 
 // NewSerializer creates a serializer from fields.
 func NewSerializer(fields ...SerializerField) *Serializer {
 	copied := append([]SerializerField(nil), fields...)
 	return &Serializer{fields: copied}
+}
+
+// WithObjectValidators appends cross-field validators to the serializer.
+func (s *Serializer) WithObjectValidators(validators ...ObjectValidator) *Serializer {
+	s.objectValidators = append(s.objectValidators, validators...)
+	return s
 }
 
 // Validate parses input into validated data and field errors.
@@ -52,6 +59,12 @@ func (s *Serializer) Validate(input map[string]any) (map[string]any, map[string]
 			continue
 		}
 		validated[field.source()] = parsed
+	}
+	for _, validator := range s.objectValidators {
+		if validator == nil {
+			continue
+		}
+		mergeValidationErrors(fieldErrors, validator(cloneAnyMap(validated)))
 	}
 	return validated, fieldErrors, len(fieldErrors) == 0
 }
