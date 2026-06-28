@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -62,6 +63,24 @@ func TestCheckCommandFailsInvalidConfig(t *testing.T) {
 		if !strings.Contains(output, want) {
 			t.Fatalf("check output = %q, want it to contain %q", output, want)
 		}
+	}
+}
+
+func TestCheckCommandSupportsTagFiltering(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeTextFile(t, filepath.Join(dir, ".env"), `
+GOGO_SECRET_KEY=check-secret
+DATABASE_URL=postgres://check
+`)
+	root := NewRoot()
+	var stdout bytes.Buffer
+	if err := root.Execute(context.Background(), []string{"check", "--tag", "queue"}, &stdout, io.Discard); err != nil {
+		t.Fatalf("Execute(check --tag queue) error = %v", err)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "INFO queue queue checks registered") || strings.Contains(output, "WARN apps") {
+		t.Fatalf("filtered check output = %q", output)
 	}
 }
 

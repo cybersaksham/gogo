@@ -33,7 +33,7 @@ func TestQueueWorkerCommandParsesFlagsAndRunsOnce(t *testing.T) {
 		"--pool", "solo",
 		"--prefetch-multiplier", "3",
 		"--max-tasks-per-child", "10",
-		"--max-memory-per-child", "1048576",
+		"--max-memory-per-child", "1073741824",
 		"--soft-time-limit", "1s",
 		"--hard-time-limit", "2s",
 		"--graceful-timeout", "3s",
