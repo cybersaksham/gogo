@@ -31,6 +31,7 @@ type Inline struct {
 	CanDelete      bool
 	ShowChangeLink bool
 	FKName         string
+	HasPermission  func(*http.Request, auth.User) bool
 }
 
 // URLPattern describes an admin URL extension.
