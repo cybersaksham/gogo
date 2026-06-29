@@ -19,6 +19,60 @@ None.
 
 None.
 
+## v0.1.4 - 2026-06-29
+
+Patch release for generated-project runtime parity and management UX improvements.
+
+### Release Metadata
+
+- Previous release: `v0.1.3`.
+- New release: `v0.1.4`.
+- Module path: `github.com/cybersaksham/gogo`.
+- CLI install path: `github.com/cybersaksham/gogo/cmd/gogo`.
+
+### Added
+
+- Added a public management runner and project execution path (`go run manage.go`)
+  so generated projects can execute all local workflow commands against project
+  settings, app configs, router, and queue app without importing
+  `github.com/cybersaksham/gogo/internal`.
+- Added automatic generated-project app wiring during `startapp`, including
+  generated app registration in project settings, routing/admin/task markers, and
+  app config wiring in generated `app.go`.
+- Added automatic sync of generated app env labels into both `.env.example` and
+  generated `.env`.
+
+### Changed
+
+- Changed migration discovery in management commands to include generated apps and
+  app directories under `apps/*` by default, with generated-app-specific SQL and
+  migration listing behavior.
+- Updated generated project CLI guidance and templates to consistently use
+  project-local management command execution.
+- Refreshed public package inventory and generated project agent rule coverage for
+  CLI command entry points, models, migrations, HTTP/admin/API/auth/queues,
+  templates, and settings/security workflows.
+
+### Fixed
+
+- Fixed app registry readiness deadlocks and blocked registrations while app
+  startup is preparing.
+- Fixed `collectstatic` defaults to use configured static root and project/app
+  static folders automatically.
+- Fixed command runtime discovery so queue inspection/dispatch tests run against
+  the generated project queue graph.
+- Fixed persistent CLI auth user storage so generated projects retain superusers
+  and password changes across command invocations.
+
+### Verification
+
+- Passed `go run ./internal/release/cmd/dryrun --tag v0.1.4 --commit "$(git rev-parse HEAD)" --build-date "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" --changelog CHANGELOG.md --notes-out release-notes.md`.
+
+### Artifacts
+
+- The GitHub release workflow publishes CLI binaries for Linux, macOS, and Windows
+  on `amd64` and `arm64` with `checksums.txt`.
+
 ## v0.1.3 - 2026-06-29
 
 Patch release for release readiness and agent guidance completeness.
