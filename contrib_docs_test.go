@@ -34,7 +34,7 @@ func TestContribDocsCoverInstallationMiddlewareAndDatabaseRequirements(t *testin
 		"postgis",
 		"GIS Database Requirements",
 		"AllowUnsafeTargets",
-		"gogo check",
+		"go run manage.go check",
 	} {
 		if !strings.Contains(docs, want) {
 			t.Fatalf("%s does not document %s", contribDocsPath, want)

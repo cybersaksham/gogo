@@ -8,7 +8,7 @@ import (
 
 func TestTutorialDocsCoverRequiredFlows(t *testing.T) {
 	checkTutorial(t, "docs/code/tutorials/quickstart.md", []string{
-		"gogo startproject", "gogo startapp", "models.Metadata", "gogo makemigrations", "gogo migrate", "gogo createsuperuser", "admin.ModelAdmin", "api.NewRouter", "gogo runserver",
+		"gogo startproject", "go run manage.go startapp", "models.Metadata", "go run manage.go makemigrations", "go run manage.go migrate", "go run manage.go createsuperuser", "admin.ModelAdmin", "api.NewRouter", "go run manage.go runserver",
 	})
 	checkTutorial(t, "docs/code/tutorials/blog.md", []string{
 		"Author", "Post", "Tag", "Comment", "forms.NewForm", "ListFilter", "PageNumberPagination", "email", "queue.NewSignature",
@@ -17,7 +17,7 @@ func TestTutorialDocsCoverRequiredFlows(t *testing.T) {
 		"ListDisplay", "SearchFields", "ListFilter", "ReadonlyFields", "Actions", "Inlines", "AutocompleteFields", "HasChangePermission",
 	})
 	checkTutorial(t, "docs/code/tutorials/tasks.md", []string{
-		"MaxRetries", "RetryBackoff", "gogo beat", "Chain", "Group", "Chord", "SoftTimeout", "HardTimeout",
+		"MaxRetries", "RetryBackoff", "go run manage.go beat", "Chain", "Group", "Chord", "SoftTimeout", "HardTimeout",
 	})
 }
 
