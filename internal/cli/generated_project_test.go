@@ -26,6 +26,10 @@ func TestGeneratedProjectWithAppCompilesAsDownstreamModule(t *testing.T) {
 	}
 	runGeneratedCommand(t, target, "go", "mod", "edit", "-replace", "github.com/cybersaksham/gogo="+filepath.ToSlash(repoRoot))
 	runGeneratedCommand(t, target, "go", "mod", "tidy")
+	inspectOutput := runGeneratedCommandOutput(t, target, "go", "run", "manage.go", "inspect", "--report")
+	if !strings.Contains(inspectOutput, "registered=1") {
+		t.Fatalf("project-aware inspect output = %q, want registered task", inspectOutput)
+	}
 	runGeneratedCommand(t, target, "go", "test", "./...")
 	assertNoInternalFrameworkImports(t, target)
 }
@@ -54,10 +58,17 @@ func assertNoInternalFrameworkImports(t *testing.T, root string) {
 
 func runGeneratedCommand(t *testing.T, dir string, name string, args ...string) {
 	t.Helper()
+	output := runGeneratedCommandOutput(t, dir, name, args...)
+	_ = output
+}
+
+func runGeneratedCommandOutput(t *testing.T, dir string, name string, args ...string) string {
+	t.Helper()
 	cmd := exec.Command(name, args...)
 	cmd.Dir = dir
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("%s %s failed in %s: %v\n%s", name, strings.Join(args, " "), dir, err, output)
 	}
+	return string(output)
 }
