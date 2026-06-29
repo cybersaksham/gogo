@@ -399,11 +399,20 @@ func (c queueQueuesCommand) runWithIO(ctx context.Context, args []string, stdout
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrCommandFailed, err)
 	}
+	printed := 0
 	for _, queue := range queues {
 		if *queueName != "" && queue.Name != *queueName {
 			continue
 		}
 		_, _ = fmt.Fprintf(stdout, "%s ready=%d in_flight=%d durable=%t\n", queue.Name, queue.Ready, queue.InFlight, queue.Durable)
+		printed++
+	}
+	if printed == 0 {
+		if *queueName != "" {
+			_, _ = fmt.Fprintf(stdout, "queue %s not found\n", *queueName)
+			return nil
+		}
+		_, _ = fmt.Fprintln(stdout, "no queues found")
 	}
 	return nil
 }

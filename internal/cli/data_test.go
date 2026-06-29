@@ -43,6 +43,9 @@ func TestDumpdataCommandFiltersNaturalKeysAndDatabase(t *testing.T) {
 	if !strings.Contains(output, `"natural_key":`) || strings.Contains(output, `"pk":`) {
 		t.Fatalf("dump output = %s", output)
 	}
+	if !strings.HasSuffix(output, "\n") {
+		t.Fatalf("dump output should end with newline: %q", output)
+	}
 }
 
 func TestFixtureSerializersJSONLXMLAndCustom(t *testing.T) {
@@ -107,6 +110,27 @@ func TestLoaddataCommandLoadsWithTransaction(t *testing.T) {
 	}
 	if len(store.loaded) != 1 || store.loaded[0].Model != "auth.Permission" {
 		t.Fatalf("loaded = %#v", store.loaded)
+	}
+}
+
+func TestLoaddataCommandReportsLoadedObjectCount(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "fixtures.json")
+	content := `[{"model":"blog.Post","pk":1,"fields":{"title":"Loaded"}}]`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	store := &recordingFixtureStore{}
+	command := NewLoaddataCommand(store)
+	var stdout bytes.Buffer
+	if err := command.(interface {
+		runWithIO(context.Context, []string, io.Writer, io.Writer) error
+	}).runWithIO(context.Background(), []string{"--format", "json", path}, &stdout, io.Discard); err != nil {
+		t.Fatalf("loaddata error = %v", err)
+	}
+	if stdout.String() != "loaded 1 object(s) from 1 fixture(s)\n" {
+		t.Fatalf("loaddata stdout = %q", stdout.String())
 	}
 }
 

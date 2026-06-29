@@ -94,3 +94,15 @@ func TestQueueBeatInspectAndQueuesCommands(t *testing.T) {
 		t.Fatalf("queues stdout = %q", queuesOut.String())
 	}
 }
+
+func TestQueuesCommandReportsEmptyState(t *testing.T) {
+	var stdout bytes.Buffer
+	if err := NewQueuesCommand(NewQueueRuntime()).(interface {
+		runWithIO(context.Context, []string, io.Writer, io.Writer) error
+	}).runWithIO(context.Background(), nil, &stdout, io.Discard); err != nil {
+		t.Fatalf("queues command error = %v", err)
+	}
+	if stdout.String() != "no queues found\n" {
+		t.Fatalf("queues stdout = %q", stdout.String())
+	}
+}

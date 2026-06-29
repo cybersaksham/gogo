@@ -155,7 +155,7 @@ func (c dataCommand) runWithIO(ctx context.Context, args []string, stdout, _ io.
 	case "dumpdata":
 		return c.runDumpdata(ctx, args, stdout)
 	case "loaddata":
-		return c.runLoaddata(ctx, args)
+		return c.runLoaddata(ctx, args, stdout)
 	default:
 		return fmt.Errorf("%w: unknown data command %s", ErrCommandFailed, c.name)
 	}
@@ -182,10 +182,15 @@ func (c dataCommand) runDumpdata(ctx context.Context, args []string, stdout io.W
 	if _, err := stdout.Write(encoded); err != nil {
 		return fmt.Errorf("%w: write dumpdata output: %v", ErrCommandFailed, err)
 	}
+	if len(encoded) == 0 || encoded[len(encoded)-1] != '\n' {
+		if _, err := fmt.Fprintln(stdout); err != nil {
+			return fmt.Errorf("%w: write dumpdata newline: %v", ErrCommandFailed, err)
+		}
+	}
 	return nil
 }
 
-func (c dataCommand) runLoaddata(ctx context.Context, args []string) error {
+func (c dataCommand) runLoaddata(ctx context.Context, args []string, stdout io.Writer) error {
 	options, err := parseLoaddataFlags(args)
 	if err != nil {
 		return err
@@ -211,6 +216,9 @@ func (c dataCommand) runLoaddata(ctx context.Context, args []string) error {
 	}
 	if err := c.store.Load(ctx, records, options.load); err != nil {
 		return fmt.Errorf("%w: load fixtures: %v", ErrCommandFailed, err)
+	}
+	if _, err := fmt.Fprintf(stdout, "loaded %d object(s) from %d fixture(s)\n", len(records), len(options.paths)); err != nil {
+		return fmt.Errorf("%w: write loaddata summary: %v", ErrCommandFailed, err)
 	}
 	return nil
 }
