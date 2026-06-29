@@ -108,6 +108,9 @@ func autoInstallGeneratedApp(target, appName string) error {
 	if err := installAppInGoFile(filepath.Join(projectDir, "urls.go"), appImportPath, "// gogo:startapp-routes", fmt.Sprintf("\tif err := %s.RegisterRoutes(router); err != nil {\n\t\treturn err\n\t}\n\t// gogo:startapp-routes", appName)); err != nil {
 		return err
 	}
+	if err := installAppInGoFile(filepath.Join(projectDir, "urls.go"), appImportPath, "// gogo:startapp-api-routes", fmt.Sprintf("\tif err := %s.RegisterAPI(router); err != nil {\n\t\treturn err\n\t}\n\t// gogo:startapp-api-routes", appName)); err != nil {
+		return err
+	}
 	if err := installAppInGoFile(filepath.Join(projectDir, "admin.go"), appImportPath, "// gogo:startapp-admin", fmt.Sprintf("\tif err := %s.RegisterAdmin(registry); err != nil {\n\t\tpanic(err)\n\t}\n\t// gogo:startapp-admin", appName)); err != nil {
 		return err
 	}
@@ -189,12 +192,24 @@ func installAppInGoFile(path, importPath, marker, replacement string) error {
 		return nil
 	}
 	text := string(contents)
-	if !strings.Contains(text, marker) || strings.Contains(text, importPath) {
+	if !strings.Contains(text, marker) || replacementAlreadyInstalled(text, marker, replacement) {
 		return nil
 	}
 	text = addGoImport(text, importPath)
 	text = strings.Replace(text, marker, replacement, 1)
 	return writeGoFile(path, text)
+}
+
+func replacementAlreadyInstalled(text, marker, replacement string) bool {
+	probe := strings.Replace(replacement, marker, "", 1)
+	for _, line := range strings.Split(probe, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "//") {
+			continue
+		}
+		return strings.Contains(text, line)
+	}
+	return false
 }
 
 func addGoImport(source, importPath string) string {

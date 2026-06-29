@@ -25,6 +25,7 @@ func TestGeneratedProjectWithAppCompilesAsDownstreamModule(t *testing.T) {
 		t.Fatalf("resolve repo root: %v", err)
 	}
 	runGeneratedCommand(t, target, "go", "mod", "edit", "-replace", "github.com/cybersaksham/gogo="+filepath.ToSlash(repoRoot))
+	writeTextFile(t, filepath.Join(target, "generated_runtime_test.go"), generatedRuntimeRouteTestSource())
 	runGeneratedCommand(t, target, "go", "mod", "tidy")
 	inspectOutput := runGeneratedCommandOutput(t, target, "go", "run", "manage.go", "inspect", "--report")
 	if !strings.Contains(inspectOutput, "registered=1") {
@@ -32,6 +33,41 @@ func TestGeneratedProjectWithAppCompilesAsDownstreamModule(t *testing.T) {
 	}
 	runGeneratedCommand(t, target, "go", "test", "./...")
 	assertNoInternalFrameworkImports(t, target)
+}
+
+func generatedRuntimeRouteTestSource() string {
+	return `package main
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	project "sampleproject/sampleproject"
+)
+
+func TestGeneratedRouterMountsAppHTTPAPIAndAdminRoutes(t *testing.T) {
+	router, err := project.NewRouter()
+	if err != nil {
+		t.Fatalf("NewRouter() error = %v", err)
+	}
+	for _, test := range []struct {
+		path string
+		want int
+	}{
+		{"/", http.StatusOK},
+		{"/blog/", http.StatusOK},
+		{"/api/blog/items/", http.StatusOK},
+		{"/admin/", http.StatusOK},
+	} {
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, test.path, nil))
+		if response.Code != test.want {
+			t.Fatalf("%s status = %d body=%s, want %d", test.path, response.Code, response.Body.String(), test.want)
+		}
+	}
+}
+`
 }
 
 func assertNoInternalFrameworkImports(t *testing.T, root string) {

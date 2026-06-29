@@ -6,6 +6,8 @@ import (
 	"net"
 	nethttp "net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -82,6 +84,36 @@ func TestServerAppliesMiddleware(t *testing.T) {
 	server.Handler().ServeHTTP(recorder, httptest.NewRequest("GET", "/", nil))
 	if got := recorder.Header().Get("X-Middleware"); got != "yes" {
 		t.Fatalf("X-Middleware = %q, want yes", got)
+	}
+}
+
+func TestServerServesStaticFilesInDevelopment(t *testing.T) {
+	staticRoot := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(staticRoot, "blog"), 0o755); err != nil {
+		t.Fatalf("mkdir static dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(staticRoot, "blog", "app.css"), []byte("body{}\n"), 0o644); err != nil {
+		t.Fatalf("write static file: %v", err)
+	}
+
+	settings := conf.DefaultSettings()
+	settings.Env = "development"
+	settings.StaticURL = "/static/"
+	settings.StaticRoot = staticRoot
+
+	server, err := NewServer(ServerConfig{
+		Settings: settings,
+		Registry: app.NewRegistry(),
+		Router:   NewRouter(),
+	})
+	if err != nil {
+		t.Fatalf("NewServer() error = %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, httptest.NewRequest(nethttp.MethodGet, "/static/blog/app.css", nil))
+	if recorder.Code != nethttp.StatusOK || recorder.Body.String() != "body{}\n" {
+		t.Fatalf("GET static = (%d, %q), want (200, body{})", recorder.Code, recorder.Body.String())
 	}
 }
 

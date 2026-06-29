@@ -167,6 +167,21 @@ func (r *Router) ServeHTTP(w nethttp.ResponseWriter, raw *nethttp.Request) {
 	}
 }
 
+// MountHTTP registers API routes on a framework HTTP router.
+func (r *Router) MountHTTP(router *frameworkhttp.Router) error {
+	if router == nil {
+		return fmt.Errorf("%w: nil http router", ErrRouteConflict)
+	}
+	for _, route := range r.Routes() {
+		if err := router.Handle(route.Name, route.Pattern, func(ctx context.Context, request *frameworkhttp.Request) frameworkhttp.Response {
+			return r.Resolve(ctx, NewRequest(request.Raw())).HTTP()
+		}, route.Methods...); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Reverse resolves a route name into a URL path.
 func (r *Router) Reverse(name string, args map[string]any) (string, error) {
 	proxy := frameworkhttp.NewRouter()

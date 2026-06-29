@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+
+	frameworkhttp "github.com/cybersaksham/gogo/http"
 )
 
 // APIError is the normalized API error body.
@@ -88,4 +90,28 @@ func (r Response) Write(w http.ResponseWriter) error {
 		return json.NewEncoder(w).Encode(r.body)
 	}
 	return nil
+}
+
+// HTTP converts an API response into a framework HTTP response.
+func (r Response) HTTP() frameworkhttp.Response {
+	var response frameworkhttp.Response
+	switch {
+	case r.filePath != "":
+		response = frameworkhttp.File(r.filePath)
+	case r.noBody:
+		response = frameworkhttp.NoContent()
+	case r.contentType == "application/json":
+		response = frameworkhttp.JSON(r.status, r.body)
+	default:
+		response = frameworkhttp.Text(r.status, "")
+	}
+	if r.contentType != "" {
+		response.Header().Set("Content-Type", r.contentType)
+	}
+	for key, values := range r.header {
+		for _, value := range values {
+			response.Header().Add(key, value)
+		}
+	}
+	return response
 }

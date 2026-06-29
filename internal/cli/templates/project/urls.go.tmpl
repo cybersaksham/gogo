@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/cybersaksham/gogo/api"
 	gogohttp "github.com/cybersaksham/gogo/http"
 )
 
@@ -22,6 +23,13 @@ func RegisterRoutes(router *gogohttp.Router) error {
 		return err
 	}
 	// gogo:startapp-routes
+	apiRouter, err := NewAPIRouter()
+	if err != nil {
+		return err
+	}
+	if err := apiRouter.MountHTTP(router); err != nil {
+		return err
+	}
 	adminRouter, err := NewAdminSite().URLs()
 	if err != nil {
 		return err
@@ -31,5 +39,18 @@ func RegisterRoutes(router *gogohttp.Router) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func NewAPIRouter() (*api.Router, error) {
+	router := api.NewRouter(api.WithAPIPrefix("api"))
+	if err := RegisterAPIRoutes(router); err != nil {
+		return nil, err
+	}
+	return router, nil
+}
+
+func RegisterAPIRoutes(router *api.Router) error {
+	// gogo:startapp-api-routes
 	return nil
 }

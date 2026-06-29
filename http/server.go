@@ -70,6 +70,16 @@ func NewServer(config ServerConfig) (*Server, error) {
 		healthPath = defaultHealthPath
 	}
 	mux.HandleFunc(healthPath, server.health)
+	if shouldMountDevelopmentFiles(config.Settings.StaticURL, config.Settings.StaticRoot) {
+		if err := MountStatic(mux, StaticMountConfig{Env: config.Settings.Env, URLPrefix: config.Settings.StaticURL, Root: config.Settings.StaticRoot}); err != nil {
+			return nil, err
+		}
+	}
+	if shouldMountDevelopmentFiles(config.Settings.MediaURL, config.Settings.MediaRoot) {
+		if err := MountStatic(mux, StaticMountConfig{Env: config.Settings.Env, URLPrefix: config.Settings.MediaURL, Root: config.Settings.MediaRoot}); err != nil {
+			return nil, err
+		}
+	}
 	mux.Handle("/", router)
 
 	server.handler = Chain(mux, config.Middleware...)
@@ -154,4 +164,8 @@ func addressOrDefault(addr string) string {
 		return addr
 	}
 	return ":8000"
+}
+
+func shouldMountDevelopmentFiles(urlPrefix, root string) bool {
+	return urlPrefix != "" && root != ""
 }

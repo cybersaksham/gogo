@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"testing"
+
+	gogohttp "github.com/cybersaksham/gogo/http"
 )
 
 func TestAPIRouterRegistersViewSetRoutesCustomActionsAndReverse(t *testing.T) {
@@ -92,5 +94,31 @@ func TestAPIRouterSupportsNestedPrefixesTrailingSlashConfigAndInclude(t *testing
 	}
 	if includedURL != "/api/v1/comments/7" {
 		t.Fatalf("includedURL = %q", includedURL)
+	}
+}
+
+func TestAPIRouterMountHTTPRoutesThroughFrameworkRouter(t *testing.T) {
+	apiRouter := NewRouter(WithAPIPrefix("api"))
+	if err := apiRouter.Handle("blog-item-list", "blog/items", func(context.Context, *Request) Response {
+		return JSON(http.StatusOK, map[string]any{"count": 0, "results": []map[string]any{}})
+	}, http.MethodGet); err != nil {
+		t.Fatalf("Handle() error = %v", err)
+	}
+
+	router := gogohttp.NewRouter()
+	if err := apiRouter.MountHTTP(router); err != nil {
+		t.Fatalf("MountHTTP() error = %v", err)
+	}
+
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/blog/items/", nil))
+	if response.Code != http.StatusOK {
+		t.Fatalf("mounted API status = %d body=%s", response.Code, response.Body.String())
+	}
+	if got := response.Header().Get("Content-Type"); got != "application/json" {
+		t.Fatalf("content type = %q", got)
+	}
+	if body := response.Body.String(); body != "{\"count\":0,\"results\":[]}\n" {
+		t.Fatalf("body = %q", body)
 	}
 }
