@@ -19,6 +19,82 @@ None.
 
 None.
 
+## v0.2.0 - 2026-06-29
+
+Feature release for generated-project runtime completeness, public API mounting,
+admin usability, and management command output clarity.
+
+### Release Metadata
+
+- Previous release: `v0.1.4`.
+- New release: `v0.2.0`.
+- Module path: `github.com/cybersaksham/gogo`.
+- CLI install path: `github.com/cybersaksham/gogo/cmd/gogo`.
+
+### Added
+
+- Added public API-to-HTTP bridge helpers (`api.Router.MountHTTP` and
+  `api.Response.HTTP`) so generated app API routes can be served through the
+  project HTTP router.
+- Added generated-project API wiring so app `RegisterAPI` functions are
+  automatically mounted under `/api/`.
+- Added development static and media serving through `runserver` when static or
+  media roots are configured.
+- Added a rendered admin index that lists registered admin models instead of
+  returning a plain placeholder route name.
+- Added concrete `squashmigrations` output with generated replacement migration
+  files and `Replaces` metadata.
+
+### Changed
+
+- Changed generated `startapp` wiring dedupe so one app import can install
+  multiple markers for routes, APIs, admin, queue tasks, and app config safely.
+- Changed `optimizemigration` to report a clear no-op when no safe rewrite is
+  available.
+- Changed `queues`, `dumpdata`, and `loaddata` to print explicit empty or
+  success summaries.
+- Updated generated agent rules and public/code docs for API mounting,
+  development static/media serving, admin index behavior, and migration command
+  behavior.
+
+### Fixed
+
+- Fixed generated API endpoints returning `404` despite generated `api.go`
+  files and API registry metadata.
+- Fixed development `runserver` not serving collected static app assets or
+  configured media files.
+- Fixed `squashmigrations` and `optimizemigration` appearing successful while
+  not creating/changing artifacts or explaining no-op behavior.
+- Fixed ambiguous empty output from queue and fixture inspection commands.
+- Fixed admin root returning only `admin:index` text instead of a useful model
+  index.
+
+### Breaking
+
+- None.
+
+### Migration Notes
+
+- Existing generated projects can continue using `v0.1.x` project wiring. To
+  adopt automatic API mounting, regenerate or update project `urls.go` with
+  `NewAPIRouter`, `RegisterAPIRoutes`, and `api.Router.MountHTTP`, then rerun
+  `startapp` or wire existing app `RegisterAPI` functions manually.
+- `squashmigrations` now creates a new squashed migration file instead of only
+  printing a success message.
+
+### Verification
+
+- Passed `make ci` before tagging.
+- Passed `go test -tags=integration ./...` before tagging.
+- Passed release dry run for `v0.2.0` before tagging.
+
+### Artifacts
+
+- The GitHub release workflow publishes CLI binaries for Linux, macOS, and
+  Windows on `amd64` and `arm64`.
+- The GitHub release workflow publishes `checksums.txt` with SHA256 checksums
+  for release artifacts.
+
 ## v0.1.4 - 2026-06-29
 
 Patch release for generated-project runtime parity and management UX improvements.
