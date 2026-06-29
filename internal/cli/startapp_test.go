@@ -98,6 +98,10 @@ func TestStartappAutoInstallsIntoGeneratedProject(t *testing.T) {
 			`"sampleproject/apps/blog"`,
 			"blog.RegisterTasks(app)",
 		},
+		filepath.Join(root, "sampleproject", "app.go"): {
+			`"sampleproject/apps/blog"`,
+			"blog.NewConfig()",
+		},
 	} {
 		contents, err := os.ReadFile(path)
 		if err != nil {

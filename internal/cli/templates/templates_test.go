@@ -169,6 +169,19 @@ func TestProjectTemplatesRenderParseablePublicGoFiles(t *testing.T) {
 	if !strings.Contains(files["manage.go"], "github.com/cybersaksham/gogo/management") {
 		t.Fatalf("manage.go must use public management package:\n%s", files["manage.go"])
 	}
+	for _, want := range []string{
+		`"myproject/myproject"`,
+		`"myproject/myproject/settings"`,
+		"management.MainProject",
+		"Settings:   settings.Local",
+		"AppConfigs: myproject.AppConfigs",
+		"Router:     myproject.NewRouter",
+		"QueueApp:   myproject.NewQueueApp",
+	} {
+		if !strings.Contains(files["manage.go"], want) {
+			t.Fatalf("manage.go missing %q:\n%s", want, files["manage.go"])
+		}
+	}
 }
 
 func TestDeploymentTemplatesAreProductionSafe(t *testing.T) {

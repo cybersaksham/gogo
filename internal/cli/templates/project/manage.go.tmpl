@@ -1,7 +1,17 @@
 package main
 
-import "github.com/cybersaksham/gogo/management"
+import (
+	"{{.ModulePath}}/{{.ProjectName}}"
+	"{{.ModulePath}}/{{.ProjectName}}/settings"
+
+	"github.com/cybersaksham/gogo/management"
+)
 
 func main() {
-	management.Main()
+	management.MainProject(management.Project{
+		Settings:   settings.Local,
+		AppConfigs: {{.ProjectName}}.AppConfigs,
+		Router:     {{.ProjectName}}.NewRouter,
+		QueueApp:   {{.ProjectName}}.NewQueueApp,
+	})
 }

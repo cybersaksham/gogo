@@ -19,3 +19,10 @@ func NewConfig() app.BaseConfig {
 		AppVerboseName: "{{.ProjectName}}",
 	}
 }
+
+func AppConfigs() []app.Config {
+	return []app.Config{
+		NewConfig(),
+		// gogo:startapp-configs
+	}
+}

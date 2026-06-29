@@ -111,6 +111,9 @@ func autoInstallGeneratedApp(target, appName string) error {
 	if err := installAppInGoFile(filepath.Join(projectDir, "queue.go"), appImportPath, "// gogo:startapp-tasks", fmt.Sprintf("\tif err := %s.RegisterTasks(app); err != nil {\n\t\tpanic(err)\n\t}\n\t// gogo:startapp-tasks", appName)); err != nil {
 		return err
 	}
+	if err := installAppInGoFile(filepath.Join(projectDir, "app.go"), appImportPath, "// gogo:startapp-configs", fmt.Sprintf("\t\t%s.NewConfig(),\n\t\t// gogo:startapp-configs", appName)); err != nil {
+		return err
+	}
 	return nil
 }
 

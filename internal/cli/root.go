@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/cybersaksham/gogo/auth"
 	"github.com/cybersaksham/gogo/internal/version"
 )
 
@@ -15,10 +16,22 @@ type Root struct {
 
 // NewRoot creates the root CLI with all planned built-in commands.
 func NewRoot() *Root {
+	return NewRootWithOptions(RootOptions{})
+}
+
+// RootOptions configures project-specific command integrations.
+type RootOptions struct {
+	RunserverStarter ServerStarter
+	AuthStore        *auth.MemoryUserStore
+	QueueRuntime     *QueueRuntime
+}
+
+// NewRootWithOptions creates the root CLI with project-specific integrations.
+func NewRootWithOptions(options RootOptions) *Root {
 	registry := NewRegistry()
 	root := &Root{registry: registry}
 
-	for _, command := range plannedCommands(root) {
+	for _, command := range plannedCommands(root, options) {
 		root.mustRegister(command)
 	}
 
@@ -118,13 +131,21 @@ func (c versionCommand) runWithIO(_ context.Context, _ []string, stdout, _ io.Wr
 	return nil
 }
 
-func plannedCommands(root *Root) []Command {
+func plannedCommands(root *Root, options RootOptions) []Command {
 	fixtureStore := NewMemoryFixtureStore()
+	authStore := defaultAuthStore
+	if options.AuthStore != nil {
+		authStore = options.AuthStore
+	}
+	queueRuntime := defaultQueueRuntime
+	if options.QueueRuntime != nil {
+		queueRuntime = options.QueueRuntime
+	}
 	return []Command{
 		helpCommand{root: root},
 		versionCommand{},
 		NewCheckCommand(),
-		NewRunserverCommand(nil),
+		NewRunserverCommand(options.RunserverStarter),
 		NewStartprojectCommand(),
 		NewStartappCommand(),
 		NewMakemigrationsCommand(),
@@ -133,16 +154,16 @@ func plannedCommands(root *Root) []Command {
 		NewSQLMigrateCommand(),
 		NewSquashmigrationsCommand(),
 		NewOptimizeMigrationCommand(),
-		NewCreateSuperuserCommand(defaultAuthStore),
-		NewChangePasswordCommand(defaultAuthStore),
+		NewCreateSuperuserCommand(authStore),
+		NewChangePasswordCommand(authStore),
 		NewCollectstaticCommand(nil),
 		NewShellCommand(nil),
 		NewDBShellCommand(nil),
 		NewTestCommand(nil),
-		NewWorkerCommand(defaultQueueRuntime),
-		NewBeatCommand(defaultQueueRuntime),
-		NewInspectCommand(defaultQueueRuntime),
-		NewQueuesCommand(defaultQueueRuntime),
+		NewWorkerCommand(queueRuntime),
+		NewBeatCommand(queueRuntime),
+		NewInspectCommand(queueRuntime),
+		NewQueuesCommand(queueRuntime),
 		NewDumpdataCommand(fixtureStore),
 		NewLoaddataCommand(fixtureStore),
 	}
