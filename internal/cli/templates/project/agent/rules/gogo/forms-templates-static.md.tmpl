@@ -35,6 +35,8 @@ Framework module: `github.com/cybersaksham/gogo`.
 - Keep project static assets in `static/` and app assets under each app's
   `static/<app>/` directory.
 - Use Gogo static collection and file storage APIs for deployed assets.
+- `go run manage.go runserver` serves configured static and media roots in
+  development when `GOGO_STATIC_ROOT` and `GOGO_MEDIA_ROOT` are set.
 - Static coverage includes finders, duplicate reporting, hashed filenames,
   manifests, collection, and static mount helpers. File coverage includes local
   storage, safe filename normalization, memory uploads, temporary uploads,

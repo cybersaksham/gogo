@@ -8,6 +8,10 @@ auth views, index pages, change lists, change forms, delete confirmation,
 history, filters, search, autocomplete, widgets, inlines, actions, static
 assets, and queue/admin docs integrations.
 
+Generated projects mount `/admin/` automatically. The admin index renders the
+registered model list from app `admin.go` metadata so new apps are visible after
+`startapp` auto-installs their admin registration.
+
 ## Model admin options
 
 Admin registrations can configure list display, list filters, ordering, search,

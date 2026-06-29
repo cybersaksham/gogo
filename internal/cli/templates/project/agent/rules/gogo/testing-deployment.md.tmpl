@@ -30,14 +30,14 @@ entrypoint for this generated project.
 | `gogo version`, `gogo --version`, `gogo -version` | show version metadata |
 | `gogo startproject` | create a Gogo project |
 | `go run manage.go check` | run settings and system checks |
-| `go run manage.go runserver` | run the development server |
+| `go run manage.go runserver` | run the development server with HTTP routes, API routes, admin, and development static/media mounts |
 | `go run manage.go startapp` | create and auto-install a Gogo app |
 | `go run manage.go makemigrations` | create migrations |
 | `go run manage.go migrate` | apply or roll back migrations |
 | `go run manage.go showmigrations` | list migrations |
 | `go run manage.go sqlmigrate` | render migration SQL |
-| `go run manage.go squashmigrations` | squash migrations |
-| `go run manage.go optimizemigration` | optimize migrations |
+| `go run manage.go squashmigrations` | write a squashed replacement migration |
+| `go run manage.go optimizemigration` | optimize migrations or report no safe changes |
 | `go run manage.go createsuperuser` | create an admin user |
 | `go run manage.go changepassword` | change a user password |
 | `go run manage.go collectstatic` | collect static files |

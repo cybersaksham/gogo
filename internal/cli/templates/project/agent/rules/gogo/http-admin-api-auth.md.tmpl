@@ -9,6 +9,8 @@ Framework module: `github.com/cybersaksham/gogo`.
 
 - Put root URL wiring in `{{.ProjectName}}/urls.go`.
 - Put app routes and handlers in each app's `urls.go`.
+- Put app API routes in each app's `api.go`; generated project routing mounts
+  those `RegisterAPI` handlers under `/api/`.
 - Use Gogo HTTP request/response helpers, route patterns, URL reversing,
   middleware, decorators, redirects, generic views, and error handling.
 - Built-in HTTP helpers include method decorators, conditional requests, ETag
@@ -24,9 +26,10 @@ Framework module: `github.com/cybersaksham/gogo`.
 - Configure list display, search, filters, readonly fields, inlines, widgets,
   actions, autocomplete, delete behavior, and history intentionally.
 - Admin package coverage includes sites, registries, URL generation, index
-  pages, change lists, change forms, delete confirmation, deletion collection,
-  object history, log entries, fieldsets, custom actions, search, filters,
-  inlines, widgets, static assets, and admin templates.
+  pages that render registered models, change lists, change forms, delete
+  confirmation, deletion collection, object history, log entries, fieldsets,
+  custom actions, search, filters, inlines, widgets, static assets, and admin
+  templates.
 - Gate admin access through staff/superuser and permission checks.
 - Keep admin actions auditable and avoid destructive bulk actions without
   confirmation or explicit permission checks.
@@ -36,6 +39,8 @@ Framework module: `github.com/cybersaksham/gogo`.
 - Use Gogo API serializers, model serializers, views, viewsets, routers,
   parsers, renderers, authentication, permissions, pagination, filtering,
   throttling, uploads, metadata, versioning, validation, and OpenAPI helpers.
+- Register app APIs through `RegisterAPI(router *api.Router)`; generated
+  project routing mounts them into the HTTP server with `api.Router.MountHTTP`.
 - API coverage includes JSON/form/multipart/raw parsers, JSON/plain/browsable
   renderers, serializer fields, nested serializers, method fields, object and
   list validation, exception handling, route metadata, exact/search/ordering

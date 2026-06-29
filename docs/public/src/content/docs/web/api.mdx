@@ -8,6 +8,11 @@ renderer registries, class-style views, viewsets, routers, authentication,
 permissions, throttling, filtering, pagination, uploads, metadata, versioning,
 and OpenAPI generation.
 
+Generated apps expose API handlers from `apps/<app>/api.go`. The generated
+project router mounts those app APIs under `/api/` through `api.Router.MountHTTP`,
+so `go run manage.go runserver` serves them through the same HTTP server as
+normal routes and admin.
+
 ## Main pieces
 
 | Area | Includes |

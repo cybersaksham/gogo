@@ -96,14 +96,14 @@ projects.
 | `go run manage.go version`, `go run manage.go --version`, `go run manage.go -version` | show framework version metadata |
 | `go run manage.go check` | run settings and system checks |
 | `go run manage.go check --deploy` | run production readiness checks |
-| `go run manage.go runserver` | run the development HTTP server with project routes and admin mounted |
+| `go run manage.go runserver` | run the development HTTP server with project HTTP routes, API routes, admin, and development static/media mounts |
 | `go run manage.go startapp [--force] <name> apps/<name>` | create and auto-install an app scaffold |
 | `go run manage.go makemigrations` | create migration files from generated app metadata |
 | `go run manage.go migrate` | apply or roll back migrations |
 | `go run manage.go showmigrations` | list migration status |
 | `go run manage.go sqlmigrate <app> <migration>` | render migration SQL |
-| `go run manage.go squashmigrations <app> <start> <end>` | squash migrations |
-| `go run manage.go optimizemigration <app> <migration>` | optimize migration operations |
+| `go run manage.go squashmigrations <app> <start> <end>` | write a squashed replacement migration with `Replaces` metadata |
+| `go run manage.go optimizemigration <app> <migration>` | optimize migration operations or report that no safe optimization is needed |
 | `go run manage.go createsuperuser` | create an admin user in local CLI auth storage |
 | `go run manage.go changepassword` | change a user password in local CLI auth storage |
 | `go run manage.go collectstatic` | collect static assets from project and app static roots |

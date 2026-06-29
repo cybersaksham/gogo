@@ -60,14 +60,14 @@ project settings, routes, admin, app configs, and queue tasks.
 | `gogo version` | available | Print version. |
 | `gogo --version` | available | Print version. |
 | `go run manage.go check` | available | Load settings and run system checks. Use `--deploy` for production readiness checks. |
-| `go run manage.go runserver` | available | Build middleware and run the HTTP server. |
+| `go run manage.go runserver` | available | Build middleware and run the HTTP server with project HTTP routes, API routes, admin, and development static/media mounts. |
 | `gogo startproject` | available | Generate project scaffold. |
 | `go run manage.go startapp` | available | Generate app scaffold. |
 | `go run manage.go makemigrations` | available | Write migration files. |
 | `go run manage.go migrate` | available | Apply migrations. |
 | `go run manage.go showmigrations` | available | Show migration status. |
 | `go run manage.go sqlmigrate` | available | Render migration SQL. |
-| `go run manage.go squashmigrations` | available | Squash migration history. |
+| `go run manage.go squashmigrations` | available | Write a squashed replacement migration with `Replaces` metadata. |
 | `go run manage.go optimizemigration` | available | Optimize migration operations. |
 | `go run manage.go createsuperuser` | available auth command shell | Create an admin user. |
 | `go run manage.go changepassword` | available auth command shell | Change a user password. |

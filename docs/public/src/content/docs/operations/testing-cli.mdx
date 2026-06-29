@@ -27,14 +27,14 @@ Generated projects also include a `Makefile` for common workflows.
 | `gogo version`, `gogo --version`, or `gogo -version` | print CLI version metadata |
 | `gogo startproject` | create a project scaffold |
 | `go run manage.go check` | run settings and system checks |
-| `go run manage.go runserver` | run the development HTTP server |
+| `go run manage.go runserver` | run the development HTTP server with HTTP routes, API routes, admin, and development static/media mounts |
 | `go run manage.go startapp` | create and auto-install an app scaffold |
 | `go run manage.go makemigrations` | create migrations |
 | `go run manage.go migrate` | apply migrations |
 | `go run manage.go showmigrations` | list migration status |
 | `go run manage.go sqlmigrate` | render migration SQL |
-| `go run manage.go squashmigrations` | squash migrations |
-| `go run manage.go optimizemigration` | optimize migration operations |
+| `go run manage.go squashmigrations` | write a squashed replacement migration |
+| `go run manage.go optimizemigration` | optimize migration operations or report no safe changes |
 | `go run manage.go createsuperuser` | create an admin user |
 | `go run manage.go changepassword` | change a user password |
 | `go run manage.go collectstatic` | collect static files |
