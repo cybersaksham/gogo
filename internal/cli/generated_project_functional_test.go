@@ -47,13 +47,15 @@ GOGO_HTTP_ADDR=127.0.0.1:0
 		}
 	})
 
-	var migrateStdout bytes.Buffer
-	if err := NewRoot().Execute(context.Background(), []string{"migrate", "--database", "default"}, &migrateStdout, &bytes.Buffer{}); err != nil {
-		t.Fatalf("migrate error = %v", err)
-	}
-	if !strings.Contains(migrateStdout.String(), "applied migrations on database default") {
-		t.Fatalf("migrate stdout = %q", migrateStdout.String())
-	}
+	withWorkingDirectory(t, target, func() {
+		var migrateStdout bytes.Buffer
+		if err := NewRoot().Execute(context.Background(), []string{"migrate", "--database", "default"}, &migrateStdout, &bytes.Buffer{}); err != nil {
+			t.Fatalf("migrate error = %v", err)
+		}
+		if !strings.Contains(migrateStdout.String(), "applied migrations on database default") {
+			t.Fatalf("migrate stdout = %q", migrateStdout.String())
+		}
+	})
 
 	store, _ := auth.NewMemoryUserStore()
 	if err := NewCreateSuperuserCommand(store).Run(context.Background(), []string{
