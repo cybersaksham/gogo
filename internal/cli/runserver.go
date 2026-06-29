@@ -53,6 +53,10 @@ func (c runserverCommand) Run(ctx context.Context, args []string) error {
 	if err := flags.Parse(args); err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidArguments, err)
 	}
+	positionals := flags.Args()
+	if len(positionals) > 1 {
+		return fmt.Errorf("%w: usage runserver [addr] [--addr addr]", ErrInvalidArguments)
+	}
 
 	settings, err := loadRunserverSettings(*settingsPath)
 	if err != nil {
@@ -63,6 +67,9 @@ func (c runserverCommand) Run(ctx context.Context, args []string) error {
 	}
 
 	resolvedAddr := settings.HTTPAddr
+	if len(positionals) == 1 && positionals[0] != "" {
+		resolvedAddr = positionals[0]
+	}
 	if *addr != "" {
 		resolvedAddr = *addr
 	}

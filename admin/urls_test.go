@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cybersaksham/gogo/auth"
 	gogohttp "github.com/cybersaksham/gogo/http"
 	"github.com/cybersaksham/gogo/models"
 )
@@ -67,7 +68,7 @@ func TestAdminIndexRouteRendersRegisteredModels(t *testing.T) {
 	}
 
 	response := httptest.NewRecorder()
-	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/admin/", nil))
+	router.ServeHTTP(response, staffAdminRequest(http.MethodGet, "/admin/"))
 	if response.Code != http.StatusOK {
 		t.Fatalf("index status = %d body=%s", response.Code, response.Body.String())
 	}
@@ -82,10 +83,52 @@ func TestAdminIndexRouteRendersRegisteredModels(t *testing.T) {
 	}
 
 	appResponse := httptest.NewRecorder()
-	router.ServeHTTP(appResponse, httptest.NewRequest(http.MethodGet, "/admin/blog/", nil))
+	router.ServeHTTP(appResponse, staffAdminRequest(http.MethodGet, "/admin/blog/"))
 	if appResponse.Code != http.StatusOK || !strings.Contains(appResponse.Body.String(), "Post") {
 		t.Fatalf("app list = (%d, %q)", appResponse.Code, appResponse.Body.String())
 	}
+}
+
+func TestAdminRoutesRequireActiveStaffUser(t *testing.T) {
+	site := DefaultSite()
+	router, err := site.URLs()
+	if err != nil {
+		t.Fatalf("URLs() error = %v", err)
+	}
+
+	unauthenticated := httptest.NewRecorder()
+	router.ServeHTTP(unauthenticated, httptest.NewRequest(http.MethodGet, "/admin/", nil))
+	if unauthenticated.Code != http.StatusFound || unauthenticated.Header().Get("Location") != "/admin/login/?next=%2Fadmin%2F" {
+		t.Fatalf("unauthenticated admin response = %d location %q", unauthenticated.Code, unauthenticated.Header().Get("Location"))
+	}
+
+	login := httptest.NewRecorder()
+	router.ServeHTTP(login, httptest.NewRequest(http.MethodGet, "/admin/login/", nil))
+	if login.Code != http.StatusOK {
+		t.Fatalf("login status = %d", login.Code)
+	}
+
+	plainUser := auth.User{AbstractUser: auth.AbstractUser{
+		AbstractBaseUser: auth.AbstractBaseUser{ID: 2, IsActive: true, Authenticated: true},
+		Username:         "plain",
+	}}
+	forbiddenRequest := httptest.NewRequest(http.MethodGet, "/admin/", nil)
+	forbiddenRequest = forbiddenRequest.WithContext(auth.ContextWithUser(forbiddenRequest.Context(), plainUser))
+	forbidden := httptest.NewRecorder()
+	router.ServeHTTP(forbidden, forbiddenRequest)
+	if forbidden.Code != http.StatusForbidden {
+		t.Fatalf("non-staff admin response = %d body=%s", forbidden.Code, forbidden.Body.String())
+	}
+}
+
+func staffAdminRequest(method, path string) *http.Request {
+	staff := auth.User{AbstractUser: auth.AbstractUser{
+		AbstractBaseUser: auth.AbstractBaseUser{ID: 1, IsActive: true, Authenticated: true},
+		Username:         "staff",
+		IsStaff:          true,
+	}}
+	request := httptest.NewRequest(method, path, nil)
+	return request.WithContext(auth.ContextWithUser(request.Context(), staff))
 }
 
 func routeNames(routes []gogohttp.Route) []string {

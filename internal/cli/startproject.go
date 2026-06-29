@@ -9,6 +9,7 @@ import (
 	"regexp"
 
 	gogotemplates "github.com/cybersaksham/gogo/internal/cli/templates"
+	"github.com/cybersaksham/gogo/internal/version"
 )
 
 var goIdentifierPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
@@ -54,7 +55,11 @@ func (c startprojectCommand) Run(_ context.Context, args []string) error {
 		return err
 	}
 
-	files, err := gogotemplates.ProjectFiles(gogotemplates.ProjectData{ProjectName: projectName, ModulePath: projectName})
+	files, err := gogotemplates.ProjectFiles(gogotemplates.ProjectData{
+		ProjectName:       projectName,
+		ModulePath:        projectName,
+		GogoModuleVersion: version.ModuleVersion(),
+	})
 	if err != nil {
 		return fmt.Errorf("%w: render project templates: %v", ErrCommandFailed, err)
 	}

@@ -54,6 +54,11 @@ func TestWriterWritesDeterministicGoMigration(t *testing.T) {
 	if string(again) != text {
 		t.Fatalf("writer output was not deterministic")
 	}
+	second := testMigration("blog", "0003_add_comment")
+	second.Dependencies = []Dependency{{AppLabel: "blog", Name: "0002_add_post"}}
+	if _, err := writer.Write(second); err != nil {
+		t.Fatalf("Write(second) error = %v", err)
+	}
 
 	repoRoot, err := filepath.Abs("..")
 	if err != nil {

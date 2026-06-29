@@ -30,6 +30,21 @@ func Info() string {
 	return fmt.Sprintf("gogo %s (commit %s, built %s)", info.version, info.commit, info.buildDate)
 }
 
+// ModuleVersion returns the Go module version suitable for require directives.
+func ModuleVersion() string {
+	value := strings.TrimSpace(effectiveInfo().version)
+	if value == "" || value == defaultVersion || value == unknown || strings.Contains(value, "dev") {
+		return ""
+	}
+	if !strings.HasPrefix(value, "v") {
+		value = "v" + value
+	}
+	if len(value) < 2 || value[1] < '0' || value[1] > '9' {
+		return ""
+	}
+	return value
+}
+
 type buildMetadata struct {
 	version   string
 	commit    string

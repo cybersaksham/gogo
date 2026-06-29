@@ -3,8 +3,11 @@ package admin
 import (
 	"context"
 	"html"
+	"net/http"
+	"net/url"
 	"strings"
 
+	"github.com/cybersaksham/gogo/auth"
 	gogohttp "github.com/cybersaksham/gogo/http"
 )
 
@@ -16,11 +19,11 @@ func (s *Site) URLs() (*gogohttp.Router, error) {
 		pattern string
 		view    gogohttp.View
 	}{
-		{"admin:index", s.URLPrefix + "/", adminIndexView(s)},
-		{"admin:login", s.URLPrefix + "/login/", placeholderView("admin:login")},
-		{"admin:logout", s.URLPrefix + "/logout/", placeholderView("admin:logout")},
-		{"admin:password_change", s.URLPrefix + "/password_change/", placeholderView("admin:password_change")},
-		{"admin:app_list", s.URLPrefix + "/<str:app_label>/", adminAppListView(s)},
+		{"admin:index", s.URLPrefix + "/", protectedAdminView(s, adminIndexView(s))},
+		{"admin:login", s.URLPrefix + "/login/", gogohttp.FromHandler(s.LoginView)},
+		{"admin:logout", s.URLPrefix + "/logout/", gogohttp.FromHandler(s.LogoutView)},
+		{"admin:password_change", s.URLPrefix + "/password_change/", protectedAdminView(s, gogohttp.FromHandler(s.PasswordChangeView))},
+		{"admin:app_list", s.URLPrefix + "/<str:app_label>/", protectedAdminView(s, adminAppListView(s))},
 	}
 	for _, route := range routes {
 		if err := router.Handle(route.name, route.pattern, route.view, "GET", "POST"); err != nil {
@@ -58,7 +61,7 @@ func registerModelURLs(router *gogohttp.Router, site *Site, admin ModelAdmin) er
 		{namePrefix + "_jsi18n", prefix + "/jsi18n/"},
 	}
 	for _, route := range routes {
-		if err := router.Handle(route.name, route.pattern, placeholderView(route.name), "GET", "POST"); err != nil {
+		if err := router.Handle(route.name, route.pattern, protectedAdminView(site, placeholderView(route.name)), "GET", "POST"); err != nil {
 			return err
 		}
 	}
@@ -67,11 +70,34 @@ func registerModelURLs(router *gogohttp.Router, site *Site, admin ModelAdmin) er
 		if !strings.HasSuffix(pattern, "/") {
 			pattern += "/"
 		}
-		if err := router.Handle(namePrefix+"_"+custom.Name, pattern, placeholderView(custom.Name), "GET", "POST"); err != nil {
+		if err := router.Handle(namePrefix+"_"+custom.Name, pattern, protectedAdminView(site, placeholderView(custom.Name)), "GET", "POST"); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func protectedAdminView(site *Site, view gogohttp.View) gogohttp.View {
+	return func(ctx context.Context, request *gogohttp.Request) gogohttp.Response {
+		if site == nil {
+			site = DefaultSite()
+		}
+		if site.PermissionPolicy == nil || site.PermissionPolicy.HasAccess(request.Raw()) {
+			return view(ctx, request)
+		}
+		return adminAccessDenied(site, request.Raw())
+	}
+}
+
+func adminAccessDenied(site *Site, request *http.Request) gogohttp.Response {
+	if user, ok := auth.UserFromContext(request.Context()); ok && user.IsAuthenticated() && !user.IsAnonymous() {
+		return gogohttp.Forbidden("Forbidden", nil)
+	}
+	next := request.URL.RequestURI()
+	if next == "" {
+		next = site.URLPrefix + "/"
+	}
+	return gogohttp.TemporaryRedirect(site.URLPrefix + "/login/?next=" + url.QueryEscape(next))
 }
 
 func placeholderView(name string) gogohttp.View {

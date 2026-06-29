@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/cybersaksham/gogo/internal/version"
 )
 
 func TestStartprojectGeneratesExpectedFiles(t *testing.T) {
@@ -93,6 +95,27 @@ func TestStartprojectEnvExampleContainsFrameworkKeys(t *testing.T) {
 		if !strings.Contains(string(generated), key+"=") {
 			t.Fatalf("generated .env.example missing %s", key)
 		}
+	}
+}
+
+func TestStartprojectPinsCurrentGogoModuleVersion(t *testing.T) {
+	oldVersion := version.Version
+	version.Version = "0.2.1"
+	defer func() { version.Version = oldVersion }()
+
+	target := filepath.Join(t.TempDir(), "myproject")
+
+	command := NewStartprojectCommand()
+	if err := command.Run(context.Background(), []string{"myproject", target}); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	goMod, err := os.ReadFile(filepath.Join(target, "go.mod"))
+	if err != nil {
+		t.Fatalf("read generated go.mod: %v", err)
+	}
+	if !strings.Contains(string(goMod), "require github.com/cybersaksham/gogo v0.2.1") {
+		t.Fatalf("generated go.mod does not pin current framework version:\n%s", goMod)
 	}
 }
 

@@ -60,6 +60,40 @@ GOGO_HTTP_ADDR=:9000
 	}
 }
 
+func TestRunserverPositionalAddressOverridesEnvironmentAddress(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeTextFile(t, filepath.Join(dir, ".env"), `
+GOGO_SECRET_KEY=runserver-secret
+DATABASE_URL=postgres://runserver
+GOGO_HTTP_ADDR=:9000
+`)
+
+	config := runRunserverWithCapture(t, []string{":8111"})
+
+	if config.Addr != ":8111" {
+		t.Fatalf("Addr = %q, want positional address", config.Addr)
+	}
+}
+
+func TestRunserverRejectsExtraPositionalArguments(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeTextFile(t, filepath.Join(dir, ".env"), `
+GOGO_SECRET_KEY=runserver-secret
+DATABASE_URL=postgres://runserver
+`)
+
+	command := NewRunserverCommand(func(context.Context, RunserverConfig) error {
+		t.Fatalf("starter should not run for invalid arguments")
+		return nil
+	})
+	err := command.Run(context.Background(), []string{":8111", ":8112"})
+	if !errors.Is(err, ErrInvalidArguments) {
+		t.Fatalf("Run() error = %v, want ErrInvalidArguments", err)
+	}
+}
+
 func TestRunserverLoadsExplicitSettingsFile(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)

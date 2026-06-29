@@ -23,8 +23,9 @@ func (w Writer) Write(migration Migration) (string, error) {
 	var builder strings.Builder
 	builder.WriteString("package migrations\n\n")
 	builder.WriteString("import gogomigrations \"github.com/cybersaksham/gogo/migrations\"\n\n")
-	builder.WriteString("// GeneratedMigration describes this generated migration.\n")
-	builder.WriteString("var GeneratedMigration = gogomigrations.Migration{\n")
+	variableName := generatedMigrationVariableName(migration.Name)
+	builder.WriteString("// " + variableName + " describes this generated migration.\n")
+	builder.WriteString("var " + variableName + " = gogomigrations.Migration{\n")
 	builder.WriteString(fmt.Sprintf("\tAppLabel: %q,\n", migration.AppLabel))
 	builder.WriteString(fmt.Sprintf("\tName: %q,\n", migration.Name))
 	builder.WriteString("\tDependencies: []gogomigrations.Dependency{\n")
@@ -53,4 +54,22 @@ func (w Writer) Write(migration Migration) (string, error) {
 	}
 	path := filepath.Join(w.Dir, migration.Name+".go")
 	return path, os.WriteFile(path, formatted, 0o644)
+}
+
+func generatedMigrationVariableName(name string) string {
+	parts := strings.FieldsFunc(name, func(r rune) bool {
+		return r < '0' || (r > '9' && r < 'A') || (r > 'Z' && r < 'a') || r > 'z'
+	})
+	var builder strings.Builder
+	builder.WriteString("GeneratedMigration")
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		builder.WriteString(strings.ToUpper(part[:1]))
+		if len(part) > 1 {
+			builder.WriteString(part[1:])
+		}
+	}
+	return builder.String()
 }

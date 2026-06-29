@@ -3,10 +3,18 @@ package cli
 import (
 	"bytes"
 	"context"
+	"database/sql"
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/cybersaksham/gogo/migrations"
+
+	_ "modernc.org/sqlite"
 )
 
 func TestMigrationCommandsRunWithFlags(t *testing.T) {
@@ -109,14 +117,114 @@ func TestShowAndSQLMigrateUseGeneratedAppOutput(t *testing.T) {
 	}
 }
 
+func TestMigrateAppliesGeneratedAppMigrationsAndShowMigrationsUsesRecorder(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "db.sqlite3")
+	writeMigrationEnv(t, dir, dbPath)
+	migrationsDir := filepath.Join(dir, "apps", "blog", "migrations")
+	writeGeneratedMigration(t, migrationsDir, migrations.Migration{
+		AppLabel: "blog",
+		Name:     "0001_initial",
+		Atomic:   true,
+		Operations: []migrations.Operation{
+			migrations.ManifestOperation{NameValue: "CreateModel:blog.Item"},
+		},
+	})
+	t.Chdir(dir)
+
+	root := NewRoot()
+	var stdout bytes.Buffer
+	if err := root.Execute(context.Background(), []string{"migrate"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("migrate error = %v", err)
+	}
+	if !strings.Contains(stdout.String(), "applied blog.0001_initial") {
+		t.Fatalf("migrate stdout = %q", stdout.String())
+	}
+	assertSQLiteTableExists(t, dbPath, "blog_item")
+	assertMigrationRecorded(t, dbPath, "blog", "0001_initial")
+
+	var showOut bytes.Buffer
+	if err := root.Execute(context.Background(), []string{"showmigrations"}, &showOut, &bytes.Buffer{}); err != nil {
+		t.Fatalf("showmigrations error = %v", err)
+	}
+	if !strings.Contains(showOut.String(), "[X] blog.0001_initial") {
+		t.Fatalf("showmigrations stdout = %q", showOut.String())
+	}
+}
+
+func TestMigratePlanListsPendingMigrations(t *testing.T) {
+	dir := t.TempDir()
+	writeMigrationEnv(t, dir, filepath.Join(dir, "db.sqlite3"))
+	migrationsDir := filepath.Join(dir, "apps", "blog", "migrations")
+	writeGeneratedMigration(t, migrationsDir, migrations.Migration{
+		AppLabel:   "blog",
+		Name:       "0001_initial",
+		Atomic:     true,
+		Operations: []migrations.Operation{migrations.ManifestOperation{NameValue: "CreateModel:blog.Item"}},
+	})
+	t.Chdir(dir)
+
+	var stdout bytes.Buffer
+	if err := NewRoot().Execute(context.Background(), []string{"migrate", "--plan"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("migrate --plan error = %v", err)
+	}
+	if !strings.Contains(stdout.String(), "apply blog.0001_initial") {
+		t.Fatalf("migrate --plan stdout = %q", stdout.String())
+	}
+}
+
+func TestMakeMigrationsCheckDryRunSkipsExistingMigration(t *testing.T) {
+	dir := t.TempDir()
+	migrationsDir := filepath.Join(dir, "apps", "blog", "migrations")
+	writeGeneratedMigration(t, migrationsDir, migrations.Migration{
+		AppLabel:   "blog",
+		Name:       "0001_initial",
+		Atomic:     true,
+		Operations: []migrations.Operation{migrations.ManifestOperation{NameValue: "CreateModel:blog.Item"}},
+	})
+	t.Chdir(dir)
+
+	var stdout bytes.Buffer
+	if err := NewRoot().Execute(context.Background(), []string{"makemigrations", "--app", "blog", "--name", "initial", "--check", "--dry-run"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("makemigrations --check --dry-run error = %v", err)
+	}
+	if !strings.Contains(stdout.String(), "no changes detected") || strings.Contains(stdout.String(), "would create") {
+		t.Fatalf("makemigrations stdout = %q", stdout.String())
+	}
+}
+
+func TestMakeMigrationsCheckFailsWhenMigrationWouldBeCreated(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "apps", "blog", "migrations"), 0o755); err != nil {
+		t.Fatalf("mkdir migrations: %v", err)
+	}
+	t.Chdir(dir)
+
+	var stdout bytes.Buffer
+	err := NewRoot().Execute(context.Background(), []string{"makemigrations", "--app", "blog", "--check", "--dry-run"}, &stdout, &bytes.Buffer{})
+	if !errors.Is(err, ErrCommandFailed) {
+		t.Fatalf("makemigrations error = %v, want ErrCommandFailed", err)
+	}
+	if !strings.Contains(stdout.String(), "would create blog.0001_initial") {
+		t.Fatalf("makemigrations stdout = %q", stdout.String())
+	}
+}
+
 func TestSquashMigrationsWritesReplacementMigrationFile(t *testing.T) {
 	dir := t.TempDir()
 	migrationsDir := filepath.Join(dir, "apps", "blog", "migrations")
-	if err := os.MkdirAll(migrationsDir, 0o755); err != nil {
-		t.Fatalf("mkdir migrations: %v", err)
-	}
-	writeTextFile(t, filepath.Join(migrationsDir, "0001_initial.go"), "package migrations\n")
-	writeTextFile(t, filepath.Join(migrationsDir, "0002_post.go"), "package migrations\n")
+	writeGeneratedMigration(t, migrationsDir, migrations.Migration{
+		AppLabel:   "blog",
+		Name:       "0001_initial",
+		Atomic:     true,
+		Operations: []migrations.Operation{migrations.ManifestOperation{NameValue: "CreateModel:blog.Item"}},
+	})
+	writeGeneratedMigration(t, migrationsDir, migrations.Migration{
+		AppLabel:   "blog",
+		Name:       "0002_post",
+		Atomic:     true,
+		Operations: []migrations.Operation{migrations.ManifestOperation{NameValue: "AddField:blog.Item.slug"}},
+	})
 	t.Chdir(dir)
 
 	root := NewRoot()
@@ -135,6 +243,11 @@ func TestSquashMigrationsWritesReplacementMigrationFile(t *testing.T) {
 	if !strings.Contains(stdout.String(), "created squashed migration blog.0001_squashed_0002_post replacing 2 migration(s)") {
 		t.Fatalf("stdout = %q", stdout.String())
 	}
+	writeTextFile(t, filepath.Join(dir, "go.mod"), "module generated-client\n\ngo 1.26.4\n\ntoolchain go1.26.4\n\nrequire github.com/cybersaksham/gogo v0.0.0\n")
+	repoRoot := cliTestRepoRoot(t)
+	runCLICommand(t, dir, "go", "mod", "edit", "-replace", "github.com/cybersaksham/gogo="+filepath.ToSlash(repoRoot))
+	runCLICommand(t, dir, "go", "mod", "tidy")
+	runCLICommand(t, dir, "go", "test", "./apps/blog/migrations")
 }
 
 func TestOptimizeMigrationReportsNoopWhenNoSafeRewriteExists(t *testing.T) {
@@ -154,4 +267,64 @@ func TestOptimizeMigrationReportsNoopWhenNoSafeRewriteExists(t *testing.T) {
 	if !strings.Contains(stdout.String(), "no optimizations needed for blog.0001_initial") {
 		t.Fatalf("stdout = %q", stdout.String())
 	}
+}
+
+func writeMigrationEnv(t *testing.T, dir, dbPath string) {
+	t.Helper()
+	writeTextFile(t, filepath.Join(dir, ".env"), "GOGO_SECRET_KEY=migration-secret\nDATABASE_URL=sqlite://"+filepath.ToSlash(dbPath)+"\n")
+}
+
+func writeGeneratedMigration(t *testing.T, dir string, migration migrations.Migration) {
+	t.Helper()
+	if _, err := migrations.NewWriter(dir).Write(migration); err != nil {
+		t.Fatalf("write migration %s: %v", migration.Identity(), err)
+	}
+}
+
+func assertSQLiteTableExists(t *testing.T, dbPath, table string) {
+	t.Helper()
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	defer db.Close()
+	var name string
+	if err := db.QueryRow(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name); err != nil {
+		t.Fatalf("expected sqlite table %s: %v", table, err)
+	}
+}
+
+func assertMigrationRecorded(t *testing.T, dbPath, appLabel, name string) {
+	t.Helper()
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	defer db.Close()
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM gogo_migrations WHERE app = ? AND name = ?`, appLabel, name).Scan(&count); err != nil {
+		t.Fatalf("query migration record: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("migration record count = %d, want 1", count)
+	}
+}
+
+func runCLICommand(t *testing.T, dir, name string, args ...string) {
+	t.Helper()
+	command := exec.Command(name, args...)
+	command.Dir = dir
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("%s %s failed in %s: %v\n%s", name, strings.Join(args, " "), dir, err, output)
+	}
+}
+
+func cliTestRepoRoot(t *testing.T) string {
+	t.Helper()
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatalf("resolve current test file")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
 }

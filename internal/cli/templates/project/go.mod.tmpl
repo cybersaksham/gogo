@@ -3,3 +3,7 @@ module {{.ModulePath}}
 go 1.26.4
 
 toolchain go1.26.4
+{{if .GogoModuleVersion}}
+
+require github.com/cybersaksham/gogo {{.GogoModuleVersion}}
+{{end}}

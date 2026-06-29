@@ -2,6 +2,8 @@ package cli
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -10,7 +12,14 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/cybersaksham/gogo/conf"
 	"github.com/cybersaksham/gogo/migrations"
+	"github.com/cybersaksham/gogo/orm"
+	postgresdialect "github.com/cybersaksham/gogo/orm/dialects/postgres"
+	sqlitedialect "github.com/cybersaksham/gogo/orm/dialects/sqlite"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "modernc.org/sqlite"
 )
 
 func NewMakemigrationsCommand() Command {
@@ -43,7 +52,7 @@ func (c migrationCommand) Run(ctx context.Context, args []string) error {
 	return c.runWithIO(ctx, args, io.Discard, io.Discard)
 }
 
-func (c migrationCommand) runWithIO(_ context.Context, args []string, stdout, _ io.Writer) error {
+func (c migrationCommand) runWithIO(ctx context.Context, args []string, stdout, _ io.Writer) error {
 	options, positionals, err := parseMigrationFlags(c.name, args)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrCommandFailed, err)
@@ -52,24 +61,15 @@ func (c migrationCommand) runWithIO(_ context.Context, args []string, stdout, _ 
 	case "makemigrations":
 		return runMakeMigrations(options, stdout)
 	case "migrate":
-		if options.prune {
-			_, err = fmt.Fprintln(stdout, "pruned stale migration records")
-		} else if options.plan {
-			_, err = fmt.Fprintf(stdout, "migration plan for database %s\n", options.database)
-		} else {
-			_, err = fmt.Fprintf(stdout, "applied migrations on database %s\n", options.database)
-		}
+		return runMigrate(ctx, options, stdout)
 	case "showmigrations":
-		return runShowMigrations(options, stdout)
+		return runShowMigrations(ctx, options, stdout)
 	case "sqlmigrate":
 		return runSQLMigrate(options, positionals, stdout)
 	case "squashmigrations":
 		return runSquashMigrations(positionals, stdout)
 	case "optimizemigration":
 		return runOptimizeMigration(positionals, stdout)
-	}
-	if err != nil {
-		return fmt.Errorf("%w: write migration command output: %v", ErrCommandFailed, err)
 	}
 	return nil
 }
@@ -119,10 +119,18 @@ func runMakeMigrations(options migrationOptions, stdout io.Writer) error {
 	if name == "" {
 		name = "initial"
 	}
+	created := false
 	for _, target := range apps {
+		existing, err := migrationFileNames(target.dir)
+		if err != nil {
+			return fmt.Errorf("%w: list migrations: %v", ErrCommandFailed, err)
+		}
+		if len(existing) > 0 && !options.empty {
+			continue
+		}
 		migration := migrations.Migration{
 			AppLabel: target.appLabel,
-			Name:     migrations.NextMigrationName(1, name),
+			Name:     migrations.NextMigrationName(len(existing)+1, name),
 			Atomic:   true,
 			Operations: []migrations.Operation{
 				defaultMigrationOperation(target.appLabel, options.empty),
@@ -132,6 +140,7 @@ func runMakeMigrations(options migrationOptions, stdout io.Writer) error {
 			if _, err := fmt.Fprintf(stdout, "would create %s\n", migration.Identity()); err != nil {
 				return err
 			}
+			created = true
 			continue
 		}
 		if _, err := migrations.NewWriter(target.dir).Write(migration); err != nil {
@@ -140,6 +149,15 @@ func runMakeMigrations(options migrationOptions, stdout io.Writer) error {
 		if _, err := fmt.Fprintf(stdout, "created %s\n", migration.Identity()); err != nil {
 			return err
 		}
+		created = true
+	}
+	if !created && (options.dryRun || options.check) {
+		if _, err := fmt.Fprintln(stdout, "no changes detected"); err != nil {
+			return err
+		}
+	}
+	if options.check && created {
+		return fmt.Errorf("%w: model changes are not reflected in migrations", ErrCommandFailed)
 	}
 	return nil
 }
@@ -194,8 +212,62 @@ func defaultMigrationOperation(appLabel string, empty bool) migrations.Operation
 	return migrations.ManifestOperation{NameValue: "CreateModel:" + appLabel + ".Item"}
 }
 
-func runShowMigrations(options migrationOptions, stdout io.Writer) error {
+func runMigrate(ctx context.Context, options migrationOptions, stdout io.Writer) error {
+	if options.prune {
+		_, err := fmt.Fprintln(stdout, "pruned stale migration records")
+		return err
+	}
+	known, err := knownMigrations(options.app)
+	if err != nil {
+		return err
+	}
+	database, err := openMigrationDatabase(ctx, options.database)
+	if err != nil {
+		if options.plan {
+			return writeMigrationPlan(stdout, options.database, known, nil)
+		}
+		return fmt.Errorf("%w: open database: %v", ErrCommandFailed, err)
+	}
+	defer database.Close()
+
+	recorder := migrations.NewRecorder(database, "gogo-cli")
+	if err := recorder.EnsureSchema(ctx); err != nil {
+		return fmt.Errorf("%w: ensure migration recorder: %v", ErrCommandFailed, err)
+	}
+	applied, err := appliedMigrationSet(ctx, recorder)
+	if err != nil {
+		return fmt.Errorf("%w: load migration history: %v", ErrCommandFailed, err)
+	}
+	if options.plan {
+		return writeMigrationPlan(stdout, options.database, known, applied)
+	}
+
+	pending := pendingMigrations(known, applied)
+	executor := migrations.NewExecutor(recorder, sqlSchemaEditor{db: database.SQLDB()})
+	if err := executor.Apply(ctx, pending, migrations.ExecutorOptions{Fake: options.fake, FakeInitial: options.fakeInitial}); err != nil {
+		return fmt.Errorf("%w: apply migrations: %v", ErrCommandFailed, err)
+	}
+	for _, migration := range pending {
+		if _, err := fmt.Fprintf(stdout, "applied %s\n", migration.Identity()); err != nil {
+			return err
+		}
+	}
+	if _, err := fmt.Fprintf(stdout, "applied migrations on database %s\n", options.database); err != nil {
+		return err
+	}
+	return nil
+}
+
+func runShowMigrations(ctx context.Context, options migrationOptions, stdout io.Writer) error {
 	targets := migrationTargets(options.app)
+	applied := map[string]struct{}{}
+	if database, err := openMigrationDatabase(ctx, options.database); err == nil {
+		recorder := migrations.NewRecorder(database, "gogo-cli")
+		if err := recorder.EnsureSchema(ctx); err == nil {
+			applied, _ = appliedMigrationSet(ctx, recorder)
+		}
+		_ = database.Close()
+	}
 	for _, target := range targets {
 		names, err := migrationFileNames(target.dir)
 		if err != nil {
@@ -208,12 +280,165 @@ func runShowMigrations(options migrationOptions, stdout io.Writer) error {
 			continue
 		}
 		for _, name := range names {
-			if _, err := fmt.Fprintf(stdout, "[ ] %s.%s\n", target.appLabel, name); err != nil {
+			marker := " "
+			if _, ok := applied[target.appLabel+"."+name]; ok {
+				marker = "X"
+			}
+			if _, err := fmt.Fprintf(stdout, "[%s] %s.%s\n", marker, target.appLabel, name); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+func knownMigrations(appLabel string) ([]migrations.Migration, error) {
+	targets := migrationTargets(appLabel)
+	var known []migrations.Migration
+	for _, target := range targets {
+		names, err := migrationFileNames(target.dir)
+		if err != nil {
+			return nil, fmt.Errorf("%w: list migrations: %v", ErrCommandFailed, err)
+		}
+		for _, name := range names {
+			known = append(known, migrationFromName(target.appLabel, name))
+		}
+	}
+	sort.SliceStable(known, func(i, j int) bool {
+		if known[i].AppLabel == known[j].AppLabel {
+			return known[i].Name < known[j].Name
+		}
+		return known[i].AppLabel < known[j].AppLabel
+	})
+	return known, nil
+}
+
+func migrationFromName(appLabel, name string) migrations.Migration {
+	return migrations.Migration{
+		AppLabel:   appLabel,
+		Name:       name,
+		Atomic:     true,
+		Operations: migrationOperations(appLabel, name),
+	}
+}
+
+func migrationOperations(appLabel, name string) []migrations.Operation {
+	statements := migrationSQLStatements(appLabel, name)
+	if len(statements) == 0 {
+		return []migrations.Operation{migrations.ManifestOperation{NameValue: "NoopMigration"}}
+	}
+	return []migrations.Operation{sqlMigrationOperation{NameValue: "SQL:" + appLabel + "." + name, Statements: statements}}
+}
+
+func pendingMigrations(known []migrations.Migration, applied map[string]struct{}) []migrations.Migration {
+	pending := make([]migrations.Migration, 0, len(known))
+	for _, migration := range known {
+		if _, ok := applied[migration.Identity()]; ok {
+			continue
+		}
+		pending = append(pending, migration)
+	}
+	return pending
+}
+
+func appliedMigrationSet(ctx context.Context, recorder migrations.Recorder) (map[string]struct{}, error) {
+	appliedRows, err := recorder.Applied(ctx)
+	if err != nil {
+		return nil, err
+	}
+	applied := make(map[string]struct{}, len(appliedRows))
+	for _, item := range appliedRows {
+		applied[item.AppLabel+"."+item.Name] = struct{}{}
+	}
+	return applied, nil
+}
+
+func writeMigrationPlan(stdout io.Writer, database string, known []migrations.Migration, applied map[string]struct{}) error {
+	if applied == nil {
+		applied = map[string]struct{}{}
+	}
+	if _, err := fmt.Fprintf(stdout, "migration plan for database %s\n", database); err != nil {
+		return err
+	}
+	pending := pendingMigrations(known, applied)
+	if len(pending) == 0 {
+		_, err := fmt.Fprintln(stdout, "  no migrations to apply")
+		return err
+	}
+	for _, migration := range pending {
+		if _, err := fmt.Fprintf(stdout, "  apply %s\n", migration.Identity()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func openMigrationDatabase(ctx context.Context, databaseAlias string) (*orm.Database, error) {
+	settings, err := conf.LoadFromEnv()
+	if err != nil {
+		return nil, err
+	}
+	config, err := migrationDatabaseConfig(databaseAlias, settings.DatabaseURL)
+	if err != nil {
+		return nil, err
+	}
+	return orm.OpenDatabase(ctx, config)
+}
+
+func migrationDatabaseConfig(alias, databaseURL string) (orm.DatabaseConfig, error) {
+	if strings.TrimSpace(alias) == "" {
+		alias = orm.DefaultDatabase
+	}
+	switch {
+	case strings.HasPrefix(databaseURL, "sqlite://"):
+		dsn := strings.TrimPrefix(databaseURL, "sqlite://")
+		if dsn == "" {
+			return orm.DatabaseConfig{}, errors.New("sqlite database path is empty")
+		}
+		return orm.DatabaseConfig{Name: alias, Driver: "sqlite", DSN: dsn, Dialect: sqlitedialect.New()}, nil
+	case strings.HasPrefix(databaseURL, "postgres://"), strings.HasPrefix(databaseURL, "postgresql://"):
+		return orm.DatabaseConfig{Name: alias, Driver: "pgx", DSN: databaseURL, Dialect: postgresdialect.New()}, nil
+	default:
+		return orm.DatabaseConfig{}, errors.New("unsupported or empty DATABASE_URL")
+	}
+}
+
+type sqlSchemaEditor struct {
+	db *sql.DB
+}
+
+func (e sqlSchemaEditor) Execute(ctx context.Context, statement string, args ...any) error {
+	_, err := e.db.ExecContext(ctx, statement, args...)
+	return err
+}
+
+type sqlMigrationOperation struct {
+	NameValue  string
+	Statements []string
+}
+
+func (o sqlMigrationOperation) Name() string { return o.NameValue }
+func (o sqlMigrationOperation) StateForwards(*migrations.ProjectState) error {
+	return nil
+}
+func (o sqlMigrationOperation) DatabaseForwards(ctx context.Context, editor migrations.SchemaEditor) error {
+	for _, statement := range o.Statements {
+		if err := editor.Execute(ctx, statement); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (o sqlMigrationOperation) DatabaseBackwards(context.Context, migrations.SchemaEditor) error {
+	return nil
+}
+func (o sqlMigrationOperation) Describe() string { return o.NameValue }
+func (o sqlMigrationOperation) Reversible() bool { return true }
+func (o sqlMigrationOperation) ReferencesModel(string, string) bool {
+	return false
+}
+func (o sqlMigrationOperation) ReferencesField(string, string, string) bool {
+	return false
 }
 
 func migrationFileNames(dir string) ([]string, error) {
@@ -244,12 +469,24 @@ func runSQLMigrate(options migrationOptions, positionals []string, stdout io.Wri
 	if _, err := fmt.Fprintf(stdout, "-- SQL for %s.%s on database %s\n", appLabel, migrationName, options.database); err != nil {
 		return err
 	}
-	if strings.HasPrefix(migrationName, "0001_") {
-		_, err := fmt.Fprintf(stdout, "CREATE TABLE IF NOT EXISTS %q (id bigint PRIMARY KEY, name text NOT NULL, slug text NOT NULL, created_at timestamp, updated_at timestamp);\n", appLabel+"_item")
+	statements := migrationSQLStatements(appLabel, migrationName)
+	if len(statements) == 0 {
+		_, err := fmt.Fprintln(stdout, "-- No SQL operations rendered for this manifest migration.")
 		return err
 	}
-	_, err := fmt.Fprintln(stdout, "-- No SQL operations rendered for this manifest migration.")
-	return err
+	for _, statement := range statements {
+		if _, err := fmt.Fprintln(stdout, statement+";"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func migrationSQLStatements(appLabel, migrationName string) []string {
+	if strings.HasPrefix(migrationName, "0001_") {
+		return []string{fmt.Sprintf("CREATE TABLE IF NOT EXISTS %q (id bigint PRIMARY KEY, name text NOT NULL, slug text NOT NULL, created_at timestamp, updated_at timestamp)", appLabel+"_item")}
+	}
+	return nil
 }
 
 func runSquashMigrations(positionals []string, stdout io.Writer) error {

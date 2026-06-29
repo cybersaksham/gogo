@@ -13,8 +13,9 @@ import (
 var templateFS embed.FS
 
 type ProjectData struct {
-	ProjectName string
-	ModulePath  string
+	ProjectName       string
+	ModulePath        string
+	GogoModuleVersion string
 }
 
 type AppData struct {
