@@ -19,6 +19,92 @@ None.
 
 None.
 
+## v0.3.0 - 2026-06-29
+
+Feature release for generated-project admin authentication, real migration
+application, generated module version pinning, and client smoke reliability.
+
+### Release Metadata
+
+- Previous release: `v0.2.0`.
+- New release: `v0.3.0`.
+- Module path: `github.com/cybersaksham/gogo`.
+- CLI install path: `github.com/cybersaksham/gogo/cmd/gogo`.
+
+### Added
+
+- Added `auth.FileUserStore`, a public file-backed built-in user store used by
+  generated admin projects and available for simple deployments.
+- Added `admin.SessionPermissionPolicy` so admin routes can authorize requests
+  from auth context or admin session cookies.
+- Added generated admin auth wiring: new projects use `.gogo/auth_users.json`
+  for `createsuperuser` users and `.gogo/sessions` for admin sessions.
+- Added release-aware `go.mod` generation so projects created by a released
+  `gogo` CLI pin `github.com/cybersaksham/gogo` to the current module version.
+- Added a client smoke report covering generated-project command behavior and
+  the fixes required after the `v0.2.0` smoke run.
+
+### Changed
+
+- Changed admin URL generation to route login, logout, and password-change views
+  through configured handlers instead of placeholders.
+- Changed protected admin routes to enforce the site permission policy, redirect
+  anonymous users to `/admin/login/`, and reject authenticated non-staff users.
+- Changed `runserver` to accept Django-style positional addresses such as
+  `go run manage.go runserver :8111`, while rejecting extra positional
+  arguments.
+- Changed generated client agent rules and public docs to describe generated
+  admin auth storage, session storage, and framework version pinning.
+
+### Fixed
+
+- Fixed `migrate` so it opens the configured database, applies generated app
+  migrations, executes generated SQL, and records rows in `gogo_migrations`.
+- Fixed `showmigrations` so it marks applied migrations with `[X]` using the
+  migration recorder.
+- Fixed `migrate --plan` so it lists pending migrations and reports when there
+  is no migration work to apply.
+- Fixed `makemigrations --check --dry-run` so existing initial migrations are
+  not proposed again, and missing migrations return a failing check status.
+- Fixed generated and squashed migration files so multiple migrations in one Go
+  package use unique variable names and compile together.
+- Fixed generated-project integration tests to run migration commands from the
+  generated project root, matching real client usage.
+
+### Breaking
+
+- Admin routes produced by `admin.Site.URLs()` now enforce the configured
+  permission policy by default. Tests, probes, or generated projects that
+  expected anonymous `/admin/` access must sign in with a staff user or attach a
+  staff user in request context.
+
+### Migration Notes
+
+- Existing generated projects should run `go run manage.go createsuperuser` to
+  create a staff admin user, then sign in at `/admin/login/`.
+- Existing generated projects can adopt the new admin login/session behavior by
+  updating project `admin.go` to use `auth.NewFileUserStore`,
+  `sessions.NewFileStore`, `admin.LoginView`, `admin.LogoutView`,
+  `admin.PasswordChangeView`, and `admin.SessionPermissionPolicy`.
+- Migration commands now require a valid `DATABASE_URL` when applying or reading
+  recorded migration state. `migrate --plan` still renders a pending plan when
+  database state is unavailable.
+- Existing generated projects can add a `require github.com/cybersaksham/gogo
+  v0.3.0` line to `go.mod`, then run `go mod tidy`.
+
+### Verification
+
+- Passed `make ci` before tagging.
+- Passed `go test -tags=integration ./...` before tagging.
+- Passed release dry run for `v0.3.0` before tagging.
+
+### Artifacts
+
+- The GitHub release workflow publishes CLI binaries for Linux, macOS, and
+  Windows on `amd64` and `arm64`.
+- The GitHub release workflow publishes `checksums.txt` with SHA256 checksums
+  for release artifacts.
+
 ## v0.2.0 - 2026-06-29
 
 Feature release for generated-project runtime completeness, public API mounting,
