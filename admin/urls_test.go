@@ -1,7 +1,10 @@
 package admin
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 
 	gogohttp "github.com/cybersaksham/gogo/http"
@@ -50,6 +53,38 @@ func TestAdminURLsGenerateNamespacedRoutesAndReverse(t *testing.T) {
 	index, err := router.Reverse("admin:index", nil)
 	if err != nil || index != "/admin/" {
 		t.Fatalf("Reverse(index) = %q, %v", index, err)
+	}
+}
+
+func TestAdminIndexRouteRendersRegisteredModels(t *testing.T) {
+	site := DefaultSite()
+	if err := site.ModelRegistry.RegisterMetadata(models.Metadata{AppLabel: "blog", ModelName: "Post", TableName: "blog_post"}, ModelAdmin{}); err != nil {
+		t.Fatalf("RegisterMetadata() error = %v", err)
+	}
+	router, err := site.URLs()
+	if err != nil {
+		t.Fatalf("URLs() error = %v", err)
+	}
+
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/admin/", nil))
+	if response.Code != http.StatusOK {
+		t.Fatalf("index status = %d body=%s", response.Code, response.Body.String())
+	}
+	if got := response.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
+		t.Fatalf("content type = %q", got)
+	}
+	body := response.Body.String()
+	for _, want := range []string{"Gogo administration", "Site administration", "blog", "Post", "/admin/blog/post/"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("index body missing %q:\n%s", want, body)
+		}
+	}
+
+	appResponse := httptest.NewRecorder()
+	router.ServeHTTP(appResponse, httptest.NewRequest(http.MethodGet, "/admin/blog/", nil))
+	if appResponse.Code != http.StatusOK || !strings.Contains(appResponse.Body.String(), "Post") {
+		t.Fatalf("app list = (%d, %q)", appResponse.Code, appResponse.Body.String())
 	}
 }
 
