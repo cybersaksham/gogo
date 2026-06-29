@@ -102,6 +102,9 @@ func autoInstallGeneratedApp(target, appName string) error {
 	if err := appendInstalledAppEnv(filepath.Join(projectRoot, ".env.example"), appName); err != nil {
 		return err
 	}
+	if err := appendInstalledAppEnv(filepath.Join(projectRoot, ".env"), appName); err != nil {
+		return err
+	}
 	if err := installAppInGoFile(filepath.Join(projectDir, "urls.go"), appImportPath, "// gogo:startapp-routes", fmt.Sprintf("\tif err := %s.RegisterRoutes(router); err != nil {\n\t\treturn err\n\t}\n\t// gogo:startapp-routes", appName)); err != nil {
 		return err
 	}

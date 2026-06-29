@@ -73,6 +73,11 @@ func TestStartappAutoInstallsIntoGeneratedProject(t *testing.T) {
 	if err := NewStartprojectCommand().Run(context.Background(), []string{"sampleproject", root}); err != nil {
 		t.Fatalf("startproject error = %v", err)
 	}
+	envExample, err := os.ReadFile(filepath.Join(root, ".env.example"))
+	if err != nil {
+		t.Fatalf("read .env.example: %v", err)
+	}
+	writeTextFile(t, filepath.Join(root, ".env"), string(envExample))
 	appTarget := filepath.Join(root, "apps", "blog")
 	if err := NewStartappCommand().Run(context.Background(), []string{"blog", appTarget}); err != nil {
 		t.Fatalf("startapp error = %v", err)
@@ -83,6 +88,9 @@ func TestStartappAutoInstallsIntoGeneratedProject(t *testing.T) {
 			`"blog",`,
 		},
 		filepath.Join(root, ".env.example"): {
+			"GOGO_INSTALLED_APPS=gogo.contrib.sites,gogo.contrib.humanize,blog",
+		},
+		filepath.Join(root, ".env"): {
 			"GOGO_INSTALLED_APPS=gogo.contrib.sites,gogo.contrib.humanize,blog",
 		},
 		filepath.Join(root, "sampleproject", "urls.go"): {
