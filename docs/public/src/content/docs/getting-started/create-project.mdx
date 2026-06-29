@@ -30,7 +30,7 @@ working inside the client project even when it has no prior Gogo memory.
 ## Add an app
 
 ```bash
-gogo startapp blog apps/blog
+go run manage.go startapp blog apps/blog
 ```
 
 An app keeps its feature code together:
@@ -53,10 +53,12 @@ apps/blog/
   tests/
 ```
 
-After creating an app, add it to the project settings or installed app list and
-run tests:
+Creating an app under `apps/<name>` automatically installs it into generated
+project settings, `.env.example`, `.env` when present, URLs, admin, queue, and
+app config wiring. Then run:
 
 ```bash
 go mod tidy
-go test ./...
+go run manage.go check
+go run manage.go test ./...
 ```

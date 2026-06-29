@@ -33,7 +33,7 @@ Route signatures through the queue router or publish envelopes through the confi
 ## Run Workers
 
 ```bash
-gogo worker --queues default,email
+go run manage.go worker --queues default,email
 ```
 
 Workers consume broker messages, execute registered tasks, store results, emit events, enforce rate limits, and respect ack policy.
@@ -54,7 +54,7 @@ _ = store.Save(context.Background(), entry)
 ```
 
 ```bash
-gogo beat
+go run manage.go beat
 ```
 
 Beat locks due schedule entries, enqueues signatures, and updates last-run metadata.
@@ -100,8 +100,8 @@ _ = chord
 Use retry options on `TaskOptions` for expected transient failures. Store terminal results in the result backend. Inspect failed tasks with:
 
 ```bash
-gogo inspect
-gogo queues
+go run manage.go inspect
+go run manage.go queues
 ```
 
 ## Testing

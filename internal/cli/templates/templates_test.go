@@ -93,8 +93,9 @@ func TestProjectTemplatesRenderGogoAgentRules(t *testing.T) {
 	for _, want := range []string{
 		"Public Package Map",
 		"github.com/cybersaksham/gogo/contrib/sites",
-		"gogo makemigrations",
-		"gogo loaddata",
+		"gogo startproject",
+		"go run manage.go makemigrations",
+		"go run manage.go loaddata",
 		"go doc github.com/cybersaksham/gogo/<package>",
 	} {
 		if !strings.Contains(index, want) {

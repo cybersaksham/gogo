@@ -81,33 +81,41 @@ go doc github.com/cybersaksham/gogo/<package>
 
 ## CLI Command Surface
 
+Inside a generated project, prefer `go run manage.go <command>` for
+project-aware commands. The generated `manage.go` imports this project and
+passes settings, app configs, routes, admin, and queue tasks into Gogo. Use the
+installed `gogo` binary for global help/version checks and for creating new
+projects.
+
 | Command | Use for |
 | --- | --- |
 | `gogo help`, `gogo --help`, `gogo -h` | show commands |
 | `gogo version`, `gogo --version`, `gogo -version` | show version metadata |
-| `gogo check` | run settings and system checks |
-| `gogo check --deploy` | run production readiness checks |
-| `gogo runserver` | run the development HTTP server |
 | `gogo startproject [--force] <name> [path]` | create a project scaffold |
-| `gogo startapp [--force] <name> [path]` | create an app scaffold |
-| `gogo makemigrations` | create migration files from model metadata |
-| `gogo migrate` | apply or roll back migrations |
-| `gogo showmigrations` | list migration status |
-| `gogo sqlmigrate <app> <migration>` | render migration SQL |
-| `gogo squashmigrations <app> <start> <end>` | squash migrations |
-| `gogo optimizemigration <app> <migration>` | optimize migration operations |
-| `gogo createsuperuser` | create an admin user |
-| `gogo changepassword` | change a user password |
-| `gogo collectstatic` | collect static assets |
-| `gogo shell` | open a project shell |
-| `gogo dbshell` | open a database shell |
-| `gogo test` | run project tests |
-| `gogo worker` | run a queue worker |
-| `gogo beat` | run the queue scheduler |
-| `gogo inspect` | inspect queue workers |
-| `gogo queues` | inspect queues |
-| `gogo dumpdata` | dump fixture data |
-| `gogo loaddata` | load fixture data |
+| `go run manage.go help`, `go run manage.go --help`, `go run manage.go -h` | show project command help |
+| `go run manage.go version`, `go run manage.go --version`, `go run manage.go -version` | show framework version metadata |
+| `go run manage.go check` | run settings and system checks |
+| `go run manage.go check --deploy` | run production readiness checks |
+| `go run manage.go runserver` | run the development HTTP server with project routes and admin mounted |
+| `go run manage.go startapp [--force] <name> apps/<name>` | create and auto-install an app scaffold |
+| `go run manage.go makemigrations` | create migration files from generated app metadata |
+| `go run manage.go migrate` | apply or roll back migrations |
+| `go run manage.go showmigrations` | list migration status |
+| `go run manage.go sqlmigrate <app> <migration>` | render migration SQL |
+| `go run manage.go squashmigrations <app> <start> <end>` | squash migrations |
+| `go run manage.go optimizemigration <app> <migration>` | optimize migration operations |
+| `go run manage.go createsuperuser` | create an admin user in local CLI auth storage |
+| `go run manage.go changepassword` | change a user password in local CLI auth storage |
+| `go run manage.go collectstatic` | collect static assets from project and app static roots |
+| `go run manage.go shell` | open a project shell |
+| `go run manage.go dbshell` | open a database shell |
+| `go run manage.go test` | run project tests |
+| `go run manage.go worker` | run a queue worker with project task registrations |
+| `go run manage.go beat` | run the queue scheduler |
+| `go run manage.go inspect` | inspect queue workers and project registered tasks |
+| `go run manage.go queues` | inspect queues |
+| `go run manage.go dumpdata` | dump fixture data |
+| `go run manage.go loaddata` | load fixture data |
 
 Generated project Make commands:
 

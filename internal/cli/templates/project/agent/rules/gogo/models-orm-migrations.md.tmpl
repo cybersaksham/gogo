@@ -48,12 +48,12 @@ Framework module: `github.com/cybersaksham/gogo`.
 - Use migration commands for normal workflow:
 
 ```bash
-gogo makemigrations
-gogo sqlmigrate <app> <migration>
-gogo migrate
-gogo showmigrations
-gogo squashmigrations <app> <start> <end>
-gogo optimizemigration <app> <migration>
+go run manage.go makemigrations
+go run manage.go sqlmigrate <app> <migration>
+go run manage.go migrate
+go run manage.go showmigrations
+go run manage.go squashmigrations <app> <start> <end>
+go run manage.go optimizemigration <app> <migration>
 ```
 
 ## Safety

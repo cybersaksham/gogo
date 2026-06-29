@@ -9,17 +9,17 @@ changes with explicit operations.
 ## Main workflow
 
 ```bash
-gogo makemigrations
-gogo sqlmigrate blog 0001_initial
-gogo migrate
-gogo showmigrations
+go run manage.go makemigrations
+go run manage.go sqlmigrate blog 0001_initial
+go run manage.go migrate
+go run manage.go showmigrations
 ```
 
 ## Maintenance commands
 
 ```bash
-gogo squashmigrations blog 0001 0005
-gogo optimizemigration blog 0005
+go run manage.go squashmigrations blog 0001 0005
+go run manage.go optimizemigration blog 0005
 ```
 
 ## Rules

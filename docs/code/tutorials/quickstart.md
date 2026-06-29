@@ -19,7 +19,7 @@ printf 'GOGO_SECRET_KEY=dev-secret\nDATABASE_URL=sqlite://./db.sqlite3\n' >> .en
 ## 2. Create An App
 
 ```bash
-gogo startapp blog
+go run manage.go startapp blog
 ```
 
 Add the app to installed apps:
@@ -68,23 +68,23 @@ func (Post) ModelMeta() models.Metadata {
 ## 4. Create And Apply Migrations
 
 ```bash
-gogo makemigrations blog
-gogo migrate
+go run manage.go makemigrations blog
+go run manage.go migrate
 ```
 
 Review generated SQL during development:
 
 ```bash
-gogo sqlmigrate blog 0001_initial
+go run manage.go sqlmigrate blog 0001_initial
 ```
 
 ## 5. Create A Staff User
 
 ```bash
-gogo createsuperuser
+go run manage.go createsuperuser
 ```
 
-Use `gogo changepassword` later for password rotation.
+Use `go run manage.go changepassword` later for password rotation.
 
 ## 6. Register Admin
 
@@ -132,8 +132,8 @@ For ViewSets, start with `api.NewRouter` and register `api.ModelViewSet`.
 ## 8. Run The Server
 
 ```bash
-gogo check
-gogo runserver :8000
+go run manage.go check
+go run manage.go runserver :8000
 ```
 
 Open the admin at `/admin/` and the API route at `/api/posts/`.

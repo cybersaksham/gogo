@@ -5,9 +5,14 @@ description: Verify projects and use the Gogo command line.
 
 ## Project checks
 
+Inside a generated project, run project-aware commands through `manage.go`.
+The installed `gogo` binary creates projects and can show global help/version
+metadata; `manage.go` loads the project settings, router, admin registry, app
+configs, and queue task registrations.
+
 ```bash
-gogo check
-gogo check --deploy
+go run manage.go check
+go run manage.go check --deploy
 go test ./...
 ```
 
@@ -20,28 +25,28 @@ Generated projects also include a `Makefile` for common workflows.
 | `gogo help` | show available commands |
 | `gogo --help` or `gogo -h` | show available commands |
 | `gogo version`, `gogo --version`, or `gogo -version` | print CLI version metadata |
-| `gogo check` | run settings and system checks |
-| `gogo runserver` | run the development HTTP server |
 | `gogo startproject` | create a project scaffold |
-| `gogo startapp` | create an app scaffold |
-| `gogo makemigrations` | create migrations |
-| `gogo migrate` | apply migrations |
-| `gogo showmigrations` | list migration status |
-| `gogo sqlmigrate` | render migration SQL |
-| `gogo squashmigrations` | squash migrations |
-| `gogo optimizemigration` | optimize migration operations |
-| `gogo createsuperuser` | create an admin user |
-| `gogo changepassword` | change a user password |
-| `gogo collectstatic` | collect static files |
-| `gogo shell` | open a project shell |
-| `gogo dbshell` | open a database shell |
-| `gogo test` | run project tests |
-| `gogo worker` | run a queue worker |
-| `gogo beat` | run the queue scheduler |
-| `gogo inspect` | inspect queue workers |
-| `gogo queues` | inspect queues |
-| `gogo dumpdata` | dump fixtures |
-| `gogo loaddata` | load fixtures |
+| `go run manage.go check` | run settings and system checks |
+| `go run manage.go runserver` | run the development HTTP server |
+| `go run manage.go startapp` | create and auto-install an app scaffold |
+| `go run manage.go makemigrations` | create migrations |
+| `go run manage.go migrate` | apply migrations |
+| `go run manage.go showmigrations` | list migration status |
+| `go run manage.go sqlmigrate` | render migration SQL |
+| `go run manage.go squashmigrations` | squash migrations |
+| `go run manage.go optimizemigration` | optimize migration operations |
+| `go run manage.go createsuperuser` | create an admin user |
+| `go run manage.go changepassword` | change a user password |
+| `go run manage.go collectstatic` | collect static files |
+| `go run manage.go shell` | open a project shell |
+| `go run manage.go dbshell` | open a database shell |
+| `go run manage.go test` | run project tests |
+| `go run manage.go worker` | run a queue worker |
+| `go run manage.go beat` | run the queue scheduler |
+| `go run manage.go inspect` | inspect queue workers |
+| `go run manage.go queues` | inspect queues |
+| `go run manage.go dumpdata` | dump fixtures |
+| `go run manage.go loaddata` | load fixtures |
 
 Report any skipped external integration checks when PostgreSQL, Redis, or
 RabbitMQ are not available in local verification.
@@ -51,6 +56,6 @@ Generated project `Makefile` commands wrap common workflows:
 | Command | Purpose |
 | --- | --- |
 | `make test` | run project tests |
-| `make check` | run `gogo check` |
+| `make check` | run project checks |
 | `make run` | run the development server |
 | `make tidy` | run `go mod tidy` |

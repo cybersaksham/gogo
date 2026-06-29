@@ -53,8 +53,8 @@ Run checks after changing installed apps, middleware, service backends, or
 deployment settings:
 
 ```bash
-gogo check
-gogo check --deploy
+go run manage.go check
+go run manage.go check --deploy
 ```
 
 Checks should catch missing contrib dependencies, unsupported database dialects,

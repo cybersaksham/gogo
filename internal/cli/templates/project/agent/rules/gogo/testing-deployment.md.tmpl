@@ -16,41 +16,45 @@ Framework module: `github.com/cybersaksham/gogo`.
 
 ## Common Commands
 
+Use `go run manage.go <command>` for project-aware commands. The installed
+`gogo` binary can create new projects, but `manage.go` is the Django-style
+entrypoint for this generated project.
+
 | Command | Use for |
 | --- | --- |
 | `make test` | run project tests |
-| `make check` | run `gogo check` |
+| `make check` | run project checks |
 | `make run` | run the development server |
 | `make tidy` | run `go mod tidy` |
 | `gogo help`, `gogo --help`, `gogo -h` | list CLI commands |
 | `gogo version`, `gogo --version`, `gogo -version` | show version metadata |
-| `gogo check` | run settings and system checks |
-| `gogo runserver` | run the development server |
 | `gogo startproject` | create a Gogo project |
-| `gogo startapp` | create a Gogo app |
-| `gogo makemigrations` | create migrations |
-| `gogo migrate` | apply or roll back migrations |
-| `gogo showmigrations` | list migrations |
-| `gogo sqlmigrate` | render migration SQL |
-| `gogo squashmigrations` | squash migrations |
-| `gogo optimizemigration` | optimize migrations |
-| `gogo createsuperuser` | create an admin user |
-| `gogo changepassword` | change a user password |
-| `gogo collectstatic` | collect static files |
-| `gogo shell` | open a project shell |
-| `gogo dbshell` | open a database shell |
-| `gogo test` | run project tests |
-| `gogo worker` | run a queue worker |
-| `gogo beat` | run the queue scheduler |
-| `gogo inspect` | inspect workers |
-| `gogo queues` | inspect queues |
-| `gogo dumpdata` | dump fixture data |
-| `gogo loaddata` | load fixture data |
+| `go run manage.go check` | run settings and system checks |
+| `go run manage.go runserver` | run the development server |
+| `go run manage.go startapp` | create and auto-install a Gogo app |
+| `go run manage.go makemigrations` | create migrations |
+| `go run manage.go migrate` | apply or roll back migrations |
+| `go run manage.go showmigrations` | list migrations |
+| `go run manage.go sqlmigrate` | render migration SQL |
+| `go run manage.go squashmigrations` | squash migrations |
+| `go run manage.go optimizemigration` | optimize migrations |
+| `go run manage.go createsuperuser` | create an admin user |
+| `go run manage.go changepassword` | change a user password |
+| `go run manage.go collectstatic` | collect static files |
+| `go run manage.go shell` | open a project shell |
+| `go run manage.go dbshell` | open a database shell |
+| `go run manage.go test` | run project tests |
+| `go run manage.go worker` | run a queue worker |
+| `go run manage.go beat` | run the queue scheduler |
+| `go run manage.go inspect` | inspect workers |
+| `go run manage.go queues` | inspect queues |
+| `go run manage.go dumpdata` | dump fixture data |
+| `go run manage.go loaddata` | load fixture data |
 
 For generated project or deployment changes, also run:
 
 ```bash
-gogo check --deploy
+go run manage.go check --deploy
 ```
 
 ## External Integrations

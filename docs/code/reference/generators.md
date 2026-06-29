@@ -6,7 +6,7 @@ Gogo generators create downstream projects and apps that import only public fram
 
 ```bash
 gogo startproject [--force] <name> [path]
-gogo startapp [--force] <name> [path]
+go run manage.go startapp [--force] <name> [path]
 ```
 
 `--force` allows generation into a non-empty directory without deleting existing files. It never removes user files.
@@ -18,7 +18,7 @@ gogo startapp [--force] <name> [path]
 | Path | Responsibility |
 | --- | --- |
 | `go.mod` | Declares the downstream module. Run `go mod tidy` after adding the framework dependency. |
-| `manage.go` | Project command entrypoint placeholder until public project CLI wiring is exposed. |
+| `manage.go` | Django-style project command entrypoint that passes generated settings, app configs, routes, admin, and queue wiring into Gogo management commands. |
 | `.env.example` | Complete grouped environment contract. Blank values are required; default values are safe defaults. |
 | `.gitignore` | Excludes `.env`, local databases, build outputs, coverage, editor files, uploads, media, and collected static files. |
 | `Makefile` | Standard local commands for tests, checks, running, and tidying. |
@@ -68,7 +68,10 @@ Keep `.env.example` grouped by use case and synchronized with settings whenever 
 
 ## Adding Application Code
 
-Add an app with `gogo startapp blog apps/blog`, then add `blog` to generated settings or the runtime installed app list.
+Add an app with `go run manage.go startapp blog apps/blog`. Creating an app
+under `apps/<name>` automatically installs it into generated settings,
+`.env.example`, `.env` when present, URL routing, admin registration, queue
+task registration, and app config wiring.
 
 Define models in `models.go` by returning `models.Metadata` from `ModelMeta`. Add fields, indexes, constraints, custom permissions, and relationship metadata there.
 

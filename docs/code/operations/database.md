@@ -33,11 +33,11 @@ PostgreSQL-specific contrib packages can require extensions such as `pg_trgm`,
 Use migrations as the only production schema change path.
 
 ```bash
-gogo makemigrations --check --dry-run
-gogo migrate --plan
-gogo sqlmigrate app_label 0001
-gogo migrate
-gogo showmigrations
+go run manage.go makemigrations --check --dry-run
+go run manage.go migrate --plan
+go run manage.go sqlmigrate app_label 0001
+go run manage.go migrate
+go run manage.go showmigrations
 ```
 
 Operational rules:
@@ -100,8 +100,8 @@ A restore runbook must define:
 After restore, run:
 
 ```bash
-gogo showmigrations
-gogo migrate --plan
+go run manage.go showmigrations
+go run manage.go migrate --plan
 ```
 
 If the plan wants to reapply migrations that should already be applied, stop and

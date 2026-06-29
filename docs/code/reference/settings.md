@@ -48,7 +48,10 @@ Settings live in `conf.Settings` and are loaded from defaults, `.env`, and proce
 
 ## CLI Commands
 
-Root CLI commands are registered through `internal/cli`. Public users call the `gogo` binary.
+Root CLI commands are registered through `internal/cli`. Public users call the
+installed `gogo` binary for global help, version, and project creation. Inside
+a generated project, users call `go run manage.go <command>` so commands load
+project settings, routes, admin, app configs, and queue tasks.
 
 | Command | Status | Purpose |
 | --- | --- | --- |
@@ -56,28 +59,28 @@ Root CLI commands are registered through `internal/cli`. Public users call the `
 | `gogo --help` | available | List commands. |
 | `gogo version` | available | Print version. |
 | `gogo --version` | available | Print version. |
-| `gogo check` | available | Load settings and run system checks. Use `--deploy` for production readiness checks. |
-| `gogo runserver` | available | Build middleware and run the HTTP server. |
+| `go run manage.go check` | available | Load settings and run system checks. Use `--deploy` for production readiness checks. |
+| `go run manage.go runserver` | available | Build middleware and run the HTTP server. |
 | `gogo startproject` | available | Generate project scaffold. |
-| `gogo startapp` | available | Generate app scaffold. |
-| `gogo makemigrations` | available | Write migration files. |
-| `gogo migrate` | available | Apply migrations. |
-| `gogo showmigrations` | available | Show migration status. |
-| `gogo sqlmigrate` | available | Render migration SQL. |
-| `gogo squashmigrations` | available | Squash migration history. |
-| `gogo optimizemigration` | available | Optimize migration operations. |
-| `gogo createsuperuser` | available auth command shell | Create an admin user. |
-| `gogo changepassword` | available auth command shell | Change a user password. |
-| `gogo collectstatic` | available static command shell | Collect static files. |
-| `gogo shell` | available | Start app shell context. |
-| `gogo dbshell` | available | Open database shell. |
-| `gogo test` | available | Run project tests. |
-| `gogo worker` | available queue command shell | Run queue workers. |
-| `gogo beat` | available queue command shell | Run beat scheduler. |
-| `gogo inspect` | available queue command shell | Inspect workers. |
-| `gogo queues` | available queue command shell | Inspect queues. |
-| `gogo dumpdata` | available | Dump fixtures. |
-| `gogo loaddata` | available | Load fixtures. |
+| `go run manage.go startapp` | available | Generate app scaffold. |
+| `go run manage.go makemigrations` | available | Write migration files. |
+| `go run manage.go migrate` | available | Apply migrations. |
+| `go run manage.go showmigrations` | available | Show migration status. |
+| `go run manage.go sqlmigrate` | available | Render migration SQL. |
+| `go run manage.go squashmigrations` | available | Squash migration history. |
+| `go run manage.go optimizemigration` | available | Optimize migration operations. |
+| `go run manage.go createsuperuser` | available auth command shell | Create an admin user. |
+| `go run manage.go changepassword` | available auth command shell | Change a user password. |
+| `go run manage.go collectstatic` | available static command shell | Collect static files. |
+| `go run manage.go shell` | available | Start app shell context. |
+| `go run manage.go dbshell` | available | Open database shell. |
+| `go run manage.go test` | available | Run project tests. |
+| `go run manage.go worker` | available queue command shell | Run queue workers. |
+| `go run manage.go beat` | available queue command shell | Run beat scheduler. |
+| `go run manage.go inspect` | available queue command shell | Inspect workers. |
+| `go run manage.go queues` | available queue command shell | Inspect queues. |
+| `go run manage.go dumpdata` | available | Dump fixtures. |
+| `go run manage.go loaddata` | available | Load fixtures. |
 
 ## Validation Rules
 

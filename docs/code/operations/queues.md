@@ -30,7 +30,7 @@ and cache when operational isolation matters.
 Run workers as a separate process from the web server.
 
 ```bash
-gogo worker \
+go run manage.go worker \
   --broker-url "$GOGO_BROKER_URL" \
   --result-backend "$GOGO_RESULT_BACKEND" \
   --queues default \
@@ -62,7 +62,7 @@ Run beat as exactly one active scheduler per schedule store unless the store is
 configured with locks that prevent duplicate enqueue.
 
 ```bash
-gogo beat \
+go run manage.go beat \
   --broker-url "$GOGO_BROKER_URL" \
   --schedule-path memory:// \
   --interval 1s
@@ -71,7 +71,7 @@ gogo beat \
 Use `--once` in CI and release checks:
 
 ```bash
-gogo beat --once
+go run manage.go beat --once
 ```
 
 Beat needs the same task registry and routing configuration as workers.
@@ -82,10 +82,10 @@ Deploying beat without matching workers can build queue backlog.
 Use inspection commands during operations:
 
 ```bash
-gogo inspect --report
-gogo inspect --ping
-gogo queues
-gogo queues --queue default
+go run manage.go inspect --report
+go run manage.go inspect --ping
+go run manage.go queues
+go run manage.go queues --queue default
 ```
 
 Monitor:
@@ -103,7 +103,7 @@ Monitor:
 Enable events when operational visibility is needed:
 
 ```bash
-gogo inspect --enable-events
+go run manage.go inspect --enable-events
 ```
 
 Disable event collection when it creates too much broker or storage pressure.
@@ -143,6 +143,6 @@ Queue rollback depends on message compatibility.
 Inspect queue depth before and after rollback:
 
 ```bash
-gogo queues
-gogo inspect --report
+go run manage.go queues
+go run manage.go inspect --report
 ```

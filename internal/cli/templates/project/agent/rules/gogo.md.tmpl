@@ -41,6 +41,11 @@ Read the specific rule files that match the task:
 
 ## Common Commands
 
+Inside this project, run project-aware commands through `manage.go` so Gogo can
+load the generated project settings, router, admin registry, app configs, and
+queue tasks. Use the installed `gogo` binary for `startproject` and global
+version/help checks.
+
 ```bash
 make test
 make check
@@ -48,10 +53,12 @@ make run
 make tidy
 gogo help
 gogo version
-gogo check
-gogo check --deploy
+go run manage.go help
+go run manage.go version
+go run manage.go check
+go run manage.go check --deploy
 ```
 
-Use `gogo check --deploy` before production deployment.
+Use `go run manage.go check --deploy` before production deployment.
 
 The full CLI command list is in `.agent/rules/gogo/package-feature-index.md`.

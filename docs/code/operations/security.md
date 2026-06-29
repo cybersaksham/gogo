@@ -191,8 +191,8 @@ Before production traffic is allowed:
 - Run `make ci`.
 - Run documentation verification with `make docs-verify`.
 - Run vulnerability scanning in CI.
-- Run `gogo check` with production environment variables.
-- Run `gogo check --deploy` after migrations and static collection are complete.
+- Run `go run manage.go check` with production environment variables.
+- Run `go run manage.go check --deploy` after migrations and static collection are complete.
 - Confirm debug mode is disabled in the running process.
 - Confirm host validation rejects unexpected hosts.
 - Confirm HTTP redirects to HTTPS.

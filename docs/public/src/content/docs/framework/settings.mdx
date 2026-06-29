@@ -36,13 +36,13 @@ Production also requires `GOGO_ALLOWED_HOSTS`.
 Run local checks:
 
 ```bash
-gogo check
+go run manage.go check
 ```
 
 Run production checks:
 
 ```bash
-gogo check --deploy
+go run manage.go check --deploy
 ```
 
 Deploy checks reject unsafe debug settings, weak or missing secrets, missing

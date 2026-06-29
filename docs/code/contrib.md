@@ -1,6 +1,6 @@
 # Contrib Apps
 
-Gogo contrib packages mirror Django's optional batteries. They are installed through `InstalledApps`, use normal middleware ordering, and are checked by `gogo check` through the system checks framework.
+Gogo contrib packages mirror Django's optional batteries. They are installed through `InstalledApps`, use normal middleware ordering, and are checked by `go run manage.go check` through the system checks framework.
 
 ## InstalledApps
 
@@ -90,7 +90,7 @@ Spatial model fields and GIS contrib SQL helpers are PostGIS-only. Non-PostgreSQ
 
 ## System Checks
 
-Call `checks.RegisterContribChecks` from project setup or feed `checks.ContribChecks` into a custom check command. `gogo check` should receive the installed app list, middleware list, site setting, database dialect, database extensions, and redirect safety settings.
+Call `checks.RegisterContribChecks` from project setup or feed `checks.ContribChecks` into a custom check command. `go run manage.go check` should receive the installed app list, middleware list, site setting, database dialect, database extensions, and redirect safety settings.
 
 Checks cover:
 

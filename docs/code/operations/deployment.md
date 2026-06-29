@@ -84,7 +84,7 @@ Minimum startup order:
 Run deploy checks before allowing traffic:
 
 ```bash
-gogo check --deploy
+go run manage.go check --deploy
 ```
 
 ## Migrations
@@ -92,10 +92,10 @@ gogo check --deploy
 Review migration plans before applying them:
 
 ```bash
-gogo makemigrations --check --dry-run
-gogo migrate --plan
-gogo migrate
-gogo showmigrations
+go run manage.go makemigrations --check --dry-run
+go run manage.go migrate --plan
+go run manage.go migrate
+go run manage.go showmigrations
 ```
 
 Run migrations once per deployment, not from every web or worker replica. Use a
