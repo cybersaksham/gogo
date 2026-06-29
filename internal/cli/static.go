@@ -5,7 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 
+	"github.com/cybersaksham/gogo/conf"
 	"github.com/cybersaksham/gogo/static"
 )
 
@@ -67,7 +70,43 @@ func parseCollectstaticFlags(args []string) (static.CollectOptions, error) {
 	}
 	options.Finder.ProjectDirs = []string(projectDirs)
 	options.Finder.AppDirs = []string(appDirs)
+	applyCollectstaticDefaults(&options)
 	return options, nil
+}
+
+func applyCollectstaticDefaults(options *static.CollectOptions) {
+	settings, err := conf.LoadFromEnv()
+	if err == nil {
+		if options.Destination == "" {
+			options.Destination = settings.StaticRoot
+		}
+	}
+	if len(options.Finder.ProjectDirs) == 0 {
+		if _, err := os.Stat("static"); err == nil {
+			options.Finder.ProjectDirs = []string{"static"}
+		}
+	}
+	if len(options.Finder.AppDirs) == 0 {
+		options.Finder.AppDirs = discoverAppStaticDirs("apps")
+	}
+}
+
+func discoverAppStaticDirs(appsRoot string) []string {
+	entries, err := os.ReadDir(appsRoot)
+	if err != nil {
+		return nil
+	}
+	var dirs []string
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		staticDir := filepath.Join(appsRoot, entry.Name(), "static")
+		if stat, err := os.Stat(staticDir); err == nil && stat.IsDir() {
+			dirs = append(dirs, staticDir)
+		}
+	}
+	return dirs
 }
 
 type repeatedFlag []string
