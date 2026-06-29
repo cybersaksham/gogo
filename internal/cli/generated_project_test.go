@@ -25,8 +25,10 @@ func TestGeneratedProjectWithAppCompilesAsDownstreamModule(t *testing.T) {
 		t.Fatalf("resolve repo root: %v", err)
 	}
 	runGeneratedCommand(t, target, "go", "mod", "edit", "-replace", "github.com/cybersaksham/gogo="+filepath.ToSlash(repoRoot))
+	writeTextFile(t, filepath.Join(target, ".env"), "GOGO_SECRET_KEY=generated-project-secret\nDATABASE_URL=sqlite://./db.sqlite3\n")
 	writeTextFile(t, filepath.Join(target, "generated_runtime_test.go"), generatedRuntimeRouteTestSource())
 	runGeneratedCommand(t, target, "go", "mod", "tidy")
+	runGeneratedCommand(t, target, "go", "run", "manage.go", "createsuperuser", "--username", "admin", "--email", "admin@example.com", "--password", "CorrectHorseBatteryStaple42", "--noinput")
 	inspectOutput := runGeneratedCommandOutput(t, target, "go", "run", "manage.go", "inspect", "--report")
 	if !strings.Contains(inspectOutput, "registered=1") {
 		t.Fatalf("project-aware inspect output = %q, want registered task", inspectOutput)
@@ -41,6 +43,8 @@ func generatedRuntimeRouteTestSource() string {
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 
 	project "sampleproject/sampleproject"
@@ -58,13 +62,50 @@ func TestGeneratedRouterMountsAppHTTPAPIAndAdminRoutes(t *testing.T) {
 		{"/", http.StatusOK},
 		{"/blog/", http.StatusOK},
 		{"/api/blog/items/", http.StatusOK},
-		{"/admin/", http.StatusOK},
 	} {
 		response := httptest.NewRecorder()
 		router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, test.path, nil))
 		if response.Code != test.want {
 			t.Fatalf("%s status = %d body=%s, want %d", test.path, response.Code, response.Body.String(), test.want)
 		}
+	}
+
+	anonymousAdmin := httptest.NewRecorder()
+	router.ServeHTTP(anonymousAdmin, httptest.NewRequest(http.MethodGet, "/admin/", nil))
+	if anonymousAdmin.Code != http.StatusFound || anonymousAdmin.Header().Get("Location") != "/admin/login/?next=%2Fadmin%2F" {
+		t.Fatalf("anonymous admin response = %d location=%q", anonymousAdmin.Code, anonymousAdmin.Header().Get("Location"))
+	}
+
+	loginPage := httptest.NewRecorder()
+	router.ServeHTTP(loginPage, httptest.NewRequest(http.MethodGet, "/admin/login/", nil))
+	if loginPage.Code != http.StatusOK {
+		t.Fatalf("login page status = %d", loginPage.Code)
+	}
+
+	form := url.Values{}
+	form.Set("username", "admin")
+	form.Set("password", "CorrectHorseBatteryStaple42")
+	form.Set("next", "/admin/")
+	loginRequest := httptest.NewRequest(http.MethodPost, "/admin/login/", strings.NewReader(form.Encode()))
+	loginRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	loginResponse := httptest.NewRecorder()
+	router.ServeHTTP(loginResponse, loginRequest)
+	if loginResponse.Code != http.StatusFound || loginResponse.Header().Get("Location") != "/admin/" {
+		t.Fatalf("login response = %d location=%q body=%s", loginResponse.Code, loginResponse.Header().Get("Location"), loginResponse.Body.String())
+	}
+	cookies := loginResponse.Result().Cookies()
+	if len(cookies) == 0 {
+		t.Fatalf("login did not set admin session cookie")
+	}
+
+	authenticatedRequest := httptest.NewRequest(http.MethodGet, "/admin/", nil)
+	for _, cookie := range cookies {
+		authenticatedRequest.AddCookie(cookie)
+	}
+	authenticatedAdmin := httptest.NewRecorder()
+	router.ServeHTTP(authenticatedAdmin, authenticatedRequest)
+	if authenticatedAdmin.Code != http.StatusOK || !strings.Contains(authenticatedAdmin.Body.String(), "Site administration") {
+		t.Fatalf("authenticated admin response = %d body=%s", authenticatedAdmin.Code, authenticatedAdmin.Body.String())
 	}
 }
 `

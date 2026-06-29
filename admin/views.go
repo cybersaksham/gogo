@@ -70,7 +70,7 @@ func LogoutView(config AuthViewConfig) http.Handler {
 // PasswordChangeView changes the current staff user's password.
 func PasswordChangeView(config AuthViewConfig) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user, ok := auth.UserFromContext(r.Context())
+		user, ok := currentAdminUser(r, config)
 		if !ok || !user.IsStaff || !user.IsActive {
 			http.Error(w, "admin access denied", http.StatusForbidden)
 			return
@@ -96,6 +96,17 @@ func PasswordChangeView(config AuthViewConfig) http.Handler {
 		}
 		http.Redirect(w, r, config.site().URLPrefix+"/password_change/done/", http.StatusFound)
 	})
+}
+
+func currentAdminUser(r *http.Request, config AuthViewConfig) (auth.User, bool) {
+	if user, ok := auth.UserFromContext(r.Context()); ok && user.IsAuthenticated() && !user.IsAnonymous() {
+		return user, true
+	}
+	return SessionPermissionPolicy{
+		UserStore:    config.UserStore,
+		SessionStore: config.SessionStore,
+		Cookie:       config.Cookie,
+	}.UserForRequest(r)
 }
 
 // PasswordChangeDoneView renders a small completion response.

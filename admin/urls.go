@@ -93,6 +93,13 @@ func adminAccessDenied(site *Site, request *http.Request) gogohttp.Response {
 	if user, ok := auth.UserFromContext(request.Context()); ok && user.IsAuthenticated() && !user.IsAnonymous() {
 		return gogohttp.Forbidden("Forbidden", nil)
 	}
+	if provider, ok := site.PermissionPolicy.(interface {
+		UserForRequest(*http.Request) (auth.User, bool)
+	}); ok {
+		if user, ok := provider.UserForRequest(request); ok && user.IsAuthenticated() && !user.IsAnonymous() {
+			return gogohttp.Forbidden("Forbidden", nil)
+		}
+	}
 	next := request.URL.RequestURI()
 	if next == "" {
 		next = site.URLPrefix + "/"
