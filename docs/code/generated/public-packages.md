@@ -32,6 +32,7 @@
 | `github.com/cybersaksham/gogo/health` | `health` | - |
 | `github.com/cybersaksham/gogo/http` | `http` | - |
 | `github.com/cybersaksham/gogo/i18n` | `i18n` | - |
+| `github.com/cybersaksham/gogo/management` | `management` | - |
 | `github.com/cybersaksham/gogo/messages` | `messages` | - |
 | `github.com/cybersaksham/gogo/migrations` | `migrations` | - |
 | `github.com/cybersaksham/gogo/migrations/operations` | `operations` | - |
