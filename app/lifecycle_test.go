@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestReadyRunsEachAppOnceInDependencyOrder(t *testing.T) {
@@ -48,6 +49,75 @@ func TestReadyFailureDoesNotMarkRegistryReady(t *testing.T) {
 	err = registry.Register(appConfig(t, "example.accounts", "accounts"))
 	if err != nil {
 		t.Fatalf("Register() after failed Ready error = %v, want registry to remain mutable", err)
+	}
+}
+
+func TestReadyAllowsGeneratedAppResourceRegistration(t *testing.T) {
+	registry := NewRegistry()
+	mustRegisterApp(t, registry, lifecycleConfig{
+		BaseConfig: appConfig(t, "example.blog", "blog"),
+		ready: func(context.Context, *Registry) error {
+			registry.RegisterModel(ModelResource{AppLabel: "blog", Name: "Post"})
+			registry.RegisterAdmin(AdminResource{AppLabel: "blog", ModelName: "Post", Handler: "RegisterAdmin"})
+			registry.RegisterRoute(RouteResource{AppLabel: "blog", Name: "blog:index", Path: "/blog/", Handler: "RegisterRoutes"})
+			registry.RegisterAPIRoute(APIRouteResource{AppLabel: "blog", Name: "blog-post-list", Path: "/api/blog/posts/", Handler: "RegisterAPI"})
+			registry.RegisterForm(FormResource{AppLabel: "blog", Name: "PostForm", Handler: "NewPostForm"})
+			registry.RegisterTemplate(TemplateResource{AppLabel: "blog", Path: "templates/blog"})
+			registry.RegisterStaticRoot(StaticResource{AppLabel: "blog", Path: "static/blog"})
+			registry.RegisterTask(TaskResource{AppLabel: "blog", Name: "blog.example", Handler: "RegisterTasks"})
+			registry.RegisterMigration(MigrationResource{AppLabel: "blog", Name: "0001_initial"})
+			return nil
+		},
+	})
+
+	done := make(chan error, 1)
+	go func() {
+		done <- registry.Ready(context.Background())
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Ready() error = %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Ready() timed out while generated app registered resources")
+	}
+
+	if got := registry.Models(); len(got) != 1 || got[0].Name != "Post" {
+		t.Fatalf("Models() = %#v, want blog Post", got)
+	}
+	if got := registry.Tasks(); len(got) != 1 || got[0].Name != "blog.example" {
+		t.Fatalf("Tasks() = %#v, want blog.example", got)
+	}
+}
+
+func TestReadyBlocksNewAppRegistrationDuringReady(t *testing.T) {
+	readyStarted := make(chan struct{})
+	releaseReady := make(chan struct{})
+	registry := NewRegistry()
+	mustRegisterApp(t, registry, lifecycleConfig{
+		BaseConfig: appConfig(t, "example.blog", "blog"),
+		ready: func(context.Context, *Registry) error {
+			close(readyStarted)
+			<-releaseReady
+			return nil
+		},
+	})
+
+	done := make(chan error, 1)
+	go func() {
+		done <- registry.Ready(context.Background())
+	}()
+	<-readyStarted
+
+	err := registry.Register(appConfig(t, "example.accounts", "accounts"))
+	if !errors.Is(err, ErrRegistryReady) {
+		t.Fatalf("Register() during Ready error = %v, want ErrRegistryReady", err)
+	}
+
+	close(releaseReady)
+	if err := <-done; err != nil {
+		t.Fatalf("Ready() error = %v", err)
 	}
 }
 

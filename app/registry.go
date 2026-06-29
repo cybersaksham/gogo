@@ -7,6 +7,7 @@ import (
 
 // Registry stores installed app state.
 type Registry struct {
+	lifecycleMu sync.Mutex
 	mu          sync.RWMutex
 	apps        []Config
 	ordered     []Config
@@ -24,6 +25,7 @@ type Registry struct {
 	mgmtCommand []ManagementCommand
 	mgmtByName  map[string]ManagementCommand
 	migrations  []MigrationResource
+	preparing   bool
 	ready       bool
 }
 
@@ -41,7 +43,7 @@ func (r *Registry) Register(config Config) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if r.ready {
+	if r.ready || r.preparing {
 		return fmt.Errorf("%w: cannot register %s after Ready", ErrRegistryReady, config.Name())
 	}
 	if err := ValidateConfig(config); err != nil {
