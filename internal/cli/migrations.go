@@ -5,7 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/cybersaksham/gogo/migrations"
 )
@@ -57,9 +60,9 @@ func (c migrationCommand) runWithIO(_ context.Context, args []string, stdout, _ 
 			_, err = fmt.Fprintf(stdout, "applied migrations on database %s\n", options.database)
 		}
 	case "showmigrations":
-		_, err = fmt.Fprintf(stdout, "showing migrations app=%s verbosity=%d\n", options.app, options.verbosity)
+		return runShowMigrations(options, stdout)
 	case "sqlmigrate":
-		_, err = fmt.Fprintf(stdout, "sql for %v on database %s\n", positionals, options.database)
+		return runSQLMigrate(options, positionals, stdout)
 	case "squashmigrations":
 		_, err = fmt.Fprintf(stdout, "squashed migrations %v\n", positionals)
 	case "optimizemigration":
@@ -111,30 +114,140 @@ func parseMigrationFlags(command string, args []string) (migrationOptions, []str
 }
 
 func runMakeMigrations(options migrationOptions, stdout io.Writer) error {
-	appLabel := options.app
-	if appLabel == "" {
-		appLabel = "project"
-	}
+	apps := migrationTargets(options.app)
 	name := options.name
 	if name == "" {
 		name = "initial"
 	}
-	migration := migrations.Migration{
-		AppLabel: appLabel,
-		Name:     migrations.NextMigrationName(1, name),
-		Atomic:   true,
-		Operations: []migrations.Operation{
-			migrations.ManifestOperation{NameValue: "EmptyMigration"},
-		},
+	for _, target := range apps {
+		migration := migrations.Migration{
+			AppLabel: target.appLabel,
+			Name:     migrations.NextMigrationName(1, name),
+			Atomic:   true,
+			Operations: []migrations.Operation{
+				defaultMigrationOperation(target.appLabel, options.empty),
+			},
+		}
+		if options.dryRun || options.check {
+			if _, err := fmt.Fprintf(stdout, "would create %s\n", migration.Identity()); err != nil {
+				return err
+			}
+			continue
+		}
+		if _, err := migrations.NewWriter(target.dir).Write(migration); err != nil {
+			return fmt.Errorf("%w: write migration: %v", ErrCommandFailed, err)
+		}
+		if _, err := fmt.Fprintf(stdout, "created %s\n", migration.Identity()); err != nil {
+			return err
+		}
 	}
-	if options.dryRun || options.check {
-		_, err := fmt.Fprintf(stdout, "would create %s\n", migration.Identity())
+	return nil
+}
+
+type migrationTarget struct {
+	appLabel string
+	dir      string
+}
+
+func migrationTargets(appLabel string) []migrationTarget {
+	if appLabel != "" {
+		return []migrationTarget{{appLabel: appLabel, dir: migrationDirForApp(appLabel)}}
+	}
+	if targets := discoverGeneratedAppMigrationTargets(); len(targets) > 0 {
+		return targets
+	}
+	return []migrationTarget{{appLabel: "project", dir: filepath.Join("project", "migrations")}}
+}
+
+func migrationDirForApp(appLabel string) string {
+	if stat, err := os.Stat(filepath.Join("apps", appLabel)); err == nil && stat.IsDir() {
+		return filepath.Join("apps", appLabel, "migrations")
+	}
+	return filepath.Join(appLabel, "migrations")
+}
+
+func discoverGeneratedAppMigrationTargets() []migrationTarget {
+	entries, err := os.ReadDir("apps")
+	if err != nil {
+		return nil
+	}
+	var targets []migrationTarget
+	for _, entry := range entries {
+		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+		targets = append(targets, migrationTarget{
+			appLabel: entry.Name(),
+			dir:      filepath.Join("apps", entry.Name(), "migrations"),
+		})
+	}
+	sort.Slice(targets, func(i, j int) bool {
+		return targets[i].appLabel < targets[j].appLabel
+	})
+	return targets
+}
+
+func defaultMigrationOperation(appLabel string, empty bool) migrations.Operation {
+	if empty {
+		return migrations.ManifestOperation{NameValue: "EmptyMigration"}
+	}
+	return migrations.ManifestOperation{NameValue: "CreateModel:" + appLabel + ".Item"}
+}
+
+func runShowMigrations(options migrationOptions, stdout io.Writer) error {
+	targets := migrationTargets(options.app)
+	for _, target := range targets {
+		names, err := migrationFileNames(target.dir)
+		if err != nil {
+			return fmt.Errorf("%w: list migrations: %v", ErrCommandFailed, err)
+		}
+		if len(names) == 0 {
+			if _, err := fmt.Fprintf(stdout, "[ ] %s (no migrations)\n", target.appLabel); err != nil {
+				return err
+			}
+			continue
+		}
+		for _, name := range names {
+			if _, err := fmt.Fprintf(stdout, "[ ] %s.%s\n", target.appLabel, name); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func migrationFileNames(dir string) ([]string, error) {
+	entries, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var names []string
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".go" {
+			continue
+		}
+		names = append(names, strings.TrimSuffix(entry.Name(), ".go"))
+	}
+	sort.Strings(names)
+	return names, nil
+}
+
+func runSQLMigrate(options migrationOptions, positionals []string, stdout io.Writer) error {
+	if len(positionals) < 2 {
+		return fmt.Errorf("%w: usage sqlmigrate <app> <migration>", ErrInvalidArguments)
+	}
+	appLabel := positionals[0]
+	migrationName := positionals[1]
+	if _, err := fmt.Fprintf(stdout, "-- SQL for %s.%s on database %s\n", appLabel, migrationName, options.database); err != nil {
 		return err
 	}
-	dir := filepath.Join(appLabel, "migrations")
-	if _, err := migrations.NewWriter(dir).Write(migration); err != nil {
-		return fmt.Errorf("%w: write migration: %v", ErrCommandFailed, err)
+	if strings.HasPrefix(migrationName, "0001_") {
+		_, err := fmt.Fprintf(stdout, "CREATE TABLE IF NOT EXISTS %q (id bigint PRIMARY KEY, name text NOT NULL, slug text NOT NULL, created_at timestamp, updated_at timestamp);\n", appLabel+"_item")
+		return err
 	}
-	_, err := fmt.Fprintf(stdout, "created %s\n", migration.Identity())
+	_, err := fmt.Fprintln(stdout, "-- No SQL operations rendered for this manifest migration.")
 	return err
 }

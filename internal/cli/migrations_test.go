@@ -50,3 +50,55 @@ func TestMakeMigrationsWritesFile(t *testing.T) {
 		t.Fatalf("stdout = %q", stdout.String())
 	}
 }
+
+func TestMakeMigrationsDiscoversGeneratedAppsFromProjectRoot(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "apps", "blog", "migrations"), 0o755); err != nil {
+		t.Fatalf("mkdir blog migrations: %v", err)
+	}
+	t.Chdir(dir)
+
+	root := NewRoot()
+	var stdout bytes.Buffer
+	if err := root.Execute(context.Background(), []string{"makemigrations"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("makemigrations error = %v", err)
+	}
+	path := filepath.Join(dir, "apps", "blog", "migrations", "0001_initial.go")
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("expected generated app migration %s: %v", path, err)
+	}
+	if !strings.Contains(string(contents), `"blog"`) || !strings.Contains(string(contents), `CreateModel:blog.Item`) {
+		t.Fatalf("migration contents did not describe blog item:\n%s", contents)
+	}
+	if !strings.Contains(stdout.String(), "created blog.0001_initial") {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+}
+
+func TestShowAndSQLMigrateUseGeneratedAppOutput(t *testing.T) {
+	dir := t.TempDir()
+	migrationsDir := filepath.Join(dir, "apps", "blog", "migrations")
+	if err := os.MkdirAll(migrationsDir, 0o755); err != nil {
+		t.Fatalf("mkdir migrations: %v", err)
+	}
+	writeTextFile(t, filepath.Join(migrationsDir, "0001_initial.go"), "package migrations\n")
+	t.Chdir(dir)
+
+	root := NewRoot()
+	var showOut bytes.Buffer
+	if err := root.Execute(context.Background(), []string{"showmigrations"}, &showOut, &bytes.Buffer{}); err != nil {
+		t.Fatalf("showmigrations error = %v", err)
+	}
+	if !strings.Contains(showOut.String(), "[ ] blog.0001_initial") {
+		t.Fatalf("showmigrations stdout = %q", showOut.String())
+	}
+
+	var sqlOut bytes.Buffer
+	if err := root.Execute(context.Background(), []string{"sqlmigrate", "blog", "0001_initial"}, &sqlOut, &bytes.Buffer{}); err != nil {
+		t.Fatalf("sqlmigrate error = %v", err)
+	}
+	if !strings.Contains(sqlOut.String(), `CREATE TABLE IF NOT EXISTS "blog_item"`) {
+		t.Fatalf("sqlmigrate stdout = %q", sqlOut.String())
+	}
+}
