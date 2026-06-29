@@ -3,7 +3,9 @@ package {{.ProjectName}}
 import "github.com/cybersaksham/gogo/admin"
 
 func NewAdminRegistry() *admin.Registry {
-	return admin.NewRegistry()
+	registry := admin.NewRegistry()
+	// gogo:startapp-admin
+	return registry
 }
 
 func NewAdminSite() *admin.Site {

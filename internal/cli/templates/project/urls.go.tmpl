@@ -16,7 +16,20 @@ func NewRouter() (*gogohttp.Router, error) {
 }
 
 func RegisterRoutes(router *gogohttp.Router) error {
-	return router.Handle("home", "/", func(context.Context, *gogohttp.Request) gogohttp.Response {
+	if err := router.Handle("home", "/", func(context.Context, *gogohttp.Request) gogohttp.Response {
 		return gogohttp.Text(http.StatusOK, "Welcome to {{.ProjectName}}")
-	}, http.MethodGet)
+	}, http.MethodGet); err != nil {
+		return err
+	}
+	// gogo:startapp-routes
+	adminRouter, err := NewAdminSite().URLs()
+	if err != nil {
+		return err
+	}
+	for _, route := range adminRouter.Routes() {
+		if err := router.Handle(route.Name, route.Pattern, route.View, route.Methods...); err != nil {
+			return err
+		}
+	}
+	return nil
 }

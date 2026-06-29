@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -64,6 +65,49 @@ func TestStartappForceAllowsExistingDirectory(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(target, "app.go")); err != nil {
 		t.Fatalf("app.go not generated: %v", err)
+	}
+}
+
+func TestStartappAutoInstallsIntoGeneratedProject(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "sampleproject")
+	if err := NewStartprojectCommand().Run(context.Background(), []string{"sampleproject", root}); err != nil {
+		t.Fatalf("startproject error = %v", err)
+	}
+	appTarget := filepath.Join(root, "apps", "blog")
+	if err := NewStartappCommand().Run(context.Background(), []string{"blog", appTarget}); err != nil {
+		t.Fatalf("startapp error = %v", err)
+	}
+
+	for path, wants := range map[string][]string{
+		filepath.Join(root, "sampleproject", "settings", "base.go"): {
+			`"blog",`,
+		},
+		filepath.Join(root, ".env.example"): {
+			"GOGO_INSTALLED_APPS=gogo.contrib.sites,gogo.contrib.humanize,blog",
+		},
+		filepath.Join(root, "sampleproject", "urls.go"): {
+			`"sampleproject/apps/blog"`,
+			"blog.RegisterRoutes(router)",
+			"NewAdminSite().URLs()",
+		},
+		filepath.Join(root, "sampleproject", "admin.go"): {
+			`"sampleproject/apps/blog"`,
+			"blog.RegisterAdmin(registry)",
+		},
+		filepath.Join(root, "sampleproject", "queue.go"): {
+			`"sampleproject/apps/blog"`,
+			"blog.RegisterTasks(app)",
+		},
+	} {
+		contents, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		for _, want := range wants {
+			if !strings.Contains(string(contents), want) {
+				t.Fatalf("%s missing %q:\n%s", path, want, contents)
+			}
+		}
 	}
 }
 

@@ -3,5 +3,7 @@ package {{.ProjectName}}
 import "github.com/cybersaksham/gogo/queue"
 
 func NewQueueApp() *queue.App {
-	return queue.NewApp(queue.AppOptions{DefaultQueue: "default"})
+	app := queue.NewApp(queue.AppOptions{DefaultQueue: "default"})
+	// gogo:startapp-tasks
+	return app
 }
