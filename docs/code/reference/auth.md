@@ -8,7 +8,7 @@ The auth package provides Django-style users, groups, permissions, password hash
 | --- | --- |
 | Models | `Permission`, `Group`, `AbstractBaseUser`, `AbstractUser`, `User` |
 | Content types | `ContentType`, `ContentTypeRegistry` |
-| Authentication | `Credentials`, `UserStore`, `MemoryUserStore`, `UserIDLoader` |
+| Authentication | `Credentials`, `UserStore`, `MemoryUserStore`, `FileUserStore`, `UserIDLoader` |
 | Passwords | `PasswordHasher`, `PBKDF2SHA256Hasher`, `Argon2IDHasher` |
 | Forms | `LoginForm`, `PasswordChangeForm`, `PasswordResetRequestForm`, `PasswordResetConfirmForm`, `SetPasswordForm`, `UserCreationForm`, `UserChangeForm` |
 | Tokens | `PasswordResetTokenSigner` |
@@ -42,7 +42,9 @@ Inactive users fail permission checks. Superusers pass all permission checks whe
 
 ## Authentication
 
-Use `Authenticate` with a `UserStore`. `MemoryUserStore` is useful for tests and local examples.
+Use `Authenticate` with a `UserStore`. `MemoryUserStore` is useful for tests
+and local examples. `FileUserStore` persists users as JSON and is compatible
+with the generated project admin store at `.gogo/auth_users.json`.
 
 `AuthenticationMiddleware` reads `user_id` from the request session and attaches either an authenticated user or `AnonymousUser` to the context.
 

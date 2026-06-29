@@ -6,7 +6,7 @@ The admin package provides model registration, sites, staff access policies, aut
 
 | Area | Types |
 | --- | --- |
-| Site | `Site`, `SiteOptions`, `SiteCollection`, `PermissionPolicy`, `StaffPermissionPolicy` |
+| Site | `Site`, `SiteOptions`, `SiteCollection`, `PermissionPolicy`, `StaffPermissionPolicy`, `SessionPermissionPolicy` |
 | Registry | `Registry`, `ModelAdmin`, `ModelAdminHooks` |
 | Model options | `Fieldset`, `Inline`, `InlineKind`, `URLPattern`, `ComputedColumn` |
 | Auth views | `AuthViewConfig` |
@@ -38,7 +38,10 @@ Admin auth views:
 - `PasswordChangeView`
 - `PasswordChangeDoneView`
 
-Admin site access defaults to active authenticated staff users.
+Admin site access defaults to active authenticated staff users. Generated
+projects configure `SessionPermissionPolicy` with the built-in file user store
+and file session store so `/admin/` redirects anonymous users to login and
+allows staff users created with `go run manage.go createsuperuser`.
 
 ## Errors
 

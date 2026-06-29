@@ -8,9 +8,13 @@ auth views, index pages, change lists, change forms, delete confirmation,
 history, filters, search, autocomplete, widgets, inlines, actions, static
 assets, and queue/admin docs integrations.
 
-Generated projects mount `/admin/` automatically. The admin index renders the
-registered model list from app `admin.go` metadata so new apps are visible after
-`startapp` auto-installs their admin registration.
+Generated projects mount `/admin/` automatically. Anonymous requests redirect
+to `/admin/login/`; staff users created with `go run manage.go createsuperuser`
+can sign in through the generated admin auth views. The generated admin uses
+`.gogo/auth_users.json` for users and `.gogo/sessions` for admin sessions.
+
+The admin index renders the registered model list from app `admin.go` metadata
+so new apps are visible after `startapp` auto-installs their admin registration.
 
 ## Model admin options
 

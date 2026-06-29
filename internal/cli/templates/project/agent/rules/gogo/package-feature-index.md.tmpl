@@ -38,9 +38,9 @@ go doc github.com/cybersaksham/gogo/<package>
 | `github.com/cybersaksham/gogo/orm/dialects/sqlite` | SQLite SQL compilation and feature flags |
 | `github.com/cybersaksham/gogo/migrations` | migration graph, loader, writer, executor, autodetector, recorder, state, safety checks, and migration metadata |
 | `github.com/cybersaksham/gogo/migrations/operations` | model, field, index, constraint, SQL, and data migration operations |
-| `github.com/cybersaksham/gogo/admin` | admin sites, registries, model admin options, change lists, change forms, delete confirmation, history, actions, filters, search, inlines, widgets, assets, templates, URLs, and permissions |
+| `github.com/cybersaksham/gogo/admin` | admin sites, registries, session/staff permission policies, model admin options, change lists, change forms, delete confirmation, history, actions, filters, search, inlines, widgets, assets, templates, URLs, and permissions |
 | `github.com/cybersaksham/gogo/api` | API requests/responses, serializers, model serializers, fields, validation, views, viewsets, routers, parsers, renderers, auth, permissions, throttling, filters, pagination, uploads, metadata, versioning, and OpenAPI |
-| `github.com/cybersaksham/gogo/auth` | users, groups, permissions, content types, authentication, password hashing, auth forms, password reset tokens, session middleware, decorators, admin registration, and auth migrations |
+| `github.com/cybersaksham/gogo/auth` | users, groups, permissions, content types, authentication, memory/file user stores, password hashing, auth forms, password reset tokens, session middleware, decorators, admin registration, and auth migrations |
 | `github.com/cybersaksham/gogo/auth/migrations` | built-in auth migration metadata |
 | `github.com/cybersaksham/gogo/forms` | forms, widgets, form fields, formsets, model forms, validation, and structured form errors |
 | `github.com/cybersaksham/gogo/templates` | template engine, loaders, context processors, tags, filters, safe strings, and Django-compatible helpers |
@@ -104,7 +104,7 @@ projects.
 | `go run manage.go sqlmigrate <app> <migration>` | render migration SQL |
 | `go run manage.go squashmigrations <app> <start> <end>` | write a squashed replacement migration with `Replaces` metadata |
 | `go run manage.go optimizemigration <app> <migration>` | optimize migration operations or report that no safe optimization is needed |
-| `go run manage.go createsuperuser` | create an admin user in local CLI auth storage |
+| `go run manage.go createsuperuser` | create an admin user in `.gogo/auth_users.json` for generated admin login |
 | `go run manage.go changepassword` | change a user password in local CLI auth storage |
 | `go run manage.go collectstatic` | collect static assets from project and app static roots |
 | `go run manage.go shell` | open a project shell |

@@ -31,6 +31,12 @@ Framework module: `github.com/cybersaksham/gogo`.
   custom actions, search, filters, inlines, widgets, static assets, and admin
   templates.
 - Gate admin access through staff/superuser and permission checks.
+- Generated projects already wire admin auth views to
+  `.gogo/auth_users.json` through `auth.NewFileUserStore` and admin sessions
+  to `.gogo/sessions` through `sessions.NewFileStore`; create staff users with
+  `go run manage.go createsuperuser`.
+- Anonymous `/admin/` requests should redirect to `/admin/login/`; authenticated
+  non-staff users must not access admin.
 - Keep admin actions auditable and avoid destructive bulk actions without
   confirmation or explicit permission checks.
 
@@ -55,6 +61,8 @@ Framework module: `github.com/cybersaksham/gogo`.
 
 - Use the built-in Gogo auth toolkit for users, groups, permissions, password
   hashing, forms, tokens, middleware, decorators, and content types.
+- Use `auth.FileUserStore` for generated project admin users and
+  `auth.MemoryUserStore` for tests or local in-memory examples.
 - Built-in auth tables and metadata mirror Django-style `auth_user`,
   `auth_group`, `auth_permission`, and content types. Default permissions are
   `add`, `change`, `delete`, and `view`; app-specific custom permissions
