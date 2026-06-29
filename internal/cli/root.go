@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/cybersaksham/gogo/auth"
 	"github.com/cybersaksham/gogo/internal/version"
 )
 
@@ -22,7 +21,7 @@ func NewRoot() *Root {
 // RootOptions configures project-specific command integrations.
 type RootOptions struct {
 	RunserverStarter ServerStarter
-	AuthStore        *auth.MemoryUserStore
+	AuthStore        authUserStore
 	QueueRuntime     *QueueRuntime
 }
 

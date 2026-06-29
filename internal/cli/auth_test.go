@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -105,4 +107,61 @@ func TestChangePasswordUpdatesExistingUser(t *testing.T) {
 	if !strings.Contains(stdout.String(), "changed password for admin on database default") {
 		t.Fatalf("stdout = %q", stdout.String())
 	}
+}
+
+func TestDefaultAuthStorePersistsAcrossRootExecutions(t *testing.T) {
+	root := t.TempDir()
+	writeTextFile(t, filepath.Join(root, "go.mod"), "module sampleproject\n\ngo 1.26.4\n")
+	withAuthTestWorkingDirectory(t, root, func() {
+		var createOut bytes.Buffer
+		if err := NewRoot().Execute(context.Background(), []string{
+			"createsuperuser",
+			"--username", "admin",
+			"--email", "admin@example.com",
+			"--password", "CorrectHorseBatteryStaple42",
+			"--noinput",
+		}, &createOut, &bytes.Buffer{}); err != nil {
+			t.Fatalf("createsuperuser error = %v", err)
+		}
+
+		var changeOut bytes.Buffer
+		if err := NewRoot().Execute(context.Background(), []string{
+			"changepassword",
+			"--username", "admin",
+			"--password", "CorrectHorseBatteryStaple43",
+			"--noinput",
+		}, &changeOut, &bytes.Buffer{}); err != nil {
+			t.Fatalf("changepassword error = %v", err)
+		}
+		if !strings.Contains(changeOut.String(), "changed password for admin") {
+			t.Fatalf("changepassword stdout = %q", changeOut.String())
+		}
+
+		data, err := os.ReadFile(filepath.Join(root, ".gogo", "auth_users.json"))
+		if err != nil {
+			t.Fatalf("read persisted auth store: %v", err)
+		}
+		for _, forbidden := range []string{"CorrectHorseBatteryStaple42", "CorrectHorseBatteryStaple43"} {
+			if strings.Contains(string(data), forbidden) {
+				t.Fatalf("auth store contains plaintext password %q", forbidden)
+			}
+		}
+	})
+}
+
+func withAuthTestWorkingDirectory(t *testing.T, dir string, fn func()) {
+	t.Helper()
+	previous, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir %s: %v", dir, err)
+	}
+	defer func() {
+		if err := os.Chdir(previous); err != nil {
+			t.Fatalf("restore working directory: %v", err)
+		}
+	}()
+	fn()
 }

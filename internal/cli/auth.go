@@ -12,28 +12,30 @@ import (
 
 var defaultAuthStore = newDefaultAuthStore()
 
-func newDefaultAuthStore() *auth.MemoryUserStore {
-	store, err := auth.NewMemoryUserStore()
-	if err != nil {
-		panic(err)
-	}
-	return store
+type authUserStore interface {
+	Add(auth.User) error
+	FindByUsername(context.Context, string) (auth.User, bool, error)
+	UpdateUser(context.Context, auth.User) error
+}
+
+func newDefaultAuthStore() authUserStore {
+	return newFileAuthUserStore(defaultCLIAuthStorePath)
 }
 
 // NewCreateSuperuserCommand creates the built-in createsuperuser command.
-func NewCreateSuperuserCommand(store *auth.MemoryUserStore) Command {
+func NewCreateSuperuserCommand(store authUserStore) Command {
 	return authCommand{name: "createsuperuser", summary: "Create an admin user", store: store}
 }
 
 // NewChangePasswordCommand creates the built-in changepassword command.
-func NewChangePasswordCommand(store *auth.MemoryUserStore) Command {
+func NewChangePasswordCommand(store authUserStore) Command {
 	return authCommand{name: "changepassword", summary: "Change a user password", store: store}
 }
 
 type authCommand struct {
 	name    string
 	summary string
-	store   *auth.MemoryUserStore
+	store   authUserStore
 }
 
 func (c authCommand) Name() string    { return c.name }

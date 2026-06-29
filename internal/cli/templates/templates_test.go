@@ -128,6 +128,7 @@ func TestProjectTemplatesRenderSafeConfigFiles(t *testing.T) {
 		"# Environment files",
 		"# Go build outputs",
 		"# Local databases",
+		"# Local framework state",
 		"# Uploaded media and collected static files",
 		"# Coverage",
 		"# Editor and OS files",
@@ -145,6 +146,9 @@ func TestProjectTemplatesRenderSafeConfigFiles(t *testing.T) {
 	}
 	if strings.Contains(envExample, "password") || strings.Contains(envExample, "secret-value") {
 		t.Fatalf(".env.example must not contain committed secret placeholders")
+	}
+	if !strings.Contains(gitignore, ".gogo/") {
+		t.Fatalf(".gitignore must ignore local framework state")
 	}
 }
 

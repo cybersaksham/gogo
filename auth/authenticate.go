@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -178,6 +179,24 @@ func (s *MemoryUserStore) FindByID(ctx context.Context, id int64) (User, bool, e
 	defer s.mu.RUnlock()
 	user, ok := s.byID[id]
 	return user, ok, nil
+}
+
+// Users returns all users in primary-key order.
+func (s *MemoryUserStore) Users() []User {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	ids := make([]int64, 0, len(s.byID))
+	for id := range s.byID {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool {
+		return ids[i] < ids[j]
+	})
+	users := make([]User, 0, len(ids))
+	for _, id := range ids {
+		users = append(users, s.byID[id])
+	}
+	return users
 }
 
 // UpdateUser replaces an existing user while preserving uniqueness indexes.

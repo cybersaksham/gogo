@@ -17,6 +17,9 @@ coverage.out
 *.sqlite3
 *.db
 
+# Local framework state
+.gogo/
+
 # Uploads and generated media
 media/
 uploads/
