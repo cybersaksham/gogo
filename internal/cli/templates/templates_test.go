@@ -165,6 +165,10 @@ func TestProjectTemplatesRenderParseablePublicGoFiles(t *testing.T) {
 			t.Fatalf("%s is not parseable Go: %v\n%s", path, err, contents)
 		}
 	}
+
+	if !strings.Contains(files["manage.go"], "github.com/cybersaksham/gogo/management") {
+		t.Fatalf("manage.go must use public management package:\n%s", files["manage.go"])
+	}
 }
 
 func TestDeploymentTemplatesAreProductionSafe(t *testing.T) {
