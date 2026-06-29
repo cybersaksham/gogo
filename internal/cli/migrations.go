@@ -64,9 +64,9 @@ func (c migrationCommand) runWithIO(_ context.Context, args []string, stdout, _ 
 	case "sqlmigrate":
 		return runSQLMigrate(options, positionals, stdout)
 	case "squashmigrations":
-		_, err = fmt.Fprintf(stdout, "squashed migrations %v\n", positionals)
+		return runSquashMigrations(positionals, stdout)
 	case "optimizemigration":
-		_, err = fmt.Fprintf(stdout, "optimized migration %v\n", positionals)
+		return runOptimizeMigration(positionals, stdout)
 	}
 	if err != nil {
 		return fmt.Errorf("%w: write migration command output: %v", ErrCommandFailed, err)
@@ -250,4 +250,85 @@ func runSQLMigrate(options migrationOptions, positionals []string, stdout io.Wri
 	}
 	_, err := fmt.Fprintln(stdout, "-- No SQL operations rendered for this manifest migration.")
 	return err
+}
+
+func runSquashMigrations(positionals []string, stdout io.Writer) error {
+	if len(positionals) < 3 {
+		return fmt.Errorf("%w: usage squashmigrations <app> <start> <end>", ErrInvalidArguments)
+	}
+	appLabel := positionals[0]
+	start := positionals[1]
+	end := positionals[2]
+	dir := migrationDirForApp(appLabel)
+	names, err := migrationFileNames(dir)
+	if err != nil {
+		return fmt.Errorf("%w: list migrations: %v", ErrCommandFailed, err)
+	}
+	selected, err := migrationRange(names, start, end)
+	if err != nil {
+		return err
+	}
+	replaces := make([]migrations.Dependency, 0, len(selected))
+	for _, name := range selected {
+		replaces = append(replaces, migrations.Dependency{AppLabel: appLabel, Name: name})
+	}
+	migration := migrations.Migration{
+		AppLabel: appLabel,
+		Name:     squashedMigrationName(start, end),
+		Replaces: replaces,
+		Atomic:   true,
+		Operations: []migrations.Operation{
+			migrations.ManifestOperation{NameValue: "SquashedMigration:" + appLabel + "." + start + ".." + end},
+		},
+	}
+	if _, err := migrations.NewWriter(dir).Write(migration); err != nil {
+		return fmt.Errorf("%w: write squashed migration: %v", ErrCommandFailed, err)
+	}
+	_, err = fmt.Fprintf(stdout, "created squashed migration %s replacing %d migration(s)\n", migration.Identity(), len(selected))
+	return err
+}
+
+func runOptimizeMigration(positionals []string, stdout io.Writer) error {
+	if len(positionals) < 2 {
+		return fmt.Errorf("%w: usage optimizemigration <app> <migration>", ErrInvalidArguments)
+	}
+	appLabel := positionals[0]
+	name := positionals[1]
+	path := filepath.Join(migrationDirForApp(appLabel), name+".go")
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("%w: migration %s.%s not found", ErrInvalidArguments, appLabel, name)
+		}
+		return fmt.Errorf("%w: inspect migration: %v", ErrCommandFailed, err)
+	}
+	_, err := fmt.Fprintf(stdout, "no optimizations needed for %s.%s\n", appLabel, name)
+	return err
+}
+
+func migrationRange(names []string, start, end string) ([]string, error) {
+	startIndex := -1
+	endIndex := -1
+	for index, name := range names {
+		if name == start {
+			startIndex = index
+		}
+		if name == end {
+			endIndex = index
+		}
+	}
+	if startIndex < 0 {
+		return nil, fmt.Errorf("%w: migration %s not found", ErrInvalidArguments, start)
+	}
+	if endIndex < 0 {
+		return nil, fmt.Errorf("%w: migration %s not found", ErrInvalidArguments, end)
+	}
+	if startIndex > endIndex {
+		return nil, fmt.Errorf("%w: start migration must come before end migration", ErrInvalidArguments)
+	}
+	return append([]string(nil), names[startIndex:endIndex+1]...), nil
+}
+
+func squashedMigrationName(start, end string) string {
+	number := strings.SplitN(start, "_", 2)[0]
+	return number + "_squashed_" + end
 }

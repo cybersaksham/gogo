@@ -12,6 +12,12 @@ import (
 func TestMigrationCommandsRunWithFlags(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
+	migrationsDir := filepath.Join(dir, "blog", "migrations")
+	if err := os.MkdirAll(migrationsDir, 0o755); err != nil {
+		t.Fatalf("mkdir migrations: %v", err)
+	}
+	writeTextFile(t, filepath.Join(migrationsDir, "0001_initial.go"), "package migrations\n")
+	writeTextFile(t, filepath.Join(migrationsDir, "0002_post.go"), "package migrations\n")
 	root := NewRoot()
 	cases := [][]string{
 		{"makemigrations", "--app", "blog", "--name", "initial", "--empty", "--dry-run"},
@@ -100,5 +106,52 @@ func TestShowAndSQLMigrateUseGeneratedAppOutput(t *testing.T) {
 	}
 	if !strings.Contains(sqlOut.String(), `CREATE TABLE IF NOT EXISTS "blog_item"`) {
 		t.Fatalf("sqlmigrate stdout = %q", sqlOut.String())
+	}
+}
+
+func TestSquashMigrationsWritesReplacementMigrationFile(t *testing.T) {
+	dir := t.TempDir()
+	migrationsDir := filepath.Join(dir, "apps", "blog", "migrations")
+	if err := os.MkdirAll(migrationsDir, 0o755); err != nil {
+		t.Fatalf("mkdir migrations: %v", err)
+	}
+	writeTextFile(t, filepath.Join(migrationsDir, "0001_initial.go"), "package migrations\n")
+	writeTextFile(t, filepath.Join(migrationsDir, "0002_post.go"), "package migrations\n")
+	t.Chdir(dir)
+
+	root := NewRoot()
+	var stdout bytes.Buffer
+	if err := root.Execute(context.Background(), []string{"squashmigrations", "blog", "0001_initial", "0002_post", "--noinput"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("squashmigrations error = %v", err)
+	}
+	path := filepath.Join(migrationsDir, "0001_squashed_0002_post.go")
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("expected squashed migration file %s: %v", path, err)
+	}
+	if !strings.Contains(string(contents), `Replaces: []gogomigrations.Dependency`) || !strings.Contains(string(contents), `Name: "0002_post"`) {
+		t.Fatalf("squashed migration missing replacement metadata:\n%s", contents)
+	}
+	if !strings.Contains(stdout.String(), "created squashed migration blog.0001_squashed_0002_post replacing 2 migration(s)") {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+}
+
+func TestOptimizeMigrationReportsNoopWhenNoSafeRewriteExists(t *testing.T) {
+	dir := t.TempDir()
+	migrationsDir := filepath.Join(dir, "apps", "blog", "migrations")
+	if err := os.MkdirAll(migrationsDir, 0o755); err != nil {
+		t.Fatalf("mkdir migrations: %v", err)
+	}
+	writeTextFile(t, filepath.Join(migrationsDir, "0001_initial.go"), "package migrations\n")
+	t.Chdir(dir)
+
+	root := NewRoot()
+	var stdout bytes.Buffer
+	if err := root.Execute(context.Background(), []string{"optimizemigration", "blog", "0001_initial"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("optimizemigration error = %v", err)
+	}
+	if !strings.Contains(stdout.String(), "no optimizations needed for blog.0001_initial") {
+		t.Fatalf("stdout = %q", stdout.String())
 	}
 }

@@ -32,6 +32,11 @@ func (w Writer) Write(migration Migration) (string, error) {
 		builder.WriteString(fmt.Sprintf("\t\t{AppLabel: %q, Name: %q},\n", dependency.AppLabel, dependency.Name))
 	}
 	builder.WriteString("\t},\n")
+	builder.WriteString("\tReplaces: []gogomigrations.Dependency{\n")
+	for _, dependency := range migration.Replaces {
+		builder.WriteString(fmt.Sprintf("\t\t{AppLabel: %q, Name: %q},\n", dependency.AppLabel, dependency.Name))
+	}
+	builder.WriteString("\t},\n")
 	builder.WriteString("\tOperations: []gogomigrations.Operation{\n")
 	for _, operation := range migration.Operations {
 		builder.WriteString(fmt.Sprintf("\t\tgogomigrations.ManifestOperation{NameValue: %q},\n", operation.Name()))
