@@ -5,6 +5,7 @@ import (
 	"html"
 	"sort"
 	"strings"
+	"time"
 )
 
 // WidgetChoice describes one select option.
@@ -15,11 +16,30 @@ type WidgetChoice struct {
 
 // WidgetConfig configures an admin widget render.
 type WidgetConfig struct {
-	Name        string
-	Value       any
-	Attrs       map[string]string
-	Choices     []WidgetChoice
-	RelationURL string
+	Name                     string
+	Value                    any
+	Attrs                    map[string]string
+	Choices                  []WidgetChoice
+	RelationURL              string
+	LinkURL                  string
+	LinkLabel                string
+	LinkTitle                string
+	InitialURL               string
+	InitialLabel             string
+	RelatedModelName         string
+	RelatedModelLabel        string
+	AddRelatedURL            string
+	ChangeRelatedTemplateURL string
+	DeleteRelatedTemplateURL string
+	ViewRelatedTemplateURL   string
+	URLParams                string
+	ViewURLParams            string
+	CanAddRelated            bool
+	CanChangeRelated         bool
+	CanDeleteRelated         bool
+	CanViewRelated           bool
+	IsHidden                 bool
+	ModelHasLimitChoicesTo   bool
 }
 
 // TextInput renders a text input.
@@ -58,46 +78,85 @@ func SelectMultiple(config WidgetConfig) string {
 
 // DateInput renders a date input.
 func DateInput(config WidgetConfig) string {
-	config = withWidgetClass(config, "vDateField")
-	config = withAttr(config, "size", "10")
-	return input("text", config, nil)
+	return `<p class="date">` + adminDateInput(config) + `</p>`
 }
 
 // TimeInput renders a time input.
 func TimeInput(config WidgetConfig) string {
-	config = withWidgetClass(config, "vTimeField")
-	config = withAttr(config, "size", "8")
-	return input("text", config, nil)
+	return `<p class="time">` + adminTimeInput(config) + `</p>`
 }
 
 // DateTimeInput renders a datetime-local input.
 func DateTimeInput(config WidgetConfig) string {
-	config = withWidgetClass(config, "vDateTimeField")
-	return input("text", config, nil)
+	dateValue, timeValue := splitAdminDateTime(config.Value)
+	dateConfig := config
+	dateConfig.Name = config.Name + "_0"
+	dateConfig.Value = dateValue
+	dateConfig.Attrs = cloneStringMap(config.Attrs)
+	if dateConfig.Attrs == nil {
+		dateConfig.Attrs = map[string]string{}
+	}
+	dateConfig.Attrs["id"] = "id_" + dateConfig.Name
+	timeConfig := config
+	timeConfig.Name = config.Name + "_1"
+	timeConfig.Value = timeValue
+	timeConfig.Attrs = cloneStringMap(config.Attrs)
+	if timeConfig.Attrs == nil {
+		timeConfig.Attrs = map[string]string{}
+	}
+	timeConfig.Attrs["id"] = "id_" + timeConfig.Name
+	return `<p class="datetime">` +
+		fmt.Sprintf(`<label for="%s">Date:</label> `, esc("id_"+dateConfig.Name)) + adminDateInput(dateConfig) + `<br>` +
+		fmt.Sprintf(`<label for="%s">Time:</label> `, esc("id_"+timeConfig.Name)) + adminTimeInput(timeConfig) +
+		`</p>`
 }
 
 // FileInput renders a file input.
 func FileInput(config WidgetConfig) string {
-	config.Value = ""
-	return input("file", config, nil)
+	return inputWithoutValue("file", config, nil)
 }
 
 // ClearableFileInput renders a file input with a clear checkbox.
 func ClearableFileInput(config WidgetConfig) string {
-	current := ""
-	if fmt.Sprint(config.Value) != "" {
-		clearID := esc(config.Name) + `-clear_id`
-		current = `Currently: <span class="current-file">` + esc(fmt.Sprint(config.Value)) + `</span><br>` +
-			fmt.Sprintf(`<input type="checkbox" name="%s-clear" id="%s"> <label for="%s">Clear</label><br>`, esc(config.Name), clearID, clearID) +
-			`Change: `
+	if fmt.Sprint(config.Value) == "" {
+		return FileInput(config)
 	}
-	return current + FileInput(config)
+	label := config.InitialLabel
+	if label == "" {
+		label = fmt.Sprint(config.Value)
+	}
+	url := config.InitialURL
+	if url == "" {
+		url = label
+	}
+	clearID := config.Name + "-clear_id"
+	return `<p class="file-upload">Currently: ` +
+		fmt.Sprintf(`<a href="%s">%s</a>`, esc(url), esc(label)) +
+		`<span class="clearable-file-input">` +
+		fmt.Sprintf(`<input type="checkbox" name="%s-clear" id="%s">`, esc(config.Name), esc(clearID)) +
+		fmt.Sprintf(`<label for="%s">Clear</label></span><br>`, esc(clearID)) +
+		`Change:` + FileInput(config) + `</p>`
 }
 
 // RawIDRelationWidget renders a raw ID relation input.
 func RawIDRelationWidget(config WidgetConfig) string {
-	return input("text", config, map[string]string{"data-lookup-url": config.RelationURL}) +
-		fmt.Sprintf(`<a href="%s" class="related-lookup" id="lookup_id_%s" title="Lookup"></a>`, esc(config.RelationURL), esc(config.Name))
+	rendered := input("text", config, nil)
+	if config.RelationURL == "" {
+		return rendered
+	}
+	title := config.LinkTitle
+	if title == "" {
+		title = "Lookup"
+	}
+	rendered += fmt.Sprintf(`<a href="%s" class="related-lookup" id="lookup_id_%s" title="%s"></a>`, esc(config.RelationURL), esc(config.Name), esc(title))
+	if config.LinkLabel != "" {
+		label := esc(config.LinkLabel)
+		if config.LinkURL != "" {
+			label = fmt.Sprintf(`<a href="%s">%s</a>`, esc(config.LinkURL), label)
+		}
+		rendered += `<strong>` + label + `</strong>`
+	}
+	return `<div>` + rendered + `</div>`
 }
 
 // AutocompleteWidget renders an autocomplete relation input.
@@ -121,7 +180,54 @@ func ReadonlyDisplay(config WidgetConfig) string {
 	return fmt.Sprintf(`<span class="readonly" data-field="%s">%s</span>`, esc(config.Name), esc(fmt.Sprint(config.Value)))
 }
 
+// RelatedWidgetWrapper renders Django admin's relation action shell.
+func RelatedWidgetWrapper(config WidgetConfig, renderedWidget string) string {
+	var builder strings.Builder
+	builder.WriteString(`<div class="related-widget-wrapper"`)
+	if !config.ModelHasLimitChoicesTo && config.RelatedModelName != "" {
+		builder.WriteString(fmt.Sprintf(` data-model-ref="%s"`, esc(config.RelatedModelName)))
+	}
+	builder.WriteString(`>`)
+	builder.WriteString(renderedWidget)
+	if !config.IsHidden {
+		model := config.RelatedModelLabel
+		if model == "" {
+			model = config.RelatedModelName
+		}
+		if config.CanChangeRelated {
+			builder.WriteString(relatedActionLink("change", config.Name, "", appendQuery(config.ChangeRelatedTemplateURL, config.URLParams), "Change selected "+model, "icon-changelink.svg"))
+		}
+		if config.CanAddRelated {
+			builder.WriteString(relatedActionLink("add", config.Name, appendQuery(config.AddRelatedURL, config.URLParams), "", "Add another "+model, "icon-addlink.svg"))
+		}
+		if config.CanDeleteRelated {
+			builder.WriteString(relatedActionLink("delete", config.Name, "", appendQuery(config.DeleteRelatedTemplateURL, config.URLParams), "Delete selected "+model, "icon-deletelink.svg"))
+		}
+		if config.CanViewRelated {
+			params := config.ViewURLParams
+			if params == "" {
+				params = config.URLParams
+			}
+			templateURL := config.ViewRelatedTemplateURL
+			if templateURL == "" {
+				templateURL = config.ChangeRelatedTemplateURL
+			}
+			builder.WriteString(relatedActionLink("view", config.Name, "", appendQuery(templateURL, params), "View selected "+model, "icon-viewlink.svg"))
+		}
+	}
+	builder.WriteString(`</div>`)
+	return builder.String()
+}
+
 func input(inputType string, config WidgetConfig, extra map[string]string) string {
+	return inputWithValue(inputType, config, extra, true)
+}
+
+func inputWithoutValue(inputType string, config WidgetConfig, extra map[string]string) string {
+	return inputWithValue(inputType, config, extra, false)
+}
+
+func inputWithValue(inputType string, config WidgetConfig, extra map[string]string, includeValue bool) string {
 	attrs := cloneStringMap(config.Attrs)
 	if attrs == nil {
 		attrs = map[string]string{}
@@ -129,7 +235,23 @@ func input(inputType string, config WidgetConfig, extra map[string]string) strin
 	for key, value := range extra {
 		attrs[key] = value
 	}
-	return fmt.Sprintf(`<input type="%s" name="%s" value="%s"%s>`, esc(inputType), esc(config.Name), esc(fmt.Sprint(config.Value)), renderAttrs(attrs))
+	value := ""
+	if includeValue {
+		value = fmt.Sprintf(` value="%s"`, esc(fmt.Sprint(config.Value)))
+	}
+	return fmt.Sprintf(`<input type="%s" name="%s"%s%s>`, esc(inputType), esc(config.Name), value, renderAttrs(attrs))
+}
+
+func adminDateInput(config WidgetConfig) string {
+	config = withWidgetClass(config, "vDateField")
+	config = withAttr(config, "size", "10")
+	return input("text", config, nil)
+}
+
+func adminTimeInput(config WidgetConfig) string {
+	config = withWidgetClass(config, "vTimeField")
+	config = withAttr(config, "size", "8")
+	return input("text", config, nil)
 }
 
 func withWidgetClass(config WidgetConfig, className string) WidgetConfig {
@@ -186,6 +308,65 @@ func selectedValues(value any) map[string]struct{} {
 		}
 	}
 	return result
+}
+
+func splitAdminDateTime(value any) (string, string) {
+	switch typed := value.(type) {
+	case time.Time:
+		if typed.IsZero() {
+			return "", ""
+		}
+		return typed.Format("2006-01-02"), typed.Format("15:04:05")
+	case string:
+		value := strings.TrimSpace(typed)
+		if value == "" {
+			return "", ""
+		}
+		parts := strings.FieldsFunc(value, func(r rune) bool {
+			return r == 'T' || r == ' '
+		})
+		if len(parts) >= 2 {
+			return parts[0], strings.TrimSuffix(parts[1], "Z")
+		}
+		return value, ""
+	default:
+		if value == nil {
+			return "", ""
+		}
+		return fmt.Sprint(value), ""
+	}
+}
+
+func relatedActionLink(action, name, href, dataHrefTemplate, title, icon string) string {
+	var builder strings.Builder
+	builder.WriteString(fmt.Sprintf(`<a class="related-widget-wrapper-link %s-related" id="%s_id_%s"`, esc(action), esc(action), esc(name)))
+	if dataHrefTemplate != "" {
+		builder.WriteString(fmt.Sprintf(` data-href-template="%s"`, esc(dataHrefTemplate)))
+	}
+	if action == "add" {
+		builder.WriteString(` data-popup="yes"`)
+	}
+	if href != "" {
+		builder.WriteString(fmt.Sprintf(` href="%s"`, esc(href)))
+	}
+	if action == "change" || action == "delete" {
+		builder.WriteString(` data-popup="yes"`)
+	}
+	builder.WriteString(fmt.Sprintf(` title="%s">`, esc(title)))
+	builder.WriteString(fmt.Sprintf(`<img src="/admin/static/admin/img/%s" alt="" width="24" height="24">`, esc(icon)))
+	builder.WriteString(`</a>`)
+	return builder.String()
+}
+
+func appendQuery(baseURL, query string) string {
+	if baseURL == "" || query == "" {
+		return baseURL
+	}
+	separator := "?"
+	if strings.Contains(baseURL, "?") {
+		separator = "&"
+	}
+	return baseURL + separator + query
 }
 
 func renderAttrs(attrs map[string]string) string {

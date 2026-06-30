@@ -46,23 +46,23 @@ func TestAdminChoiceDateFileAndRelationWidgets(t *testing.T) {
 			t.Fatalf("widget did not render input: %s", rendered)
 		}
 	}
-	if got := DateInput(WidgetConfig{Name: "date", Value: "2026-06-28"}); !strings.Contains(got, `class="vDateField"`) || !strings.Contains(got, `type="text"`) || !strings.Contains(got, `size="10"`) {
+	if got := DateInput(WidgetConfig{Name: "date", Value: "2026-06-28"}); !strings.Contains(got, `<p class="date">`) || !strings.Contains(got, `class="vDateField"`) || !strings.Contains(got, `type="text"`) || !strings.Contains(got, `size="10"`) || !strings.Contains(got, `</p>`) {
 		t.Fatalf("date input = %s", got)
 	}
-	if got := TimeInput(WidgetConfig{Name: "time", Value: "12:30"}); !strings.Contains(got, `class="vTimeField"`) || !strings.Contains(got, `size="8"`) {
+	if got := TimeInput(WidgetConfig{Name: "time", Value: "12:30"}); !strings.Contains(got, `<p class="time">`) || !strings.Contains(got, `class="vTimeField"`) || !strings.Contains(got, `size="8"`) || !strings.Contains(got, `</p>`) {
 		t.Fatalf("time input = %s", got)
 	}
-	if got := DateTimeInput(WidgetConfig{Name: "dt", Value: "2026-06-28T12:30"}); !strings.Contains(got, `class="vDateTimeField"`) {
+	if got := DateTimeInput(WidgetConfig{Name: "dt", Value: "2026-06-28T12:30"}); !strings.Contains(got, `<p class="datetime">`) || !strings.Contains(got, `<label for="id_dt_0">Date:</label>`) || !strings.Contains(got, `name="dt_0"`) || !strings.Contains(got, `<label for="id_dt_1">Time:</label>`) || !strings.Contains(got, `name="dt_1"`) {
 		t.Fatalf("datetime input = %s", got)
 	}
 
-	clearable := ClearableFileInput(WidgetConfig{Name: "avatar", Value: "current.png"})
-	if !strings.Contains(clearable, `avatar-clear_id`) || !strings.Contains(clearable, `Currently:`) || !strings.Contains(clearable, `Change:`) || !strings.Contains(clearable, `current.png`) {
+	clearable := ClearableFileInput(WidgetConfig{Name: "avatar", Value: "current.png", InitialURL: "/media/current.png"})
+	if !strings.Contains(clearable, `<p class="file-upload">`) || !strings.Contains(clearable, `Currently: <a href="/media/current.png">current.png</a>`) || !strings.Contains(clearable, `<span class="clearable-file-input">`) || !strings.Contains(clearable, `avatar-clear_id`) || !strings.Contains(clearable, `Change:`) || !strings.Contains(clearable, `</p>`) {
 		t.Fatalf("clearable file = %s", clearable)
 	}
 
 	rawID := RawIDRelationWidget(WidgetConfig{Name: "author", Value: 7, RelationURL: "/admin/auth/user/"})
-	if !strings.Contains(rawID, `data-lookup-url="/admin/auth/user/"`) || !strings.Contains(rawID, `class="related-lookup"`) || !strings.Contains(rawID, `id="lookup_id_author"`) {
+	if !strings.HasPrefix(rawID, `<div><input`) || !strings.Contains(rawID, `class="related-lookup"`) || !strings.Contains(rawID, `id="lookup_id_author"`) || !strings.Contains(rawID, `title="Lookup"`) || !strings.HasSuffix(rawID, `</div>`) {
 		t.Fatalf("raw id = %s", rawID)
 	}
 
@@ -79,5 +79,43 @@ func TestAdminChoiceDateFileAndRelationWidgets(t *testing.T) {
 	readonly := ReadonlyDisplay(WidgetConfig{Name: "created_at", Value: `<now>`})
 	if readonly != `<span class="readonly" data-field="created_at">&lt;now&gt;</span>` {
 		t.Fatalf("readonly = %s", readonly)
+	}
+}
+
+func TestAdminRelatedWidgetWrapperMatchesDjangoStructure(t *testing.T) {
+	rendered := RelatedWidgetWrapper(WidgetConfig{
+		Name:                     "author",
+		RelatedModelName:         "user",
+		RelatedModelLabel:        "user",
+		AddRelatedURL:            "/admin/auth/user/add/",
+		ChangeRelatedTemplateURL: "/admin/auth/user/__fk__/change/",
+		DeleteRelatedTemplateURL: "/admin/auth/user/__fk__/delete/",
+		ViewRelatedTemplateURL:   "/admin/auth/user/__fk__/change/",
+		URLParams:                "_to_field=id&_popup=1",
+		ViewURLParams:            "_to_field=id",
+		CanAddRelated:            true,
+		CanChangeRelated:         true,
+		CanDeleteRelated:         true,
+		CanViewRelated:           true,
+	}, `<select name="author"></select>`)
+
+	for _, want := range []string{
+		`<div class="related-widget-wrapper" data-model-ref="user">`,
+		`<select name="author"></select>`,
+		`class="related-widget-wrapper-link change-related" id="change_id_author"`,
+		`data-href-template="/admin/auth/user/__fk__/change/?_to_field=id&amp;_popup=1"`,
+		`src="/admin/static/admin/img/icon-changelink.svg" alt="" width="24" height="24"`,
+		`class="related-widget-wrapper-link add-related" id="add_id_author"`,
+		`href="/admin/auth/user/add/?_to_field=id&amp;_popup=1"`,
+		`src="/admin/static/admin/img/icon-addlink.svg" alt="" width="24" height="24"`,
+		`class="related-widget-wrapper-link delete-related" id="delete_id_author"`,
+		`src="/admin/static/admin/img/icon-deletelink.svg" alt="" width="24" height="24"`,
+		`class="related-widget-wrapper-link view-related" id="view_id_author"`,
+		`data-href-template="/admin/auth/user/__fk__/change/?_to_field=id"`,
+		`src="/admin/static/admin/img/icon-viewlink.svg" alt="" width="24" height="24"`,
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("related widget wrapper missing %q in %s", want, rendered)
+		}
 	}
 }
