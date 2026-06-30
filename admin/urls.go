@@ -24,8 +24,8 @@ func (s *Site) URLs() (*gogohttp.Router, error) {
 		{"admin:login", s.URLPrefix + "/login/", gogohttp.FromHandler(s.LoginView), []string{"GET", "POST"}},
 		{"admin:logout", s.URLPrefix + "/logout/", gogohttp.FromHandler(s.LogoutView), []string{"GET", "POST"}},
 		{"admin:password_change", s.URLPrefix + "/password_change/", protectedAdminView(s, gogohttp.FromHandler(s.PasswordChangeView)), []string{"GET", "POST"}},
-		{"admin:css", "/static/admin.css", adminAssetView("static/admin.css", "text/css; charset=utf-8"), []string{"GET"}},
-		{"admin:js", "/static/admin.js", adminAssetView("static/admin.js", "application/javascript; charset=utf-8"), []string{"GET"}},
+		{"admin:css", s.URLPrefix + "/static/admin.css", adminAssetView("static/admin.css", "text/css; charset=utf-8"), []string{"GET"}},
+		{"admin:js", s.URLPrefix + "/static/admin.js", adminAssetView("static/admin.js", "application/javascript; charset=utf-8"), []string{"GET"}},
 		{"admin:app_list", s.URLPrefix + "/<str:app_label>/", protectedAdminView(s, adminAppListView(s)), []string{"GET", "POST"}},
 	}
 	for _, route := range routes {

@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{or .Title "Gogo site admin"}}</title>
-  <link rel="stylesheet" href="/static/admin.css">
+  <link rel="stylesheet" href="{{.StaticCSSURL}}">
 </head>
 <body class="{{if .BodyClass}}{{.BodyClass}}{{else}}dashboard{{end}}" data-admin-utc-offset="0">
   <div id="container">
@@ -39,7 +39,7 @@
     </main>
     <footer id="footer"></footer>
   </div>
-  <script src="/static/admin.js" defer></script>
+  <script src="{{.StaticJSURL}}" defer></script>
 </body>
 </html>
 {{end}}

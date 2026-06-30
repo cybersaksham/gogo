@@ -71,8 +71,8 @@ func TestAdminURLsServeEmbeddedAssets(t *testing.T) {
 		contentType string
 		want        string
 	}{
-		{"/static/admin.css", "text/css; charset=utf-8", "#container"},
-		{"/static/admin.js", "application/javascript; charset=utf-8", "admin-ready"},
+		{"/admin/static/admin.css", "text/css; charset=utf-8", "#container"},
+		{"/admin/static/admin.js", "application/javascript; charset=utf-8", "admin-ready"},
 	}
 	for _, test := range tests {
 		response := httptest.NewRecorder()
