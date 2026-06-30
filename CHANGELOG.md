@@ -17,7 +17,8 @@ None.
 
 ### Fixed
 
-None.
+- Fixed slashless admin index requests (`/admin`) returning `404` instead of
+  redirecting to the canonical Django-style `/admin/` path.
 
 ## v0.5.1 - 2026-06-30
 

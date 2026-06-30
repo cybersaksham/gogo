@@ -31,6 +31,7 @@ func TestAdminURLsGenerateNamespacedRoutesAndReverse(t *testing.T) {
 	}
 	names := routeNames(router.Routes())
 	wantNames := []string{
+		"admin:index_slash_redirect",
 		"admin:index",
 		"admin:login",
 		"admin:logout",
@@ -61,6 +62,20 @@ func TestAdminURLsGenerateNamespacedRoutesAndReverse(t *testing.T) {
 	index, err := router.Reverse("admin:index", nil)
 	if err != nil || index != "/admin/" {
 		t.Fatalf("Reverse(index) = %q, %v", index, err)
+	}
+}
+
+func TestAdminSlashlessIndexRedirectsToCanonicalPath(t *testing.T) {
+	site := DefaultSite()
+	router, err := site.URLs()
+	if err != nil {
+		t.Fatalf("URLs() error = %v", err)
+	}
+
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/admin", nil))
+	if response.Code != http.StatusMovedPermanently || response.Header().Get("Location") != "/admin/" {
+		t.Fatalf("slashless admin response = %d location %q body=%s", response.Code, response.Header().Get("Location"), response.Body.String())
 	}
 }
 

@@ -22,6 +22,7 @@ func (s *Site) URLs() (*gogohttp.Router, error) {
 		view    gogohttp.View
 		methods []string
 	}{
+		{"admin:index_slash_redirect", s.URLPrefix, adminSlashRedirectView(s.URLPrefix + "/"), []string{"GET"}},
 		{"admin:index", s.URLPrefix + "/", protectedAdminView(s, adminIndexView(s)), []string{"GET", "POST"}},
 		{"admin:login", s.URLPrefix + "/login/", gogohttp.FromHandler(s.LoginView), []string{"GET", "POST"}},
 		{"admin:logout", s.URLPrefix + "/logout/", gogohttp.FromHandler(s.LogoutView), []string{"GET", "POST"}},
@@ -85,6 +86,16 @@ func registerModelURLs(router *gogohttp.Router, site *Site, admin ModelAdmin) er
 		}
 	}
 	return nil
+}
+
+func adminSlashRedirectView(location string) gogohttp.View {
+	return func(_ context.Context, request *gogohttp.Request) gogohttp.Response {
+		target := location
+		if query := request.Raw().URL.RawQuery; query != "" {
+			target += "?" + query
+		}
+		return gogohttp.PermanentRedirect(target)
+	}
 }
 
 func protectedAdminView(site *Site, view gogohttp.View) gogohttp.View {
