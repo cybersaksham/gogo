@@ -19,6 +19,105 @@ None.
 
 None.
 
+## v0.5.0 - 2026-06-30
+
+Feature release for database-backed generated projects, admin CSRF protection,
+fixture persistence, generated API CRUD, and stronger generated-project smoke
+coverage.
+
+### Release Metadata
+
+- Previous release: `v0.4.0`.
+- New release: `v0.5.0`.
+- Module path: `github.com/cybersaksham/gogo`.
+- CLI install path: `github.com/cybersaksham/gogo/cmd/gogo`.
+
+### Added
+
+- Added `orm.MetadataStore`, a metadata-backed SQL object store for generated
+  app CRUD, fixture loading, fixture dumping, and admin/API persistence.
+- Added `orm.DatabaseConfigFromURL` and `orm.OpenDatabaseURL` helpers for
+  SQLite and PostgreSQL database URLs.
+- Added `api.MetadataViewSetStore` so generated apps register full
+  database-backed list, create, retrieve, update, partial-update, and delete
+  API routes for scaffolded models.
+- Added database-backed fixture integration for generated project management
+  commands through model metadata.
+- Added admin CSRF token generation, masked form tokens, cookie setting, and
+  unsafe-method validation for login, password change, changelist actions,
+  add/change forms, and delete confirmation.
+- Added meaningful generated app smoke tests covering metadata, app registry
+  resources, HTTP routes, admin registration, forms, serializers, queue task
+  registration, and API route registration.
+- Added a local unpublished-framework client smoke report covering generated
+  project creation, command behavior, fixtures, live API CRUD, admin CRUD, and
+  CSRF rejection.
+
+### Changed
+
+- Changed generated project admin wiring so model admin pages use the
+  metadata-backed store when the configured database is available.
+- Changed generated app API templates from hard-coded list stubs to
+  model-viewset registration backed by the configured database.
+- Changed generated project management wiring so `dumpdata` and `loaddata`
+  operate against the configured database instead of a process-local in-memory
+  store when model metadata is available.
+- Changed migration display and planning so squashed migrations with
+  `Replaces` metadata are shown as satisfied when all replaced migrations are
+  already applied.
+- Changed `shell` and `dbshell` to emit clear noninteractive guidance when
+  invoked without a command in non-TTY contexts.
+
+### Fixed
+
+- Fixed admin add/change/delete/history pages so model POSTs create, update,
+  and delete real database rows and missing model objects return `404`.
+- Fixed admin forms rendering empty `csrfmiddlewaretoken` values and accepting
+  unsafe POSTs without CSRF validation.
+- Fixed generated fixture loading reporting success without persisting rows to
+  the configured database.
+- Fixed generated API endpoints returning hard-coded empty list responses.
+- Fixed `changepassword admin` so Django-style positional usernames work in
+  addition to `--username admin`.
+- Fixed `collectstatic --dry-run` so it discovers files and reports what would
+  be collected without writing to the destination.
+- Fixed confusing one-migration squash output where `showmigrations` listed a
+  generated squashed migration as unapplied beside the already-applied original
+  migration.
+- Fixed placeholder-only generated app tests.
+
+### Breaking
+
+- None.
+
+### Migration Notes
+
+- Existing generated projects should update their `go.mod` requirement to
+  `github.com/cybersaksham/gogo v0.5.0` and run `go mod tidy`.
+- Existing generated projects should regenerate or manually adopt the updated
+  app API, project admin, project app metadata, and `manage.go` wiring if they
+  want database-backed generated admin/API/fixture behavior.
+- Admin POST tests and scripts must now submit the rendered CSRF token and
+  carry the CSRF cookie, matching browser behavior.
+- Required environment variables remain unchanged. Projects still need a valid
+  `GOGO_SECRET_KEY` and `DATABASE_URL` for checks and runtime commands.
+
+### Verification
+
+- Passed `make ci` before tagging.
+- Passed `go test -tags=integration ./...` before tagging.
+- Passed `go test -race ./queue/... ./orm/... ./http/...` before tagging.
+- Passed `make bench` before tagging.
+- Passed release dry run for `v0.5.0` before tagging.
+- Passed fresh released-client smoke after publishing.
+
+### Artifacts
+
+- The GitHub release workflow publishes CLI binaries for Linux, macOS, and
+  Windows on `amd64` and `arm64`.
+- The GitHub release workflow publishes `checksums.txt` with SHA256 checksums
+  for release artifacts.
+
 ## v0.4.0 - 2026-06-30
 
 Feature release for Django-style admin model pages, generated-project first-run
