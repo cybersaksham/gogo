@@ -1,12 +1,14 @@
 package {{.ProjectName}}
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 
 	"github.com/cybersaksham/gogo/admin"
 	"github.com/cybersaksham/gogo/auth"
 	"github.com/cybersaksham/gogo/conf"
+	"github.com/cybersaksham/gogo/orm"
 	"github.com/cybersaksham/gogo/sessions"
 )
 
@@ -23,12 +25,27 @@ func NewAdminSite() *admin.Site {
 	site.LoginView = admin.LoginView(authConfig)
 	site.LogoutView = admin.LogoutView(authConfig)
 	site.PasswordChangeView = admin.PasswordChangeView(authConfig)
+	if store, err := NewModelStore(context.Background()); err == nil {
+		site.ModelStore = store
+	}
 	site.PermissionPolicy = admin.SessionPermissionPolicy{
 		UserStore:    authConfig.UserStore,
 		SessionStore: authConfig.SessionStore,
 		Cookie:       authConfig.Cookie,
 	}
 	return site
+}
+
+func NewModelStore(ctx context.Context) (*orm.MetadataStore, error) {
+	settings, err := conf.LoadFromEnv()
+	if err != nil {
+		return nil, err
+	}
+	database, err := orm.OpenDatabaseURL(ctx, orm.DefaultDatabase, settings.DatabaseURL)
+	if err != nil {
+		return nil, err
+	}
+	return orm.NewMetadataStore(database, ModelMetadata()...), nil
 }
 
 func newAdminAuthConfig(site *admin.Site) admin.AuthViewConfig {

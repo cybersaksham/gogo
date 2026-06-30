@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/cybersaksham/gogo/orm"
 )
 
 var ErrInvalidFixture = errors.New("invalid fixture")
@@ -54,6 +56,58 @@ type MemoryFixtureStore struct {
 
 func NewMemoryFixtureStore(records ...FixtureRecord) *MemoryFixtureStore {
 	return &MemoryFixtureStore{records: cloneFixtureRecords(records)}
+}
+
+type metadataFixtureStore struct {
+	store *orm.MetadataStore
+}
+
+type errorFixtureStore struct {
+	err error
+}
+
+// NewMetadataFixtureStore creates a database-backed fixture store.
+func NewMetadataFixtureStore(store *orm.MetadataStore) FixtureStore {
+	return metadataFixtureStore{store: store}
+}
+
+// NewErrorFixtureStore creates a fixture store that fails every operation.
+func NewErrorFixtureStore(err error) FixtureStore {
+	return errorFixtureStore{err: err}
+}
+
+func (s errorFixtureStore) Dump(context.Context, FixtureQuery) ([]FixtureRecord, error) {
+	return nil, s.err
+}
+
+func (s errorFixtureStore) Load(context.Context, []FixtureRecord, FixtureLoadOptions) error {
+	return s.err
+}
+
+func (s metadataFixtureStore) Dump(ctx context.Context, query FixtureQuery) ([]FixtureRecord, error) {
+	if s.store == nil {
+		return nil, orm.ErrDatabaseNotFound
+	}
+	records, err := s.store.Dump(ctx, query.Labels)
+	if err != nil {
+		return nil, err
+	}
+	fixtures := make([]FixtureRecord, len(records))
+	for i, record := range records {
+		fixtures[i] = FixtureRecord{Model: record.Model, PK: record.PK, Fields: cloneFixtureFields(record.Fields)}
+	}
+	return fixtures, nil
+}
+
+func (s metadataFixtureStore) Load(ctx context.Context, records []FixtureRecord, _ FixtureLoadOptions) error {
+	if s.store == nil {
+		return orm.ErrDatabaseNotFound
+	}
+	converted := make([]orm.MetadataFixtureRecord, len(records))
+	for i, record := range records {
+		converted[i] = orm.MetadataFixtureRecord{Model: record.Model, PK: record.PK, Fields: cloneFixtureFields(record.Fields)}
+	}
+	return s.store.Load(ctx, converted)
 }
 
 func (s *MemoryFixtureStore) Dump(_ context.Context, query FixtureQuery) ([]FixtureRecord, error) {

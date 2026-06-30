@@ -178,10 +178,11 @@ func TestProjectTemplatesRenderParseablePublicGoFiles(t *testing.T) {
 		`"myproject/myproject"`,
 		`"myproject/myproject/settings"`,
 		"management.MainProject",
-		"Settings:   settings.Local",
-		"AppConfigs: myproject.AppConfigs",
-		"Router:     myproject.NewRouter",
-		"QueueApp:   myproject.NewQueueApp",
+		"Settings:      settings.Local",
+		"AppConfigs:    myproject.AppConfigs",
+		"ModelMetadata: myproject.ModelMetadata",
+		"Router:        myproject.NewRouter",
+		"QueueApp:      myproject.NewQueueApp",
 	} {
 		if !strings.Contains(files["manage.go"], want) {
 			t.Fatalf("manage.go missing %q:\n%s", want, files["manage.go"])

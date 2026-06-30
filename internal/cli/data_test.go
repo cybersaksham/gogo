@@ -10,6 +10,12 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/cybersaksham/gogo/models"
+	"github.com/cybersaksham/gogo/orm"
+	sqlitedialect "github.com/cybersaksham/gogo/orm/dialects/sqlite"
+
+	_ "modernc.org/sqlite"
 )
 
 func TestDumpdataCommandFiltersNaturalKeysAndDatabase(t *testing.T) {
@@ -152,6 +158,45 @@ func TestRootDataCommandsShareDefaultFixtureStore(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), `"model":"blog.Post"`) || !strings.Contains(stdout.String(), `"title":"Loaded"`) {
 		t.Fatalf("dumpdata output = %s", stdout.String())
+	}
+}
+
+func TestMetadataFixtureStorePersistsToDatabase(t *testing.T) {
+	ctx := context.Background()
+	database, err := orm.OpenDatabase(ctx, orm.DatabaseConfig{Name: orm.DefaultDatabase, Driver: "sqlite", DSN: filepath.Join(t.TempDir(), "fixtures.sqlite3"), Dialect: sqlitedialect.New()})
+	if err != nil {
+		t.Fatalf("OpenDatabase() error = %v", err)
+	}
+	defer database.Close()
+	if _, err := database.SQLDB().ExecContext(ctx, `CREATE TABLE blog_post (id bigint PRIMARY KEY, title text NOT NULL, slug text NOT NULL, created_at timestamp, updated_at timestamp)`); err != nil {
+		t.Fatalf("create table: %v", err)
+	}
+
+	store := NewMetadataFixtureStore(orm.NewMetadataStore(database, fixturePostMeta()))
+	if err := store.Load(ctx, []FixtureRecord{{Model: "blog.Post", PK: int64(1), Fields: map[string]any{"title": "Loaded", "slug": "loaded"}}}, FixtureLoadOptions{}); err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	records, err := store.Dump(ctx, FixtureQuery{Labels: []string{"blog.Post"}})
+	if err != nil {
+		t.Fatalf("Dump() error = %v", err)
+	}
+	if len(records) != 1 || records[0].Model != "blog.Post" || records[0].PK != int64(1) || records[0].Fields["title"] != "Loaded" {
+		t.Fatalf("records = %#v", records)
+	}
+}
+
+func fixturePostMeta() models.Metadata {
+	return models.Metadata{
+		AppLabel:  "blog",
+		ModelName: "Post",
+		TableName: "blog_post",
+		Fields: []models.FieldMeta{
+			{Name: "id", Column: "id", PrimaryKey: true},
+			{Name: "title", Column: "title"},
+			{Name: "slug", Column: "slug"},
+			{Name: "created_at", Column: "created_at"},
+			{Name: "updated_at", Column: "updated_at"},
+		},
 	}
 }
 

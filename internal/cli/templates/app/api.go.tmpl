@@ -2,18 +2,33 @@ package {{.AppName}}
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/cybersaksham/gogo/api"
+	"github.com/cybersaksham/gogo/conf"
+	"github.com/cybersaksham/gogo/orm"
 )
 
 func RegisterAPI(router *api.Router) error {
-	return router.Handle(AppLabel+"-item-list", AppLabel+"/items", ListItems, http.MethodGet)
+	store, err := newAPIModelStore(context.Background())
+	if err != nil {
+		return err
+	}
+	viewset := &api.ModelViewSet{
+		Store:       api.NewMetadataViewSetStore(store, Item{}.ModelMeta()),
+		Serializer:  ItemSerializer(),
+		LookupParam: "id",
+	}
+	return router.Register(AppLabel+"/items", AppLabel+"-item", viewset)
 }
 
-func ListItems(context.Context, *api.Request) api.Response {
-	return api.JSON(http.StatusOK, map[string]any{
-		"count":   0,
-		"results": []map[string]any{},
-	})
+func newAPIModelStore(ctx context.Context) (*orm.MetadataStore, error) {
+	settings, err := conf.LoadFromEnv()
+	if err != nil {
+		return nil, err
+	}
+	database, err := orm.OpenDatabaseURL(ctx, orm.DefaultDatabase, settings.DatabaseURL)
+	if err != nil {
+		return nil, err
+	}
+	return orm.NewMetadataStore(database, ModelMetadata()...), nil
 }

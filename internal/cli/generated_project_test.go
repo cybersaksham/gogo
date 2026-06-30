@@ -30,6 +30,8 @@ func TestGeneratedProjectWithAppCompilesAsDownstreamModule(t *testing.T) {
 	writeTextFile(t, filepath.Join(target, ".env"), "GOGO_SECRET_KEY=generated-project-secret\nDATABASE_URL=sqlite://./db.sqlite3\n")
 	writeTextFile(t, filepath.Join(target, "generated_runtime_test.go"), generatedRuntimeRouteTestSource())
 	runGeneratedCommand(t, target, "go", "mod", "tidy")
+	runGeneratedCommand(t, target, "go", "run", "manage.go", "makemigrations")
+	runGeneratedCommand(t, target, "go", "run", "manage.go", "migrate")
 	runGeneratedCommand(t, target, "go", "run", "manage.go", "createsuperuser", "--username", "admin", "--email", "admin@example.com", "--password", "CorrectHorseBatteryStaple42", "--noinput")
 	inspectOutput := runGeneratedCommandOutput(t, target, "go", "run", "manage.go", "inspect", "--report")
 	if !strings.Contains(inspectOutput, "registered=1") {

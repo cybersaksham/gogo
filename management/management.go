@@ -10,15 +10,18 @@ import (
 	"github.com/cybersaksham/gogo/conf"
 	gogohttp "github.com/cybersaksham/gogo/http"
 	"github.com/cybersaksham/gogo/internal/cli"
+	"github.com/cybersaksham/gogo/models"
+	"github.com/cybersaksham/gogo/orm"
 	"github.com/cybersaksham/gogo/queue"
 )
 
 // Project connects generated client project wiring to management commands.
 type Project struct {
-	Settings   func() conf.Settings
-	AppConfigs func() []app.Config
-	Router     func() (*gogohttp.Router, error)
-	QueueApp   func() *queue.App
+	Settings      func() conf.Settings
+	AppConfigs    func() []app.Config
+	ModelMetadata func() []models.Metadata
+	Router        func() (*gogohttp.Router, error)
+	QueueApp      func() *queue.App
 }
 
 // Execute runs the Gogo management command registry.
@@ -31,6 +34,7 @@ func ExecuteProject(ctx context.Context, args []string, stdout, stderr io.Writer
 	return cli.NewRootWithOptions(cli.RootOptions{
 		RunserverStarter: project.serverStarter(stdout),
 		QueueRuntime:     project.queueRuntime(),
+		FixtureStore:     project.fixtureStore(context.Background()),
 	}).Execute(ctx, args, stdout, stderr)
 }
 
@@ -59,6 +63,24 @@ func (p Project) queueRuntime() *cli.QueueRuntime {
 		runtime.App = app
 	}
 	return runtime
+}
+
+func (p Project) fixtureStore(ctx context.Context) cli.FixtureStore {
+	if p.ModelMetadata == nil {
+		return nil
+	}
+	settings, err := conf.LoadFromEnv()
+	if err != nil {
+		return cli.NewErrorFixtureStore(err)
+	}
+	if p.Settings != nil {
+		settings = mergeSettings(p.Settings(), settings)
+	}
+	database, err := orm.OpenDatabaseURL(ctx, orm.DefaultDatabase, settings.DatabaseURL)
+	if err != nil {
+		return cli.NewErrorFixtureStore(err)
+	}
+	return cli.NewMetadataFixtureStore(orm.NewMetadataStore(database, p.ModelMetadata()...))
 }
 
 func (p Project) serverStarter(accessLog io.Writer) cli.ServerStarter {

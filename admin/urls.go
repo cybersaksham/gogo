@@ -2,6 +2,7 @@ package admin
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/cybersaksham/gogo/auth"
 	gogohttp "github.com/cybersaksham/gogo/http"
+	"github.com/cybersaksham/gogo/models"
 )
 
 // URLs builds the namespaced admin router for this site.
@@ -154,12 +156,16 @@ func adminAppListView(site *Site) gogohttp.View {
 }
 
 func adminChangeListView(site *Site, modelAdmin ModelAdmin) gogohttp.View {
-	return func(_ context.Context, request *gogohttp.Request) gogohttp.Response {
+	return func(ctx context.Context, request *gogohttp.Request) gogohttp.Response {
 		user, ok := adminRequestUser(site, request.Raw())
 		if !ok || !(modelAdmin.HasViewPermission(request.Raw(), user) || modelAdmin.HasChangePermission(request.Raw(), user)) {
 			return gogohttp.Forbidden("Forbidden", nil)
 		}
-		changeList, err := BuildChangeList(modelAdmin, rowsFromModelAdmin(modelAdmin, request.Raw()), request.Raw().URL.Query())
+		rows, err := rowsForAdminChangeList(ctx, site, modelAdmin, request.Raw())
+		if err != nil {
+			return gogohttp.InternalServerError(err)
+		}
+		changeList, err := BuildChangeList(modelAdmin, rows, request.Raw().URL.Query())
 		if err != nil {
 			return gogohttp.BadRequest("Bad Request", err)
 		}
@@ -171,18 +177,45 @@ func adminChangeListView(site *Site, modelAdmin ModelAdmin) gogohttp.View {
 }
 
 func adminChangeFormView(site *Site, modelAdmin ModelAdmin, mode ChangeFormMode) gogohttp.View {
-	return func(_ context.Context, request *gogohttp.Request) gogohttp.Response {
+	return func(ctx context.Context, request *gogohttp.Request) gogohttp.Response {
 		user, ok := adminRequestUser(site, request.Raw())
 		if !ok {
 			return gogohttp.Forbidden("Forbidden", nil)
 		}
 		objectID := request.PathParam("object_id")
+		values := formValues(request.Raw())
+		if site = adminSiteOrDefault(site); site.ModelStore != nil {
+			switch {
+			case mode == ChangeFormAdd && request.Method() == http.MethodPost:
+				created, err := site.ModelStore.Create(ctx, modelAdmin.Model, values)
+				if err != nil {
+					return gogohttp.BadRequest("Bad Request", err)
+				}
+				return adminSaveRedirect(site, modelAdmin, created, request.Raw())
+			case mode == ChangeFormEdit:
+				object, exists, err := site.ModelStore.Get(ctx, modelAdmin.Model, objectID)
+				if err != nil {
+					return gogohttp.InternalServerError(err)
+				}
+				if !exists {
+					return gogohttp.NotFound("Not Found", nil)
+				}
+				if request.Method() == http.MethodPost {
+					updated, err := site.ModelStore.Update(ctx, modelAdmin.Model, objectID, values, true)
+					if err != nil {
+						return gogohttp.BadRequest("Bad Request", err)
+					}
+					return adminSaveRedirect(site, modelAdmin, updated, request.Raw())
+				}
+				values = object
+			}
+		}
 		formContext, err := BuildChangeForm(modelAdmin, ChangeFormInput{
 			Mode:     mode,
 			ObjectID: objectID,
 			User:     user,
 			Request:  request.Raw(),
-			Values:   formValues(request.Raw()),
+			Values:   values,
 		})
 		if err != nil {
 			return gogohttp.Forbidden("Forbidden", err)
@@ -205,21 +238,37 @@ func adminChangeFormView(site *Site, modelAdmin ModelAdmin, mode ChangeFormMode)
 }
 
 func adminDeleteView(site *Site, modelAdmin ModelAdmin) gogohttp.View {
-	return func(_ context.Context, request *gogohttp.Request) gogohttp.Response {
+	return func(ctx context.Context, request *gogohttp.Request) gogohttp.Response {
 		user, ok := adminRequestUser(site, request.Raw())
 		if !ok || !modelAdmin.HasDeletePermission(request.Raw(), user) {
 			return gogohttp.Forbidden("Forbidden", nil)
 		}
 		objectID := request.PathParam("object_id")
+		objectRepr := objectID
+		if site = adminSiteOrDefault(site); site.ModelStore != nil {
+			object, exists, err := site.ModelStore.Get(ctx, modelAdmin.Model, objectID)
+			if err != nil {
+				return gogohttp.InternalServerError(err)
+			}
+			if !exists {
+				return gogohttp.NotFound("Not Found", nil)
+			}
+			objectRepr = rowDisplay(object, objectID)
+		}
 		data := modelAdminPageData(site, request.Raw(), modelAdmin, "Delete "+modelVerboseName(modelAdmin), "Are you sure?", "delete-confirmation")
 		data.Deletion = CollectDeletion([]DeletionObject{{
 			Label:    data.ModelVerboseName,
 			ObjectID: objectID,
-			Repr:     objectID,
+			Repr:     objectRepr,
 		}})
 		if request.Method() == http.MethodPost {
 			if err := ConfirmDeletion(data.Deletion); err != nil {
 				return gogohttp.Conflict("Conflict", err)
+			}
+			if site.ModelStore != nil {
+				if err := site.ModelStore.Delete(ctx, modelAdmin.Model, objectID); err != nil {
+					return gogohttp.InternalServerError(err)
+				}
 			}
 			return gogohttp.TemporaryRedirect(data.ChangeListURL)
 		}
@@ -228,10 +277,19 @@ func adminDeleteView(site *Site, modelAdmin ModelAdmin) gogohttp.View {
 }
 
 func adminHistoryView(site *Site, modelAdmin ModelAdmin) gogohttp.View {
-	return func(_ context.Context, request *gogohttp.Request) gogohttp.Response {
+	return func(ctx context.Context, request *gogohttp.Request) gogohttp.Response {
 		user, ok := adminRequestUser(site, request.Raw())
 		if !ok || !modelAdmin.HasViewPermission(request.Raw(), user) {
 			return gogohttp.Forbidden("Forbidden", nil)
+		}
+		if site = adminSiteOrDefault(site); site.ModelStore != nil {
+			_, exists, err := site.ModelStore.Get(ctx, modelAdmin.Model, request.PathParam("object_id"))
+			if err != nil {
+				return gogohttp.InternalServerError(err)
+			}
+			if !exists {
+				return gogohttp.NotFound("Not Found", nil)
+			}
 		}
 		data := modelAdminPageData(site, request.Raw(), modelAdmin, "History "+modelVerboseName(modelAdmin), "Object history", "history")
 		data.History = BuildHistoryPage(nil, modelAdmin.Model.Label(), request.PathParam("object_id"))
@@ -277,6 +335,53 @@ func formValues(request *http.Request) map[string]any {
 		values[key] = request.PostFormValue(key)
 	}
 	return values
+}
+
+func rowsForAdminChangeList(ctx context.Context, site *Site, modelAdmin ModelAdmin, request *http.Request) ([]map[string]any, error) {
+	site = adminSiteOrDefault(site)
+	if site.ModelStore != nil {
+		return site.ModelStore.List(ctx, modelAdmin.Model)
+	}
+	return rowsFromModelAdmin(modelAdmin, request), nil
+}
+
+func adminSaveRedirect(site *Site, modelAdmin ModelAdmin, object map[string]any, request *http.Request) gogohttp.Response {
+	site = adminSiteOrDefault(site)
+	base := adminModelURL(site, modelAdmin)
+	objectID := fmt.Sprint(objectPrimaryKey(modelAdmin.Model, object))
+	if err := request.ParseForm(); err != nil {
+		return gogohttp.BadRequest("Bad Request", err)
+	}
+	switch ResolveSaveIntent(request.PostForm) {
+	case SaveIntentContinue:
+		return gogohttp.TemporaryRedirect(base + objectID + "/change/")
+	case SaveIntentAddAnother:
+		return gogohttp.TemporaryRedirect(base + "add/")
+	default:
+		return gogohttp.TemporaryRedirect(base)
+	}
+}
+
+func adminModelURL(site *Site, modelAdmin ModelAdmin) string {
+	return site.URLPrefix + "/" + strings.ToLower(modelAdmin.Model.AppLabel) + "/" + strings.ToLower(modelAdmin.Model.ModelName) + "/"
+}
+
+func objectPrimaryKey(meta models.Metadata, object map[string]any) any {
+	for _, field := range meta.Fields {
+		if field.PrimaryKey {
+			return object[field.Name]
+		}
+	}
+	return object["id"]
+}
+
+func rowDisplay(row map[string]any, fallback string) string {
+	for _, key := range []string{"name", "title", "slug", "id"} {
+		if value := row[key]; value != nil && fmt.Sprint(value) != "" {
+			return fmt.Sprint(value)
+		}
+	}
+	return fallback
 }
 
 func groupedAdminModels(site *Site, onlyApp string) []IndexApp {

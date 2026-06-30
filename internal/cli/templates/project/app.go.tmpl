@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/cybersaksham/gogo/app"
+	"github.com/cybersaksham/gogo/models"
 )
 
 func NewConfig() app.BaseConfig {
@@ -25,4 +26,10 @@ func AppConfigs() []app.Config {
 		NewConfig(),
 		// gogo:startapp-configs
 	}
+}
+
+func ModelMetadata() []models.Metadata {
+	var metadata []models.Metadata
+	// gogo:startapp-model-metadata
+	return metadata
 }

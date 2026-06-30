@@ -23,6 +23,7 @@ type RootOptions struct {
 	RunserverStarter ServerStarter
 	AuthStore        authUserStore
 	QueueRuntime     *QueueRuntime
+	FixtureStore     FixtureStore
 }
 
 // NewRootWithOptions creates the root CLI with project-specific integrations.
@@ -131,7 +132,10 @@ func (c versionCommand) runWithIO(_ context.Context, _ []string, stdout, _ io.Wr
 }
 
 func plannedCommands(root *Root, options RootOptions) []Command {
-	fixtureStore := NewMemoryFixtureStore()
+	fixtureStore := options.FixtureStore
+	if fixtureStore == nil {
+		fixtureStore = NewMemoryFixtureStore()
+	}
 	authStore := defaultAuthStore
 	if options.AuthStore != nil {
 		authStore = options.AuthStore

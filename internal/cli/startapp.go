@@ -120,6 +120,9 @@ func autoInstallGeneratedApp(target, appName string) error {
 	if err := installAppInGoFile(filepath.Join(projectDir, "app.go"), appImportPath, "// gogo:startapp-configs", fmt.Sprintf("\t\t%s.NewConfig(),\n\t\t// gogo:startapp-configs", appName)); err != nil {
 		return err
 	}
+	if err := installAppInGoFile(filepath.Join(projectDir, "app.go"), appImportPath, "// gogo:startapp-model-metadata", fmt.Sprintf("\tmetadata = append(metadata, %s.ModelMetadata()...)\n\t// gogo:startapp-model-metadata", appName)); err != nil {
+		return err
+	}
 	return nil
 }
 

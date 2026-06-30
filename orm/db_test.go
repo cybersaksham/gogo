@@ -40,6 +40,28 @@ func TestOpenDatabasePingStatsAndClose(t *testing.T) {
 	}
 }
 
+func TestDatabaseConfigFromURLSupportsSQLiteAndPostgres(t *testing.T) {
+	sqliteConfig, err := DatabaseConfigFromURL("default", "sqlite://./db.sqlite3")
+	if err != nil {
+		t.Fatalf("DatabaseConfigFromURL(sqlite) error = %v", err)
+	}
+	if sqliteConfig.Name != "default" || sqliteConfig.Driver != "sqlite" || sqliteConfig.DSN != "./db.sqlite3" || sqliteConfig.Dialect.Name() != "sqlite" {
+		t.Fatalf("sqlite config = %#v", sqliteConfig)
+	}
+
+	postgresConfig, err := DatabaseConfigFromURL("replica", "postgres://user:pass@localhost:5432/app?sslmode=disable")
+	if err != nil {
+		t.Fatalf("DatabaseConfigFromURL(postgres) error = %v", err)
+	}
+	if postgresConfig.Name != "replica" || postgresConfig.Driver != "pgx" || postgresConfig.DSN == "" || postgresConfig.Dialect.Name() != "postgres" {
+		t.Fatalf("postgres config = %#v", postgresConfig)
+	}
+
+	if _, err := DatabaseConfigFromURL("", ""); err == nil {
+		t.Fatalf("DatabaseConfigFromURL(empty) error = nil")
+	}
+}
+
 func TestOpenDatabaseUsesHealthCheck(t *testing.T) {
 	called := false
 	_, err := OpenDatabase(context.Background(), DatabaseConfig{

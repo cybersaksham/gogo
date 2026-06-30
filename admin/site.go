@@ -1,12 +1,14 @@
 package admin
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
 	"sync"
 
 	"github.com/cybersaksham/gogo/auth"
+	"github.com/cybersaksham/gogo/models"
 )
 
 var (
@@ -17,6 +19,15 @@ var (
 // PermissionPolicy controls access to the admin site.
 type PermissionPolicy interface {
 	HasAccess(*http.Request) bool
+}
+
+// ModelObjectStore persists admin model rows for metadata-backed CRUD.
+type ModelObjectStore interface {
+	List(context.Context, models.Metadata) ([]map[string]any, error)
+	Get(context.Context, models.Metadata, string) (map[string]any, bool, error)
+	Create(context.Context, models.Metadata, map[string]any) (map[string]any, error)
+	Update(context.Context, models.Metadata, string, map[string]any, bool) (map[string]any, error)
+	Delete(context.Context, models.Metadata, string) error
 }
 
 // StaffPermissionPolicy allows active staff users only.
@@ -47,6 +58,7 @@ type Site struct {
 	PasswordChangeView http.Handler
 	PermissionPolicy   PermissionPolicy
 	ModelRegistry      *Registry
+	ModelStore         ModelObjectStore
 }
 
 // SiteOptions configures an admin site.
@@ -61,6 +73,7 @@ type SiteOptions struct {
 	PasswordChangeView http.Handler
 	PermissionPolicy   PermissionPolicy
 	ModelRegistry      *Registry
+	ModelStore         ModelObjectStore
 }
 
 // DefaultSite returns the built-in admin site.
@@ -95,6 +108,7 @@ func NewSite(options SiteOptions) (*Site, error) {
 		PasswordChangeView: handlerOrDefault(options.PasswordChangeView),
 		PermissionPolicy:   options.PermissionPolicy,
 		ModelRegistry:      options.ModelRegistry,
+		ModelStore:         options.ModelStore,
 	}
 	if site.PermissionPolicy == nil {
 		site.PermissionPolicy = StaffPermissionPolicy{}

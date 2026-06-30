@@ -9,9 +9,10 @@ import (
 
 func main() {
 	management.MainProject(management.Project{
-		Settings:   settings.Local,
-		AppConfigs: {{.ProjectName}}.AppConfigs,
-		Router:     {{.ProjectName}}.NewRouter,
-		QueueApp:   {{.ProjectName}}.NewQueueApp,
+		Settings:      settings.Local,
+		AppConfigs:    {{.ProjectName}}.AppConfigs,
+		ModelMetadata: {{.ProjectName}}.ModelMetadata,
+		Router:        {{.ProjectName}}.NewRouter,
+		QueueApp:      {{.ProjectName}}.NewQueueApp,
 	})
 }

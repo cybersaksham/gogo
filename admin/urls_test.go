@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -10,6 +11,10 @@ import (
 	"github.com/cybersaksham/gogo/auth"
 	gogohttp "github.com/cybersaksham/gogo/http"
 	"github.com/cybersaksham/gogo/models"
+	"github.com/cybersaksham/gogo/orm"
+	sqlitedialect "github.com/cybersaksham/gogo/orm/dialects/sqlite"
+
+	_ "modernc.org/sqlite"
 )
 
 func TestAdminURLsGenerateNamespacedRoutesAndReverse(t *testing.T) {
@@ -190,6 +195,70 @@ func TestAdminModelRoutesRenderDjangoStylePages(t *testing.T) {
 	}
 }
 
+func TestAdminModelRoutesPersistCRUDThroughModelStore(t *testing.T) {
+	meta := models.Metadata{
+		AppLabel:    "blog",
+		ModelName:   "Post",
+		TableName:   "blog_post",
+		Fields:      []models.FieldMeta{{Name: "id", Column: "id", PrimaryKey: true}, {Name: "title", Column: "title"}, {Name: "slug", Column: "slug"}, {Name: "created_at", Column: "created_at"}, {Name: "updated_at", Column: "updated_at"}},
+		VerboseName: "post",
+	}
+	database, err := orm.OpenDatabase(t.Context(), orm.DatabaseConfig{Name: orm.DefaultDatabase, Driver: "sqlite", DSN: t.TempDir() + "/admin.sqlite3", Dialect: sqlitedialect.New()})
+	if err != nil {
+		t.Fatalf("OpenDatabase() error = %v", err)
+	}
+	defer database.Close()
+	if _, err := database.SQLDB().ExecContext(t.Context(), `CREATE TABLE blog_post (id bigint PRIMARY KEY, title text NOT NULL, slug text NOT NULL, created_at timestamp, updated_at timestamp)`); err != nil {
+		t.Fatalf("create table: %v", err)
+	}
+
+	site := DefaultSite()
+	site.ModelStore = orm.NewMetadataStore(database, meta)
+	if err := site.ModelRegistry.RegisterMetadata(meta, ModelAdmin{ListDisplay: []string{"title", "slug"}, Fields: []string{"title", "slug"}}); err != nil {
+		t.Fatalf("RegisterMetadata() error = %v", err)
+	}
+	router, err := site.URLs()
+	if err != nil {
+		t.Fatalf("URLs() error = %v", err)
+	}
+
+	add := httptest.NewRecorder()
+	router.ServeHTTP(add, staffAdminFormRequest("/admin/blog/post/add/", "title=First&slug=first&_save=Save"))
+	if add.Code != http.StatusFound || add.Header().Get("Location") != "/admin/blog/post/" {
+		t.Fatalf("add response = %d location=%q body=%s", add.Code, add.Header().Get("Location"), add.Body.String())
+	}
+
+	list := httptest.NewRecorder()
+	router.ServeHTTP(list, staffAdminRequest(http.MethodGet, "/admin/blog/post/"))
+	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), "First") || !strings.Contains(list.Body.String(), "first") {
+		t.Fatalf("changelist response = %d body=%s", list.Code, list.Body.String())
+	}
+
+	change := httptest.NewRecorder()
+	router.ServeHTTP(change, staffAdminRequest(http.MethodGet, "/admin/blog/post/1/change/"))
+	if change.Code != http.StatusOK || !strings.Contains(change.Body.String(), `value="First"`) || !strings.Contains(change.Body.String(), `/admin/blog/post/1/delete/`) {
+		t.Fatalf("change response = %d body=%s", change.Code, change.Body.String())
+	}
+
+	update := httptest.NewRecorder()
+	router.ServeHTTP(update, staffAdminFormRequest("/admin/blog/post/1/change/", "title=Updated&slug=first&_continue=Save+and+continue+editing"))
+	if update.Code != http.StatusFound || update.Header().Get("Location") != "/admin/blog/post/1/change/" {
+		t.Fatalf("update response = %d location=%q body=%s", update.Code, update.Header().Get("Location"), update.Body.String())
+	}
+
+	deleteResponse := httptest.NewRecorder()
+	router.ServeHTTP(deleteResponse, staffAdminFormRequest("/admin/blog/post/1/delete/", "post=yes"))
+	if deleteResponse.Code != http.StatusFound || deleteResponse.Header().Get("Location") != "/admin/blog/post/" {
+		t.Fatalf("delete response = %d location=%q body=%s", deleteResponse.Code, deleteResponse.Header().Get("Location"), deleteResponse.Body.String())
+	}
+
+	missing := httptest.NewRecorder()
+	router.ServeHTTP(missing, staffAdminRequest(http.MethodGet, "/admin/blog/post/1/change/"))
+	if missing.Code != http.StatusNotFound {
+		t.Fatalf("missing change response = %d body=%s", missing.Code, missing.Body.String())
+	}
+}
+
 func TestAdminAuthViewsRenderDjangoStyleForms(t *testing.T) {
 	site := DefaultSite()
 	config := AuthViewConfig{Site: site}
@@ -269,6 +338,14 @@ func staffAdminRequest(method, path string) *http.Request {
 	}}
 	request := httptest.NewRequest(method, path, nil)
 	return request.WithContext(auth.ContextWithUser(request.Context(), staff))
+}
+
+func staffAdminFormRequest(path, body string) *http.Request {
+	request := staffAdminRequest(http.MethodPost, path)
+	request.Body = io.NopCloser(strings.NewReader(body))
+	request.ContentLength = int64(len(body))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	return request
 }
 
 func routeNames(routes []gogohttp.Route) []string {
