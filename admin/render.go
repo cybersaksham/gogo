@@ -39,8 +39,11 @@ type adminPageData struct {
 	SiteURL           string
 	LogoutURL         string
 	PasswordChangeURL string
+	ContentClass      string
+	OmitContentClass  bool
 	StaticCSSURL      string
 	StaticCSSURLs     []string
+	StaticHeadJSURLs  []string
 	StaticJSURL       string
 	StaticJSURLs      []string
 	CSRFToken         string
@@ -119,6 +122,7 @@ func baseAdminPageData(site *Site, request *http.Request, title, contentTitle, b
 		SiteURL:           site.URLPrefix + "/",
 		LogoutURL:         site.URLPrefix + "/logout/",
 		PasswordChangeURL: site.URLPrefix + "/password_change/",
+		ContentClass:      "colM",
 		StaticCSSURL:      site.URLPrefix + "/static/admin.css",
 		StaticCSSURLs: []string{
 			site.URLPrefix + "/static/admin/css/base.css",
@@ -131,9 +135,13 @@ func baseAdminPageData(site *Site, request *http.Request, title, contentTitle, b
 			site.URLPrefix + "/static/admin/css/widgets.css",
 			site.URLPrefix + "/static/admin/css/responsive.css",
 		},
-		StaticJSURL:  site.URLPrefix + "/static/admin.js",
-		StaticJSURLs: []string{site.URLPrefix + "/static/admin.js"},
-		Breadcrumbs:  []adminBreadcrumb{{URL: site.URLPrefix + "/", Label: "Home"}},
+		StaticHeadJSURLs: []string{site.URLPrefix + "/static/admin/js/theme.js"},
+		StaticJSURL:      site.URLPrefix + "/static/admin.js",
+		StaticJSURLs: []string{
+			site.URLPrefix + "/static/admin/js/nav_sidebar.js",
+			site.URLPrefix + "/static/admin.js",
+		},
+		Breadcrumbs: []adminBreadcrumb{{URL: site.URLPrefix + "/", Label: "Home"}},
 	}
 	data.UserName = adminUserDisplayName(site, request)
 	data.CSRFToken, data.csrfCookie = adminCSRFPageToken(request)

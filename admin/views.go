@@ -145,6 +145,7 @@ func renderAdminHTTPTemplateStatus(w http.ResponseWriter, name string, data admi
 func baseLoginPageData(config AuthViewConfig, request *http.Request, errorMessage string) adminPageData {
 	site := config.site()
 	data := baseAdminPageData(site, request, "Log in", "Log in", "login")
+	data.ContentTitle = ""
 	data.Next = request.URL.Query().Get("next")
 	if data.Next == "" {
 		data.Next = request.FormValue("next")

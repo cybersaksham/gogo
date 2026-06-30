@@ -1,9 +1,8 @@
 {{define "base"}}
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{or .Title "Gogo site admin"}}</title>
   {{if .StaticCSSURLs}}
   {{range .StaticCSSURLs}}<link rel="stylesheet" href="{{.}}">
@@ -15,18 +14,24 @@
   <link rel="stylesheet" href="/admin/static/admin/css/dashboard.css">
   <link rel="stylesheet" href="/admin/static/admin/css/responsive.css">
   {{end}}
+  {{range .StaticHeadJSURLs}}<script src="{{.}}"></script>
+  {{end}}
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="NONE,NOARCHIVE">
 </head>
 <body class="{{if .BodyClass}}{{.BodyClass}}{{else}}dashboard{{end}}" data-admin-utc-offset="0">
+  <a href="#content-start" class="skip-to-content-link">Skip to main content</a>
   <div id="container">
     <header id="header">
       <div id="branding">
-        <h1 id="site-name"><a href="{{.SiteURL}}">{{or .Header "Gogo administration"}}</a></h1>
+        <div id="site-name"><a href="{{.SiteURL}}">{{or .Header "Gogo administration"}}</a></div>
       </div>
       {{if .UserName}}
       <div id="user-tools">
         Welcome, <strong>{{.UserName}}</strong>.
         <a href="{{.PasswordChangeURL}}">Change password</a> /
         <form id="logout-form" method="post" action="{{.LogoutURL}}">
+          <input type="hidden" name="csrfmiddlewaretoken" value="{{.CSRFToken}}">
           <button type="submit">Log out</button>
         </form>
       </div>
@@ -41,11 +46,15 @@
       </div>
     </nav>
     {{end}}
-    <main id="content" class="colM" tabindex="-1">
-      {{if .ContentTitle}}<h1>{{.ContentTitle}}</h1>{{end}}
-      {{block "content" .}}{{end}}
-      <br class="clear">
-    </main>
+    <div class="main" id="main">
+      <main id="content-start" class="content" tabindex="-1">
+        <div id="content"{{if .OmitContentClass}}{{else if .ContentClass}} class="{{.ContentClass}}"{{else}} class="colM"{{end}}>
+          {{if .ContentTitle}}<h1>{{.ContentTitle}}</h1>{{end}}
+          {{block "content" .}}{{end}}
+          <br class="clear">
+        </div>
+      </main>
+    </div>
     <footer id="footer"></footer>
   </div>
   {{if .StaticJSURLs}}

@@ -48,7 +48,10 @@ func TestAdminTemplatesRenderBlocksAndAllowOverrides(t *testing.T) {
 		t.Fatalf("RenderTemplate(index) error = %v", err)
 	}
 	for _, want := range []string{
-		"<main",
+		`href="#content-start" class="skip-to-content-link"`,
+		`<div class="main" id="main">`,
+		`<main id="content-start" class="content" tabindex="-1">`,
+		`<div id="content" class="colM">`,
 		"Gogo administration",
 		"blog",
 		`href="/admin/static/admin/css/base.css"`,

@@ -191,6 +191,8 @@ func adminIndexView(site *Site) gogohttp.View {
 	return func(_ context.Context, request *gogohttp.Request) gogohttp.Response {
 		data := baseAdminPageData(site, request.Raw(), adminSiteOrDefault(site).IndexTitle, adminSiteOrDefault(site).IndexTitle, "dashboard")
 		data.Apps = groupedAdminModels(adminSiteOrDefault(site), "")
+		data.Breadcrumbs = nil
+		data.ContentClass = "colMS"
 		return renderAdminTemplate("index.html", data)
 	}
 }
@@ -201,6 +203,7 @@ func adminAppListView(site *Site) gogohttp.View {
 		appLabel := strings.ToLower(request.PathParam("app_label"))
 		data := baseAdminPageData(site, request.Raw(), appLabel, appLabel, "dashboard app-"+adminClassName(appLabel))
 		data.Apps = groupedAdminModels(site, appLabel)
+		data.ContentClass = "colMS"
 		data.Breadcrumbs = append(data.Breadcrumbs, adminBreadcrumb{URL: site.URLPrefix + "/" + appLabel + "/", Label: appLabel})
 		return renderAdminTemplate("index.html", data)
 	}
@@ -222,6 +225,7 @@ func adminChangeListView(site *Site, modelAdmin ModelAdmin) gogohttp.View {
 		}
 		verboseName := modelVerboseName(modelAdmin)
 		data := modelAdminPageData(site, request.Raw(), modelAdmin, "Select "+verboseName+" to change", "Select "+verboseName+" to change", "change-list")
+		data.OmitContentClass = true
 		data.ChangeList = changeList
 		return renderAdminTemplate("change_list.html", data)
 	}
