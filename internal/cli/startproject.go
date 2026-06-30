@@ -76,9 +76,10 @@ func (c startprojectCommand) Run(ctx context.Context, args []string) error {
 	}
 
 	if projectData.GogoModuleVersion != "" {
-		if err := hydrateProjectModule(ctx, target); err != nil {
-			return err
-		}
+		// Hydration improves first-run readiness for released CLIs, but scaffolding
+		// must still succeed for local builds, unpublished test versions, and
+		// temporarily unreachable module proxies.
+		_ = hydrateProjectModule(ctx, target)
 	}
 
 	return nil
