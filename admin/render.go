@@ -46,6 +46,7 @@ type adminPageData struct {
 	StaticCSSURL      string
 	StaticCSSURLs     []string
 	StaticHeadJSURLs  []string
+	StaticDeferJSURLs []string
 	StaticJSURL       string
 	StaticJSURLs      []string
 	CSRFToken         string
@@ -136,12 +137,10 @@ func baseAdminPageData(site *Site, request *http.Request, title, contentTitle, b
 		StaticCSSURL:      site.URLPrefix + "/static/admin.css",
 		StaticCSSURLs:     adminCSSURLs(site.URLPrefix, bodyClass),
 		StaticHeadJSURLs:  []string{site.URLPrefix + "/static/admin/js/theme.js"},
+		StaticDeferJSURLs: adminDeferJSURLs(site.URLPrefix, bodyClass),
 		StaticJSURL:       site.URLPrefix + "/static/admin.js",
-		StaticJSURLs: []string{
-			site.URLPrefix + "/static/admin/js/nav_sidebar.js",
-			site.URLPrefix + "/static/admin.js",
-		},
-		Breadcrumbs: []adminBreadcrumb{{URL: site.URLPrefix + "/", Label: "Home"}},
+		StaticJSURLs:      adminJSURLs(site.URLPrefix, bodyClass),
+		Breadcrumbs:       []adminBreadcrumb{{URL: site.URLPrefix + "/", Label: "Home"}},
 	}
 	data.UserName = adminUserDisplayName(site, request)
 	data.CSRFToken, data.csrfCookie = adminCSRFPageToken(request)
@@ -198,6 +197,66 @@ func adminCSSURLs(prefix, bodyClass string) []string {
 		urls = append(urls, prefix+"/static/admin/css/dashboard.css")
 	}
 	urls = append(urls, prefix+"/static/admin/css/responsive.css")
+	return urls
+}
+
+func adminDeferJSURLs(prefix, bodyClass string) []string {
+	bodyClass = " " + strings.TrimSpace(bodyClass) + " "
+	urls := []string{}
+	if !strings.Contains(bodyClass, " login ") {
+		urls = append(urls, prefix+"/static/admin/js/nav_sidebar.js")
+	}
+	if strings.Contains(bodyClass, " change-list ") {
+		urls = append(urls, prefix+"/static/admin/js/filters.js")
+	}
+	return urls
+}
+
+func adminJSURLs(prefix, bodyClass string) []string {
+	bodyClass = " " + strings.TrimSpace(bodyClass) + " "
+	switch {
+	case strings.Contains(bodyClass, " change-form "):
+		return adminStaticJS(prefix, []string{
+			"jsi18n/",
+			"static/admin/js/vendor/jquery/jquery.js",
+			"static/admin/js/calendar.js",
+			"static/admin/js/jquery.init.js",
+			"static/admin/js/admin/DateTimeShortcuts.js",
+			"static/admin/js/core.js",
+			"static/admin/js/admin/RelatedObjectLookups.js",
+			"static/admin/js/SelectBox.js",
+			"static/admin/js/actions.js",
+			"static/admin/js/SelectFilter2.js",
+			"static/admin/js/urlify.js",
+			"static/admin/js/prepopulate.js",
+			"static/admin/js/vendor/xregexp/xregexp.js",
+		})
+	case strings.Contains(bodyClass, " change-list "):
+		return adminStaticJS(prefix, []string{
+			"jsi18n/",
+			"static/admin/js/vendor/jquery/jquery.js",
+			"static/admin/js/jquery.init.js",
+			"static/admin/js/core.js",
+			"static/admin/js/admin/RelatedObjectLookups.js",
+			"static/admin/js/actions.js",
+			"static/admin/js/urlify.js",
+			"static/admin/js/prepopulate.js",
+			"static/admin/js/vendor/xregexp/xregexp.js",
+		})
+	default:
+		return nil
+	}
+}
+
+func adminStaticJS(prefix string, paths []string) []string {
+	urls := make([]string, 0, len(paths))
+	for _, value := range paths {
+		if strings.HasPrefix(value, "jsi18n/") {
+			urls = append(urls, prefix+"/"+value)
+			continue
+		}
+		urls = append(urls, prefix+"/"+value)
+	}
 	return urls
 }
 

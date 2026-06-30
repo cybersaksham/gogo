@@ -29,6 +29,7 @@ func (s *Site) URLs() (*gogohttp.Router, error) {
 		{"admin:login", s.URLPrefix + "/login/", gogohttp.FromHandler(s.LoginView), []string{"GET", "POST"}},
 		{"admin:logout", s.URLPrefix + "/logout/", gogohttp.FromHandler(s.LogoutView), []string{"GET", "POST"}},
 		{"admin:password_change", s.URLPrefix + "/password_change/", protectedAdminView(s, gogohttp.FromHandler(s.PasswordChangeView)), []string{"GET", "POST"}},
+		{"admin:jsi18n", s.URLPrefix + "/jsi18n/", protectedAdminView(s, adminJSI18NView()), []string{"GET"}},
 		{"admin:css", s.URLPrefix + "/static/admin.css", adminAssetView("static/admin.css", "text/css; charset=utf-8"), []string{"GET"}},
 		{"admin:js", s.URLPrefix + "/static/admin.js", adminAssetView("static/admin.js", "application/javascript; charset=utf-8"), []string{"GET"}},
 		{"admin:static", s.URLPrefix + "/static/<path:asset_path>", adminStaticAssetView(), []string{"GET"}},

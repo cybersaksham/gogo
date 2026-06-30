@@ -36,6 +36,7 @@ func TestAdminURLsGenerateNamespacedRoutesAndReverse(t *testing.T) {
 		"admin:login",
 		"admin:logout",
 		"admin:password_change",
+		"admin:jsi18n",
 		"admin:css",
 		"admin:js",
 		"admin:static",
@@ -168,9 +169,9 @@ func TestAdminModelRoutesRenderDjangoStylePages(t *testing.T) {
 		path string
 		want []string
 	}{
-		{"/admin/blog/post/", []string{`<body class="app-blog model-post change-list"`, `/admin/static/admin/css/changelists.css`, `id="changelist"`, `Add post`, `action-checkbox-column`, `searchbar`}},
-		{"/admin/blog/post/add/", []string{`<body class="app-blog model-post change-form"`, `/admin/static/admin/css/forms.css`, `id="post_form"`, `Save and continue editing`, `name="_addanother"`}},
-		{"/admin/blog/post/42/change/", []string{`<body class="app-blog model-post change-form"`, `/admin/static/admin/css/forms.css`, `History`, `Delete`, `name="_save"`}},
+		{"/admin/blog/post/", []string{`<body class="app-blog model-post change-list"`, `/admin/static/admin/css/changelists.css`, `/admin/static/admin/js/filters.js`, `id="changelist"`, `Add post`, `action-checkbox-column`, `searchbar`}},
+		{"/admin/blog/post/add/", []string{`<body class="app-blog model-post change-form"`, `/admin/static/admin/css/forms.css`, `/admin/static/admin/js/admin/DateTimeShortcuts.js`, `/admin/static/admin/js/SelectFilter2.js`, `id="post_form"`, `Save and continue editing`, `name="_addanother"`}},
+		{"/admin/blog/post/42/change/", []string{`<body class="app-blog model-post change-form"`, `/admin/static/admin/css/forms.css`, `/admin/static/admin/js/admin/DateTimeShortcuts.js`, `/admin/static/admin/js/SelectFilter2.js`, `History`, `Delete`, `name="_save"`}},
 		{"/admin/blog/post/42/delete/", []string{`<body class="app-blog model-post delete-confirmation"`, `Are you sure?`, `Yes, I&rsquo;m sure`}},
 		{"/admin/blog/post/42/history/", []string{`<body class="app-blog model-post history"`, `Object history`, `doesn&rsquo;t have a change history`}},
 	}
@@ -208,6 +209,12 @@ func TestAdminModelRoutesRenderDjangoStylePages(t *testing.T) {
 	router.ServeHTTP(jsi18n, staffAdminRequest(http.MethodGet, "/admin/blog/post/jsi18n/"))
 	if jsi18n.Code != http.StatusOK || !strings.Contains(jsi18n.Header().Get("Content-Type"), "application/javascript") || !strings.Contains(jsi18n.Body.String(), "window.gogoAdminCatalog") {
 		t.Fatalf("jsi18n response = %d %q %s", jsi18n.Code, jsi18n.Header().Get("Content-Type"), jsi18n.Body.String())
+	}
+
+	rootJSI18N := httptest.NewRecorder()
+	router.ServeHTTP(rootJSI18N, staffAdminRequest(http.MethodGet, "/admin/jsi18n/"))
+	if rootJSI18N.Code != http.StatusOK || !strings.Contains(rootJSI18N.Header().Get("Content-Type"), "application/javascript") || !strings.Contains(rootJSI18N.Body.String(), "window.gogoAdminCatalog") {
+		t.Fatalf("root jsi18n response = %d %q %s", rootJSI18N.Code, rootJSI18N.Header().Get("Content-Type"), rootJSI18N.Body.String())
 	}
 }
 

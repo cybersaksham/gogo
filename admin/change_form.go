@@ -269,7 +269,35 @@ type JavaScriptCatalogResponse struct {
 // JavaScriptCatalog renders a tiny admin JavaScript translation catalog.
 func JavaScriptCatalog(messages map[string]string) JavaScriptCatalogResponse {
 	body, _ := json.Marshal(messages)
-	return JavaScriptCatalogResponse{ContentType: "application/javascript", Body: "window.gogoAdminCatalog=" + string(body) + ";"}
+	return JavaScriptCatalogResponse{ContentType: "application/javascript", Body: `window.gogoAdminCatalog=` + string(body) + `;
+function gettext(msgid) {
+  const value = window.gogoAdminCatalog[msgid];
+  return typeof value === "undefined" ? msgid : value;
+}
+function ngettext(singular, plural, count) {
+  return count === 1 ? gettext(singular) : gettext(plural);
+}
+function interpolate(fmt, obj, named) {
+  if (named) {
+    return fmt.replace(/%\((\w+)\)s/g, function(match, key) {
+      return String(obj[key]);
+    });
+  }
+  let index = 0;
+  return fmt.replace(/%s/g, function() {
+    return String(obj[index++]);
+  });
+}
+function get_format(formatType) {
+  const formats = {
+    DATE_INPUT_FORMATS: ["%Y-%m-%d"],
+    TIME_INPUT_FORMATS: ["%H:%M:%S"],
+    DATETIME_INPUT_FORMATS: ["%Y-%m-%d %H:%M:%S"],
+    FIRST_DAY_OF_WEEK: 0
+  };
+  return typeof formats[formatType] === "undefined" ? formatType : formats[formatType];
+}
+`}
 }
 
 func deleteURL(objectID string) string {
