@@ -35,12 +35,23 @@ type ChangeListColumn struct {
 	Name     string
 	Editable bool
 	Computed bool
+	Link     bool
 }
 
 // ChangeListRow stores rendered values for one object.
 type ChangeListRow struct {
-	Object map[string]any
-	Values map[string]any
+	ObjectID string
+	Object   map[string]any
+	Values   map[string]any
+	Cells    []ChangeListCell
+}
+
+// ChangeListCell stores render-ready data for one row/column intersection.
+type ChangeListCell struct {
+	Name    string
+	Class   string
+	Value   any
+	LinkURL string
 }
 
 // DateBucket stores date hierarchy counts by year.
@@ -88,29 +99,69 @@ func BuildChangeList(admin ModelAdmin, rows []map[string]any, query url.Values) 
 
 func buildColumns(admin ModelAdmin) []ChangeListColumn {
 	editable := setFromSlice(admin.ListEditable)
+	links := listDisplayLinkSet(admin)
 	columns := make([]ChangeListColumn, len(admin.ListDisplay))
 	for i, name := range admin.ListDisplay {
 		_, computed := admin.ComputedColumns[name]
 		_, isEditable := editable[name]
-		columns[i] = ChangeListColumn{Name: name, Editable: isEditable, Computed: computed}
+		_, isLink := links[name]
+		columns[i] = ChangeListColumn{Name: name, Editable: isEditable, Computed: computed, Link: isLink}
 	}
 	return columns
 }
 
 func buildDisplayRows(admin ModelAdmin, rows []map[string]any) []ChangeListRow {
+	links := listDisplayLinkSet(admin)
 	result := make([]ChangeListRow, len(rows))
 	for i, row := range rows {
+		objectID := objectIDFromRow(row)
 		values := make(map[string]any, len(admin.ListDisplay))
+		cells := make([]ChangeListCell, 0, len(admin.ListDisplay))
 		for _, column := range admin.ListDisplay {
 			value := row[column]
 			if computed, ok := admin.ComputedColumns[column]; ok {
 				value = computed(row)
 			}
-			values[column] = displayValue(value, admin.EmptyValueDisplay)
+			display := displayValue(value, admin.EmptyValueDisplay)
+			values[column] = display
+			cell := ChangeListCell{
+				Name:  column,
+				Class: "field-" + adminClassName(column),
+				Value: display,
+			}
+			if _, ok := links[column]; ok && objectID != "" {
+				cell.LinkURL = objectID + "/change/"
+			}
+			cells = append(cells, cell)
 		}
-		result[i] = ChangeListRow{Object: cloneRow(row), Values: values}
+		result[i] = ChangeListRow{ObjectID: objectID, Object: cloneRow(row), Values: values, Cells: cells}
 	}
 	return result
+}
+
+func listDisplayLinkSet(admin ModelAdmin) map[string]struct{} {
+	if len(admin.ListDisplayLinks) > 0 {
+		return setFromSlice(admin.ListDisplayLinks)
+	}
+	editable := setFromSlice(admin.ListEditable)
+	for _, column := range admin.ListDisplay {
+		if _, ok := editable[column]; !ok {
+			return map[string]struct{}{column: {}}
+		}
+	}
+	return map[string]struct{}{}
+}
+
+func objectIDFromRow(row map[string]any) string {
+	for _, key := range []string{"id", "pk"} {
+		if value, ok := row[key]; ok && value != nil {
+			text := fmt.Sprint(value)
+			if text != "" {
+				return text
+			}
+		}
+	}
+	return ""
 }
 
 func sortRows(rows []map[string]any, admin ModelAdmin, ordering string) error {

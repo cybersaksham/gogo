@@ -30,7 +30,7 @@ func TestChangeListBuildsDisplayRowsSortingPaginationAndFilters(t *testing.T) {
 		t.Fatalf("BuildChangeList() error = %v", err)
 	}
 
-	if !reflect.DeepEqual(changeList.Columns, []ChangeListColumn{{Name: "title"}, {Name: "published", Editable: true}, {Name: "summary", Computed: true}}) {
+	if !reflect.DeepEqual(changeList.Columns, []ChangeListColumn{{Name: "title", Link: true}, {Name: "published", Editable: true}, {Name: "summary", Computed: true}}) {
 		t.Fatalf("columns = %#v", changeList.Columns)
 	}
 	if changeList.Total != 3 || changeList.Page != 2 || changeList.PerPage != 1 || len(changeList.Rows) != 1 {
@@ -44,6 +44,15 @@ func TestChangeListBuildsDisplayRowsSortingPaginationAndFilters(t *testing.T) {
 	}
 	if got := changeList.Rows[0].Values["summary"]; got != "Beta!" {
 		t.Fatalf("computed display = %#v", got)
+	}
+	if changeList.Rows[0].ObjectID != "1" {
+		t.Fatalf("object id = %q", changeList.Rows[0].ObjectID)
+	}
+	if got := changeList.Rows[0].Cells[0].LinkURL; got != "1/change/" {
+		t.Fatalf("first cell link = %q", got)
+	}
+	if got := changeList.Rows[0].Cells[1].LinkURL; got != "" {
+		t.Fatalf("editable cell link = %q", got)
 	}
 	if !changeList.BulkSelection || !changeList.Popup || changeList.PreservedFilters != "status=draft" {
 		t.Fatalf("flags/filters = %#v", changeList)
@@ -69,5 +78,22 @@ func TestChangeListShowAllAndInvalidQuery(t *testing.T) {
 	}
 	if _, err := BuildChangeList(admin, rows, url.Values{"p": {"bad"}}); !errors.Is(err, ErrInvalidChangeListQuery) {
 		t.Fatalf("invalid page error = %v, want ErrInvalidChangeListQuery", err)
+	}
+}
+
+func TestChangeListHonorsExplicitListDisplayLinks(t *testing.T) {
+	admin := ModelAdmin{ListDisplay: []string{"title", "slug"}, ListDisplayLinks: []string{"slug"}}
+	changeList, err := BuildChangeList(admin, []map[string]any{{"id": 7, "title": "A", "slug": "a"}}, nil)
+	if err != nil {
+		t.Fatalf("BuildChangeList() error = %v", err)
+	}
+	if changeList.Columns[0].Link || !changeList.Columns[1].Link {
+		t.Fatalf("column links = %#v", changeList.Columns)
+	}
+	if got := changeList.Rows[0].Cells[0].LinkURL; got != "" {
+		t.Fatalf("title link = %q", got)
+	}
+	if got := changeList.Rows[0].Cells[1].LinkURL; got != "7/change/" {
+		t.Fatalf("slug link = %q", got)
 	}
 }

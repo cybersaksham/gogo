@@ -52,8 +52,8 @@
           <tbody>
             {{range $row := .ChangeList.Rows}}
             <tr>
-              <td class="action-checkbox"><input type="checkbox" name="_selected_action" value=""></td>
-              {{range $.ChangeList.Columns}}<td class="field-{{.Name}}">{{index $row.Values .Name}}</td>{{end}}
+              <td class="action-checkbox"><input type="checkbox" name="_selected_action" value="{{$row.ObjectID}}"></td>
+              {{range $row.Cells}}<td class="{{.Class}}">{{if .LinkURL}}<a href="{{.LinkURL}}">{{.Value}}</a>{{else}}{{.Value}}{{end}}</td>{{end}}
             </tr>
             {{else}}
             <tr><td colspan="99">No {{$.ModelVerboseNamePlural}} are available.</td></tr>
