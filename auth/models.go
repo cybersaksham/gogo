@@ -150,6 +150,17 @@ func AbstractUserMetadata() models.Metadata {
 	return meta
 }
 
+// ModelMetadata returns the framework-owned auth models that client projects
+// should include by default.
+func ModelMetadata() []models.Metadata {
+	return []models.Metadata{
+		ContentType{}.ModelMeta(),
+		Permission{}.ModelMeta(),
+		Group{}.ModelMeta(),
+		User{}.ModelMeta(),
+	}
+}
+
 func userMetadata(abstract bool) models.Metadata {
 	return authMetadata(models.Metadata{
 		AppLabel:          appLabel,

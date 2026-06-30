@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/cybersaksham/gogo/app"
+	"github.com/cybersaksham/gogo/auth"
 	"github.com/cybersaksham/gogo/models"
 )
 
@@ -30,6 +31,7 @@ func AppConfigs() []app.Config {
 
 func ModelMetadata() []models.Metadata {
 	var metadata []models.Metadata
+	metadata = append(metadata, auth.ModelMetadata()...)
 	// gogo:startapp-model-metadata
 	return metadata
 }

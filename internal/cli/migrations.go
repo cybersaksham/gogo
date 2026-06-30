@@ -16,8 +16,10 @@ import (
 	"strconv"
 	"strings"
 
+	authmigrations "github.com/cybersaksham/gogo/auth/migrations"
 	"github.com/cybersaksham/gogo/conf"
 	"github.com/cybersaksham/gogo/migrations"
+	"github.com/cybersaksham/gogo/migrations/operations"
 	"github.com/cybersaksham/gogo/orm"
 	postgresdialect "github.com/cybersaksham/gogo/orm/dialects/postgres"
 	sqlitedialect "github.com/cybersaksham/gogo/orm/dialects/sqlite"
@@ -263,7 +265,10 @@ func runMigrate(ctx context.Context, options migrationOptions, stdout io.Writer)
 }
 
 func runShowMigrations(ctx context.Context, options migrationOptions, stdout io.Writer) error {
-	targets := migrationTargets(options.app)
+	known, err := knownMigrations(options.app)
+	if err != nil {
+		return err
+	}
 	applied := map[string]struct{}{}
 	if database, err := openMigrationDatabase(ctx, options.database); err == nil {
 		recorder := migrations.NewRecorder(database, "gogo-cli")
@@ -272,25 +277,23 @@ func runShowMigrations(ctx context.Context, options migrationOptions, stdout io.
 		}
 		_ = database.Close()
 	}
-	for _, target := range targets {
-		known, err := knownMigrationsForTarget(target)
-		if err != nil {
+	if len(known) == 0 {
+		label := options.app
+		if label == "" {
+			label = "project"
+		}
+		if _, err := fmt.Fprintf(stdout, "[ ] %s (no migrations)\n", label); err != nil {
 			return err
 		}
-		if len(known) == 0 {
-			if _, err := fmt.Fprintf(stdout, "[ ] %s (no migrations)\n", target.appLabel); err != nil {
-				return err
-			}
-			continue
+		return nil
+	}
+	for _, migration := range known {
+		marker := " "
+		if migrationSatisfied(migration, applied) {
+			marker = "X"
 		}
-		for _, migration := range known {
-			marker := " "
-			if migrationSatisfied(migration, applied) {
-				marker = "X"
-			}
-			if _, err := fmt.Fprintf(stdout, "[%s] %s%s\n", marker, migration.Identity(), migrationReplacementSuffix(migration, applied)); err != nil {
-				return err
-			}
+		if _, err := fmt.Fprintf(stdout, "[%s] %s%s\n", marker, migration.Identity(), migrationReplacementSuffix(migration, applied)); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -298,7 +301,11 @@ func runShowMigrations(ctx context.Context, options migrationOptions, stdout io.
 
 func knownMigrations(appLabel string) ([]migrations.Migration, error) {
 	targets := migrationTargets(appLabel)
-	var known []migrations.Migration
+	known := builtInMigrations(appLabel)
+	if appLabel != "" && len(known) > 0 {
+		sortMigrations(known)
+		return known, nil
+	}
 	for _, target := range targets {
 		targetMigrations, err := knownMigrationsForTarget(target)
 		if err != nil {
@@ -306,13 +313,17 @@ func knownMigrations(appLabel string) ([]migrations.Migration, error) {
 		}
 		known = append(known, targetMigrations...)
 	}
+	sortMigrations(known)
+	return known, nil
+}
+
+func sortMigrations(known []migrations.Migration) {
 	sort.SliceStable(known, func(i, j int) bool {
 		if known[i].AppLabel == known[j].AppLabel {
 			return known[i].Name < known[j].Name
 		}
 		return known[i].AppLabel < known[j].AppLabel
 	})
-	return known, nil
 }
 
 func knownMigrationsForTarget(target migrationTarget) ([]migrations.Migration, error) {
@@ -628,10 +639,44 @@ func runSQLMigrate(options migrationOptions, positionals []string, stdout io.Wri
 }
 
 func migrationSQLStatements(appLabel, migrationName string) []string {
+	if migration, ok := builtInMigration(appLabel, migrationName); ok {
+		return sqlStatementsForMigration(migration)
+	}
 	if strings.HasPrefix(migrationName, "0001_") {
 		return []string{fmt.Sprintf("CREATE TABLE IF NOT EXISTS %q (id bigint PRIMARY KEY, name text NOT NULL, slug text NOT NULL, created_at timestamp, updated_at timestamp)", appLabel+"_item")}
 	}
 	return nil
+}
+
+func builtInMigrations(appLabel string) []migrations.Migration {
+	if appLabel != "" && appLabel != "auth" {
+		return nil
+	}
+	return []migrations.Migration{authmigrations.Initial()}
+}
+
+func builtInMigration(appLabel, migrationName string) (migrations.Migration, bool) {
+	for _, migration := range builtInMigrations(appLabel) {
+		if migration.AppLabel == appLabel && migration.Name == migrationName {
+			return migration, true
+		}
+	}
+	return migrations.Migration{}, false
+}
+
+func sqlStatementsForMigration(migration migrations.Migration) []string {
+	var statements []string
+	for _, operation := range migration.Operations {
+		switch typed := operation.(type) {
+		case operations.RunSQL:
+			if strings.TrimSpace(typed.SQL) != "" {
+				statements = append(statements, typed.SQL)
+			}
+		case sqlMigrationOperation:
+			statements = append(statements, typed.Statements...)
+		}
+	}
+	return statements
 }
 
 func runSquashMigrations(positionals []string, stdout io.Writer) error {

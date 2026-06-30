@@ -107,6 +107,18 @@ func TestAuthRelationshipsUseStableTargets(t *testing.T) {
 	}
 }
 
+func TestModelMetadataIncludesBuiltInAuthModels(t *testing.T) {
+	metadata := ModelMetadata()
+	got := make([]string, len(metadata))
+	for i, meta := range metadata {
+		got[i] = meta.Label()
+	}
+	want := []string{"auth.ContentType", "auth.Permission", "auth.Group", "auth.User"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ModelMetadata labels = %#v, want %#v", got, want)
+	}
+}
+
 func TestAbstractUserEmbeddingProvidesExtendableUserShape(t *testing.T) {
 	joined := time.Date(2026, 6, 27, 10, 0, 0, 0, time.UTC)
 	user := customUser{

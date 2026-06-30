@@ -117,6 +117,42 @@ func TestShowAndSQLMigrateUseGeneratedAppOutput(t *testing.T) {
 	}
 }
 
+func TestBuiltInAuthMigrationIsDiscoveredAndAppliedByDefault(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "db.sqlite3")
+	writeMigrationEnv(t, dir, dbPath)
+	t.Chdir(dir)
+
+	root := NewRoot()
+	var showOut bytes.Buffer
+	if err := root.Execute(context.Background(), []string{"showmigrations", "--app", "auth"}, &showOut, &bytes.Buffer{}); err != nil {
+		t.Fatalf("showmigrations auth error = %v", err)
+	}
+	if !strings.Contains(showOut.String(), "[ ] auth.0001_initial") {
+		t.Fatalf("showmigrations auth stdout = %q", showOut.String())
+	}
+
+	var sqlOut bytes.Buffer
+	if err := root.Execute(context.Background(), []string{"sqlmigrate", "auth", "0001_initial"}, &sqlOut, &bytes.Buffer{}); err != nil {
+		t.Fatalf("sqlmigrate auth error = %v", err)
+	}
+	if !strings.Contains(sqlOut.String(), "CREATE TABLE auth_user") {
+		t.Fatalf("sqlmigrate auth stdout = %q", sqlOut.String())
+	}
+
+	var migrateOut bytes.Buffer
+	if err := root.Execute(context.Background(), []string{"migrate"}, &migrateOut, &bytes.Buffer{}); err != nil {
+		t.Fatalf("migrate error = %v", err)
+	}
+	if !strings.Contains(migrateOut.String(), "applied auth.0001_initial") {
+		t.Fatalf("migrate stdout = %q", migrateOut.String())
+	}
+	for _, table := range []string{"gogo_content_type", "auth_permission", "auth_group", "auth_user"} {
+		assertSQLiteTableExists(t, dbPath, table)
+	}
+	assertMigrationRecorded(t, dbPath, "auth", "0001_initial")
+}
+
 func TestMigrateAppliesGeneratedAppMigrationsAndShowMigrationsUsesRecorder(t *testing.T) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "db.sqlite3")

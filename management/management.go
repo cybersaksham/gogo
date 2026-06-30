@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/cybersaksham/gogo/app"
+	"github.com/cybersaksham/gogo/auth"
 	"github.com/cybersaksham/gogo/conf"
 	gogohttp "github.com/cybersaksham/gogo/http"
 	"github.com/cybersaksham/gogo/internal/cli"
@@ -33,6 +34,7 @@ func Execute(ctx context.Context, args []string, stdout, stderr io.Writer) error
 func ExecuteProject(ctx context.Context, args []string, stdout, stderr io.Writer, project Project) error {
 	return cli.NewRootWithOptions(cli.RootOptions{
 		RunserverStarter: project.serverStarter(stdout),
+		AuthStore:        project.authStore(context.Background()),
 		QueueRuntime:     project.queueRuntime(),
 		FixtureStore:     project.fixtureStore(context.Background()),
 	}).Execute(ctx, args, stdout, stderr)
@@ -63,6 +65,46 @@ func (p Project) queueRuntime() *cli.QueueRuntime {
 		runtime.App = app
 	}
 	return runtime
+}
+
+type projectAuthStore interface {
+	Add(auth.User) error
+	FindByUsername(context.Context, string) (auth.User, bool, error)
+	UpdateUser(context.Context, auth.User) error
+}
+
+func (p Project) authStore(ctx context.Context) projectAuthStore {
+	if p.ModelMetadata == nil {
+		return nil
+	}
+	settings, err := conf.LoadFromEnv()
+	if err != nil {
+		return errorAuthStore{err: err}
+	}
+	if p.Settings != nil {
+		settings = mergeSettings(p.Settings(), settings)
+	}
+	database, err := orm.OpenDatabaseURL(ctx, orm.DefaultDatabase, settings.DatabaseURL)
+	if err != nil {
+		return errorAuthStore{err: err}
+	}
+	return auth.NewSQLUserStore(database)
+}
+
+type errorAuthStore struct {
+	err error
+}
+
+func (s errorAuthStore) Add(auth.User) error {
+	return s.err
+}
+
+func (s errorAuthStore) FindByUsername(context.Context, string) (auth.User, bool, error) {
+	return auth.User{}, false, s.err
+}
+
+func (s errorAuthStore) UpdateUser(context.Context, auth.User) error {
+	return s.err
 }
 
 func (p Project) fixtureStore(ctx context.Context) cli.FixtureStore {

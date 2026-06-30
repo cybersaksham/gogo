@@ -135,6 +135,11 @@ func TestGeneratedRouterMountsAppHTTPAPIAndAdminRoutes(t *testing.T) {
 	if authenticatedAdmin.Code != http.StatusOK || !strings.Contains(authenticatedAdmin.Body.String(), "Site administration") {
 		t.Fatalf("authenticated admin response = %d body=%s", authenticatedAdmin.Code, authenticatedAdmin.Body.String())
 	}
+	for _, want := range []string{"/admin/auth/user/", "/admin/auth/group/", "/admin/auth/permission/"} {
+		if !strings.Contains(authenticatedAdmin.Body.String(), want) {
+			t.Fatalf("authenticated admin body missing %q:\n%s", want, authenticatedAdmin.Body.String())
+		}
+	}
 }
 
 var csrfInputPattern = regexp.MustCompile("name=\"csrfmiddlewaretoken\" value=\"([^\"]+)\"")

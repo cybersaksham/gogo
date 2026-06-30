@@ -190,6 +190,34 @@ func TestProjectTemplatesRenderParseablePublicGoFiles(t *testing.T) {
 	}
 }
 
+func TestProjectTemplatesWireBuiltInAuthByDefault(t *testing.T) {
+	files, err := ProjectFiles(ProjectData{ProjectName: "myproject", ModulePath: "myproject"})
+	if err != nil {
+		t.Fatalf("ProjectFiles() error = %v", err)
+	}
+
+	appGo := files[filepath.Join("myproject", "app.go")]
+	for _, want := range []string{
+		`"github.com/cybersaksham/gogo/auth"`,
+		"metadata = append(metadata, auth.ModelMetadata()...)",
+	} {
+		if !strings.Contains(appGo, want) {
+			t.Fatalf("app.go missing %q:\n%s", want, appGo)
+		}
+	}
+
+	adminGo := files[filepath.Join("myproject", "admin.go")]
+	for _, want := range []string{
+		"admin.RegisterAuthModels(registry)",
+		"func NewAuthUserStore(ctx context.Context) auth.UserStore",
+		"auth.NewSQLUserStore(database)",
+	} {
+		if !strings.Contains(adminGo, want) {
+			t.Fatalf("admin.go missing %q:\n%s", want, adminGo)
+		}
+	}
+}
+
 func TestDeploymentTemplatesAreProductionSafe(t *testing.T) {
 	files, err := ProjectFiles(ProjectData{ProjectName: "myproject", ModulePath: "myproject"})
 	if err != nil {

@@ -14,6 +14,9 @@ import (
 
 func NewAdminRegistry() *admin.Registry {
 	registry := admin.NewRegistry()
+	if err := admin.RegisterAuthModels(registry); err != nil {
+		panic(err)
+	}
 	// gogo:startapp-admin
 	return registry
 }
@@ -52,10 +55,20 @@ func newAdminAuthConfig(site *admin.Site) admin.AuthViewConfig {
 	root := projectRoot()
 	return admin.AuthViewConfig{
 		Site:         site,
-		UserStore:    auth.NewFileUserStore(filepath.Join(root, ".gogo", "auth_users.json")),
+		UserStore:    NewAuthUserStore(context.Background()),
 		SessionStore: sessions.NewFileStore(filepath.Join(root, ".gogo", "sessions"), adminSecretKey()),
 		Cookie:       sessions.CookieOptions{Name: "gogo_sessionid", Path: "/", HttpOnly: true},
 	}
+}
+
+func NewAuthUserStore(ctx context.Context) auth.UserStore {
+	settings, err := conf.LoadFromEnv()
+	if err == nil && settings.DatabaseURL != "" {
+		if database, err := orm.OpenDatabaseURL(ctx, orm.DefaultDatabase, settings.DatabaseURL); err == nil {
+			return auth.NewSQLUserStore(database)
+		}
+	}
+	return auth.NewFileUserStore(filepath.Join(projectRoot(), ".gogo", "auth_users.json"))
 }
 
 func projectRoot() string {
