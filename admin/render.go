@@ -98,19 +98,20 @@ func renderAdminTemplate(name string, data adminPageData) gogohttp.Response {
 
 func baseAdminPageData(site *Site, request *http.Request, title, contentTitle, bodyClass string) adminPageData {
 	site = adminSiteOrDefault(site)
-	return adminPageData{
+	data := adminPageData{
 		Site:              site,
 		Title:             title + " | " + site.Title,
 		Header:            site.Header,
 		IndexTitle:        site.IndexTitle,
 		ContentTitle:      contentTitle,
 		BodyClass:         strings.TrimSpace(bodyClass),
-		UserName:          adminUserDisplayName(request),
 		SiteURL:           site.URLPrefix + "/",
 		LogoutURL:         site.URLPrefix + "/logout/",
 		PasswordChangeURL: site.URLPrefix + "/password_change/",
 		Breadcrumbs:       []adminBreadcrumb{{URL: site.URLPrefix + "/", Label: "Home"}},
 	}
+	data.UserName = adminUserDisplayName(site, request)
+	return data
 }
 
 func modelAdminPageData(site *Site, request *http.Request, modelAdmin ModelAdmin, title, contentTitle, actionClass string) adminPageData {
@@ -150,7 +151,9 @@ func changeFormViewData(modelAdmin ModelAdmin, context ChangeFormContext) adminF
 		SaveOnTop:   context.SaveOnTop,
 		CanDelete:   context.CanDelete,
 		DeleteURL:   context.DeleteURL,
-		HistoryURL:  context.ObjectID + "/history/",
+	}
+	if context.ObjectID != "" {
+		form.HistoryURL = context.ObjectID + "/history/"
 	}
 	for _, fieldset := range context.Fieldsets {
 		fieldsetData := adminFieldsetData{Name: fieldset.Name}
@@ -174,9 +177,16 @@ func changeFormViewData(modelAdmin ModelAdmin, context ChangeFormContext) adminF
 }
 
 func renderAdminFormWidget(field ChangeFormField) string {
+	value := field.Value
+	if value == nil {
+		value = ""
+		if field.Readonly {
+			value = "-"
+		}
+	}
 	config := WidgetConfig{
 		Name:  field.Name,
-		Value: field.Value,
+		Value: value,
 		Attrs: map[string]string{
 			"id":    "id_" + field.Name,
 			"class": "vTextField",
@@ -266,8 +276,8 @@ func adminRequestUser(site *Site, request *http.Request) (auth.User, bool) {
 	return auth.User{}, false
 }
 
-func adminUserDisplayName(request *http.Request) string {
-	user, ok := auth.UserFromContext(request.Context())
+func adminUserDisplayName(site *Site, request *http.Request) string {
+	user, ok := adminRequestUser(site, request)
 	if !ok {
 		return ""
 	}

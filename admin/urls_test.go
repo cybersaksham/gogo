@@ -136,6 +136,14 @@ func TestAdminModelRoutesRenderDjangoStylePages(t *testing.T) {
 			}
 		}
 	}
+	addResponse := httptest.NewRecorder()
+	router.ServeHTTP(addResponse, staffAdminRequest(http.MethodGet, "/admin/blog/post/add/"))
+	addBody := addResponse.Body.String()
+	for _, unwanted := range []string{`/admin/blog/post//delete/`, `class="deletelink"`, `&lt;nil&gt;`} {
+		if strings.Contains(addBody, unwanted) {
+			t.Fatalf("add form should not contain %q:\n%s", unwanted, addBody)
+		}
+	}
 
 	autocomplete := httptest.NewRecorder()
 	router.ServeHTTP(autocomplete, staffAdminRequest(http.MethodGet, "/admin/blog/post/autocomplete/"))

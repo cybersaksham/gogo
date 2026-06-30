@@ -120,7 +120,7 @@ func BuildChangeForm(admin ModelAdmin, input ChangeFormInput) (ChangeFormContext
 		PrepopulatedFields:  cloneStringSliceMap(admin.PrepopulatedFields),
 		SaveButtons:         saveButtons(admin),
 		SaveOnTop:           admin.SaveOnTop,
-		CanDelete:           mode == ChangeFormEdit || admin.HasDeletePermission(request, user),
+		CanDelete:           mode == ChangeFormEdit && admin.HasDeletePermission(request, user),
 		DeleteURL:           deleteURL(input.ObjectID),
 		JSI18NURL:           "jsi18n/",
 		Popup:               request.URL.Query().Get("_popup") == "1",

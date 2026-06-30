@@ -178,10 +178,12 @@ func adminChangeFormView(site *Site, modelAdmin ModelAdmin, mode ChangeFormMode)
 		verboseName := modelVerboseName(modelAdmin)
 		data := modelAdminPageData(site, request.Raw(), modelAdmin, action+" "+verboseName, action+" "+verboseName, "change-form")
 		data.Form = changeFormViewData(modelAdmin, formContext)
-		data.DeleteURL = data.ChangeListURL + objectID + "/delete/"
-		data.HistoryURL = data.ChangeListURL + objectID + "/history/"
-		data.Form.DeleteURL = data.DeleteURL
-		data.Form.HistoryURL = data.HistoryURL
+		if objectID != "" {
+			data.DeleteURL = data.ChangeListURL + objectID + "/delete/"
+			data.HistoryURL = data.ChangeListURL + objectID + "/history/"
+			data.Form.DeleteURL = data.DeleteURL
+			data.Form.HistoryURL = data.HistoryURL
+		}
 		return renderAdminTemplate("change_form.html", data)
 	}
 }

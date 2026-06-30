@@ -38,7 +38,7 @@ func TestChangeFormBuildsAddAndEditMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BuildChangeForm(add) error = %v", err)
 	}
-	if form.Mode != ChangeFormAdd || !form.Popup || !form.SaveOnTop || !form.CanDelete {
+	if form.Mode != ChangeFormAdd || !form.Popup || !form.SaveOnTop || form.CanDelete {
 		t.Fatalf("form flags = %#v", form)
 	}
 	if !reflect.DeepEqual(form.Fieldsets, admin.Fieldsets) {
