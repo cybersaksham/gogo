@@ -34,6 +34,17 @@ func TestRegisterAuthModelsRegistersDjangoStyleAuthAdmin(t *testing.T) {
 	if len(userAdmin.ReadonlyFields) != 0 {
 		t.Fatalf("auth.User readonly fields = %#v", userAdmin.ReadonlyFields)
 	}
+	if !reflect.DeepEqual(userAdmin.FilterHorizontal, []string{"groups", "user_permissions"}) {
+		t.Fatalf("auth.User filter horizontal = %#v", userAdmin.FilterHorizontal)
+	}
+
+	groupAdmin, ok := registry.GetAdmin("auth.Group")
+	if !ok {
+		t.Fatalf("auth.Group was not registered")
+	}
+	if !reflect.DeepEqual(groupAdmin.FilterHorizontal, []string{"permissions"}) {
+		t.Fatalf("auth.Group filter horizontal = %#v", groupAdmin.FilterHorizontal)
+	}
 
 	permissionAdmin, ok := registry.GetAdmin("auth.Permission")
 	if !ok {

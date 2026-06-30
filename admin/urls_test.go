@@ -168,11 +168,11 @@ func TestAdminModelRoutesRenderDjangoStylePages(t *testing.T) {
 		path string
 		want []string
 	}{
-		{"/admin/blog/post/", []string{`<body class="dashboard app-blog model-post change-list"`, `id="changelist"`, `Add post`, `action-checkbox-column`, `searchbar`}},
-		{"/admin/blog/post/add/", []string{`<body class="dashboard app-blog model-post change-form"`, `id="post_form"`, `Save and continue editing`, `name="_addanother"`}},
-		{"/admin/blog/post/42/change/", []string{`<body class="dashboard app-blog model-post change-form"`, `History`, `Delete`, `name="_save"`}},
-		{"/admin/blog/post/42/delete/", []string{`<body class="dashboard app-blog model-post delete-confirmation"`, `Are you sure?`, `Yes, I&rsquo;m sure`}},
-		{"/admin/blog/post/42/history/", []string{`<body class="dashboard app-blog model-post history"`, `Object history`, `doesn&rsquo;t have a change history`}},
+		{"/admin/blog/post/", []string{`<body class="app-blog model-post change-list"`, `/admin/static/admin/css/changelists.css`, `id="changelist"`, `Add post`, `action-checkbox-column`, `searchbar`}},
+		{"/admin/blog/post/add/", []string{`<body class="app-blog model-post change-form"`, `/admin/static/admin/css/forms.css`, `id="post_form"`, `Save and continue editing`, `name="_addanother"`}},
+		{"/admin/blog/post/42/change/", []string{`<body class="app-blog model-post change-form"`, `/admin/static/admin/css/forms.css`, `History`, `Delete`, `name="_save"`}},
+		{"/admin/blog/post/42/delete/", []string{`<body class="app-blog model-post delete-confirmation"`, `Are you sure?`, `Yes, I&rsquo;m sure`}},
+		{"/admin/blog/post/42/history/", []string{`<body class="app-blog model-post history"`, `Object history`, `doesn&rsquo;t have a change history`}},
 	}
 	for _, test := range tests {
 		response := httptest.NewRecorder()

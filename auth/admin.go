@@ -8,14 +8,15 @@ type AdminFieldset struct {
 
 // AdminRegistration is a framework-neutral admin adapter for later admin package integration.
 type AdminRegistration struct {
-	Model          string
-	ListDisplay    []string
-	ListFilter     []string
-	SearchFields   []string
-	Fieldsets      []AdminFieldset
-	ReadOnlyFields []string
-	Actions        []string
-	Ordering       []string
+	Model            string
+	ListDisplay      []string
+	ListFilter       []string
+	SearchFields     []string
+	Fieldsets        []AdminFieldset
+	ReadOnlyFields   []string
+	FilterHorizontal []string
+	Actions          []string
+	Ordering         []string
 }
 
 // AdminRegistrations returns built-in auth and session admin registrations.
@@ -32,17 +33,19 @@ func AdminRegistrations() []AdminRegistration {
 				{Name: "Permissions", Fields: []string{"is_active", "is_staff", "is_superuser", "groups", "user_permissions"}},
 				{Name: "Important dates", Fields: []string{"last_login", "date_joined"}},
 			},
-			Actions:  []string{"activate_users", "deactivate_users"},
-			Ordering: []string{"username"},
+			FilterHorizontal: []string{"groups", "user_permissions"},
+			Actions:          []string{"activate_users", "deactivate_users"},
+			Ordering:         []string{"username"},
 		},
 		{
-			Model:          "auth.Group",
-			ListDisplay:    []string{"name"},
-			SearchFields:   []string{"name"},
-			Fieldsets:      []AdminFieldset{{Name: "Group", Fields: []string{"name", "permissions"}}},
-			ReadOnlyFields: nil,
-			Actions:        nil,
-			Ordering:       []string{"name"},
+			Model:            "auth.Group",
+			ListDisplay:      []string{"name"},
+			SearchFields:     []string{"name"},
+			Fieldsets:        []AdminFieldset{{Name: "Group", Fields: []string{"name", "permissions"}}},
+			FilterHorizontal: []string{"permissions"},
+			ReadOnlyFields:   nil,
+			Actions:          nil,
+			Ordering:         []string{"name"},
 		},
 		{
 			Model:          "auth.Permission",

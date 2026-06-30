@@ -30,8 +30,19 @@ func TestAuthAdminRegistrationsExposeDjangoStyleConfiguration(t *testing.T) {
 	if len(user.ReadOnlyFields) != 0 {
 		t.Fatalf("user ReadOnlyFields = %#v", user.ReadOnlyFields)
 	}
+	if !reflect.DeepEqual(user.FilterHorizontal, []string{"groups", "user_permissions"}) {
+		t.Fatalf("user FilterHorizontal = %#v", user.FilterHorizontal)
+	}
 	if !reflect.DeepEqual(user.Actions, []string{"activate_users", "deactivate_users"}) {
 		t.Fatalf("user Actions = %#v", user.Actions)
+	}
+
+	group, ok := adminByModel(registrations, "auth.Group")
+	if !ok {
+		t.Fatalf("auth.Group admin registration missing")
+	}
+	if !reflect.DeepEqual(group.FilterHorizontal, []string{"permissions"}) {
+		t.Fatalf("group FilterHorizontal = %#v", group.FilterHorizontal)
 	}
 
 	for _, model := range []string{"auth.Group", "auth.Permission", "auth.ContentType", "sessions.Session"} {

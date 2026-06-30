@@ -134,19 +134,9 @@ func baseAdminPageData(site *Site, request *http.Request, title, contentTitle, b
 		ContentClass:      "colM",
 		ShowNavSidebar:    true,
 		StaticCSSURL:      site.URLPrefix + "/static/admin.css",
-		StaticCSSURLs: []string{
-			site.URLPrefix + "/static/admin/css/base.css",
-			site.URLPrefix + "/static/admin/css/dark_mode.css",
-			site.URLPrefix + "/static/admin/css/nav_sidebar.css",
-			site.URLPrefix + "/static/admin/css/dashboard.css",
-			site.URLPrefix + "/static/admin/css/forms.css",
-			site.URLPrefix + "/static/admin/css/changelists.css",
-			site.URLPrefix + "/static/admin/css/login.css",
-			site.URLPrefix + "/static/admin/css/widgets.css",
-			site.URLPrefix + "/static/admin/css/responsive.css",
-		},
-		StaticHeadJSURLs: []string{site.URLPrefix + "/static/admin/js/theme.js"},
-		StaticJSURL:      site.URLPrefix + "/static/admin.js",
+		StaticCSSURLs:     adminCSSURLs(site.URLPrefix, bodyClass),
+		StaticHeadJSURLs:  []string{site.URLPrefix + "/static/admin/js/theme.js"},
+		StaticJSURL:       site.URLPrefix + "/static/admin.js",
 		StaticJSURLs: []string{
 			site.URLPrefix + "/static/admin/js/nav_sidebar.js",
 			site.URLPrefix + "/static/admin.js",
@@ -166,7 +156,6 @@ func modelAdminPageData(site *Site, request *http.Request, modelAdmin ModelAdmin
 	verboseName := modelVerboseName(modelAdmin)
 	verbosePlural := modelVerboseNamePlural(modelAdmin)
 	data := baseAdminPageData(site, request, title, contentTitle, strings.Join([]string{
-		"dashboard",
 		"app-" + adminClassName(appLabel),
 		"model-" + adminClassName(modelName),
 		actionClass,
@@ -187,6 +176,29 @@ func modelAdminPageData(site *Site, request *http.Request, modelAdmin ModelAdmin
 		{URL: modelURL, Label: modelAdmin.Model.ModelName},
 	}
 	return data
+}
+
+func adminCSSURLs(prefix, bodyClass string) []string {
+	bodyClass = " " + strings.TrimSpace(bodyClass) + " "
+	urls := []string{
+		prefix + "/static/admin/css/base.css",
+		prefix + "/static/admin/css/dark_mode.css",
+	}
+	if !strings.Contains(bodyClass, " login ") {
+		urls = append(urls, prefix+"/static/admin/css/nav_sidebar.css")
+	}
+	switch {
+	case strings.Contains(bodyClass, " change-list "):
+		urls = append(urls, prefix+"/static/admin/css/changelists.css")
+	case strings.Contains(bodyClass, " change-form "):
+		urls = append(urls, prefix+"/static/admin/css/forms.css")
+	case strings.Contains(bodyClass, " login "):
+		urls = append(urls, prefix+"/static/admin/css/login.css")
+	case strings.Contains(bodyClass, " dashboard "):
+		urls = append(urls, prefix+"/static/admin/css/dashboard.css")
+	}
+	urls = append(urls, prefix+"/static/admin/css/responsive.css")
+	return urls
 }
 
 func changeFormViewData(modelAdmin ModelAdmin, context ChangeFormContext) adminFormData {

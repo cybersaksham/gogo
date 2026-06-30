@@ -20,13 +20,14 @@ func RegisterAuthModels(registry *Registry) error {
 			continue
 		}
 		if err := registry.RegisterMetadata(meta, ModelAdmin{
-			ListDisplay:    registration.ListDisplay,
-			ListFilter:     registration.ListFilter,
-			SearchFields:   registration.SearchFields,
-			Fieldsets:      authFieldsets(registration.Fieldsets),
-			ReadonlyFields: registration.ReadOnlyFields,
-			Actions:        registration.Actions,
-			Ordering:       registration.Ordering,
+			ListDisplay:      registration.ListDisplay,
+			ListFilter:       registration.ListFilter,
+			SearchFields:     registration.SearchFields,
+			Fieldsets:        authFieldsets(registration.Fieldsets),
+			ReadonlyFields:   registration.ReadOnlyFields,
+			FilterHorizontal: registration.FilterHorizontal,
+			Actions:          registration.Actions,
+			Ordering:         registration.Ordering,
 		}); err != nil {
 			return err
 		}
