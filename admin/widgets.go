@@ -175,7 +175,7 @@ func FilteredSelectMultiple(config WidgetConfig) string {
 	if attrs == nil {
 		attrs = map[string]string{}
 	}
-	attrs["class"] = strings.TrimSpace(attrs["class"] + " filtered-select-multiple selectfilter")
+	attrs["class"] = appendClass(attrs["class"], "selectfilter")
 	config.Attrs = attrs
 	return SelectMultiple(config)
 }
@@ -290,9 +290,20 @@ func withWidgetClass(config WidgetConfig, className string) WidgetConfig {
 	if attrs == nil {
 		attrs = map[string]string{}
 	}
-	attrs["class"] = strings.TrimSpace(attrs["class"] + " " + className)
+	attrs["class"] = appendClass(attrs["class"], className)
 	config.Attrs = attrs
 	return config
+}
+
+func appendClass(current, className string) string {
+	classes := strings.Fields(current)
+	for _, existing := range classes {
+		if existing == className {
+			return strings.Join(classes, " ")
+		}
+	}
+	classes = append(classes, className)
+	return strings.Join(classes, " ")
 }
 
 func withAttr(config WidgetConfig, name, value string) WidgetConfig {

@@ -172,7 +172,7 @@ func TestAuthUserChangeFormUsesDjangoUserAdminWidgets(t *testing.T) {
 		`<input type="checkbox" name="is_active"`,
 		`<label class="vCheckboxLabel" for="id_is_active">Active</label>`,
 		`<select name="groups"`,
-		`class="selectfilter filtered-select-multiple selectfilter"`,
+		`class="selectfilter"`,
 		`data-field-name="groups"`,
 		`<p class="datetime">`,
 		`name="last_login_0"`,

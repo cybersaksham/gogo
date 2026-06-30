@@ -72,7 +72,7 @@ func TestAdminChoiceDateFileAndRelationWidgets(t *testing.T) {
 	}
 
 	filtered := FilteredSelectMultiple(WidgetConfig{Name: "groups", Value: []string{"staff"}, Choices: []WidgetChoice{{Value: "staff", Label: "Staff"}}})
-	if !strings.Contains(filtered, `filtered-select-multiple`) || !strings.Contains(filtered, `selectfilter`) || !strings.Contains(filtered, `selected`) {
+	if !strings.Contains(filtered, `class="selectfilter"`) || strings.Contains(filtered, `filtered-select-multiple`) || !strings.Contains(filtered, `selected`) {
 		t.Fatalf("filtered = %s", filtered)
 	}
 
