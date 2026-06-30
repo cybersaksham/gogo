@@ -1,11 +1,21 @@
 {{define "content"}}
-<form method="post" class="admin-form">
-  <label for="id_username">Username</label>
-  <input id="id_username" name="username" autocomplete="username">
-  <label for="id_password">Password</label>
-  <input id="id_password" name="password" type="password" autocomplete="current-password">
-  <input type="hidden" name="next" value="{{.Next}}">
-  <button type="submit">Log in</button>
-</form>
+<div id="content-main">
+  {{if .Error}}<p class="errornote">{{.Error}}</p>{{end}}
+  <form action="" method="post" id="login-form">
+    <input type="hidden" name="csrfmiddlewaretoken" value="">
+    <div class="form-row">
+      <label for="id_username" class="required">Username:</label>
+      <input type="text" name="username" autofocus autocapitalize="none" autocomplete="username" maxlength="150" required id="id_username">
+    </div>
+    <div class="form-row">
+      <label for="id_password" class="required">Password:</label>
+      <input type="password" name="password" autocomplete="current-password" required id="id_password">
+      <input type="hidden" name="next" value="{{.Next}}">
+    </div>
+    <div class="submit-row">
+      <input type="submit" value="Log in">
+    </div>
+  </form>
+</div>
 {{end}}
 {{template "base" .}}

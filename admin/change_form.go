@@ -6,6 +6,7 @@ import (
 	"net/url"
 
 	"github.com/cybersaksham/gogo/auth"
+	"github.com/cybersaksham/gogo/models"
 )
 
 // ChangeFormMode identifies add or edit mode.
@@ -105,12 +106,16 @@ func BuildChangeForm(admin ModelAdmin, input ChangeFormInput) (ChangeFormContext
 	}
 	fields := admin.Fields
 	if len(fields) == 0 {
-		fields = []string{"__all__"}
+		fields = editableModelFields(admin.Model, admin.Exclude)
+	}
+	fieldsets := cloneFieldsets(admin.Fieldsets)
+	if len(fieldsets) == 0 {
+		fieldsets = []Fieldset{{Fields: append([]string(nil), fields...)}}
 	}
 	context := ChangeFormContext{
 		Mode:                mode,
 		ObjectID:            input.ObjectID,
-		Fieldsets:           cloneFieldsets(admin.Fieldsets),
+		Fieldsets:           fieldsets,
 		Fields:              buildChangeFormFields(admin, fields, input.Values),
 		PrepopulatedFields:  cloneStringSliceMap(admin.PrepopulatedFields),
 		SaveButtons:         saveButtons(admin),
@@ -127,6 +132,24 @@ func BuildChangeForm(admin ModelAdmin, input ChangeFormInput) (ChangeFormContext
 		RelatedPopupEnabled: true,
 	}
 	return context, nil
+}
+
+func editableModelFields(meta models.Metadata, exclude []string) []string {
+	excluded := setFromSlice(exclude)
+	fields := make([]string, 0, len(meta.Fields))
+	for _, field := range meta.Fields {
+		if field.PrimaryKey || field.Name == "" {
+			continue
+		}
+		if hasKey(excluded, field.Name) {
+			continue
+		}
+		fields = append(fields, field.Name)
+	}
+	if len(fields) == 0 {
+		return []string{"__all__"}
+	}
+	return fields
 }
 
 func buildChangeFormFields(admin ModelAdmin, fields []string, values map[string]any) map[string]ChangeFormField {

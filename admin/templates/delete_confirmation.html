@@ -1,9 +1,18 @@
 {{define "content"}}
-<section aria-labelledby="delete-title">
-  <h2 id="delete-title">Confirm deletion</h2>
-  {{if .Protected}}<p>Protected related objects prevent deletion.</p>{{end}}
-  <ul>{{range .Objects}}<li>{{.}}</li>{{end}}</ul>
-  <form method="post"><button type="submit">Yes, delete</button></form>
-</section>
+<div id="content-main">
+  <p>Are you sure you want to delete the {{.ModelVerboseName}} below? All of the following related items will be deleted:</p>
+  {{if .Deletion.Protected}}
+    <ul class="errorlist">{{range .Deletion.Protected}}<li>{{.}}</li>{{end}}</ul>
+  {{end}}
+  <h2>Summary</h2>
+  <ul>{{range .Deletion.Objects}}<li>{{.}}</li>{{else}}<li>{{.ModelVerboseName}}: object</li>{{end}}</ul>
+  <form method="post">
+    <input type="hidden" name="csrfmiddlewaretoken" value="">
+    <div>
+      <input type="submit" value="Yes, I'm sure">
+      <a href="{{.ChangeListURL}}" class="button cancel-link">No, take me back</a>
+    </div>
+  </form>
+</div>
 {{end}}
 {{template "base" .}}

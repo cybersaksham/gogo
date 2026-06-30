@@ -2,7 +2,7 @@ package admin
 
 import (
 	"context"
-	"html"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -51,17 +51,18 @@ func registerModelURLs(router *gogohttp.Router, site *Site, admin ModelAdmin) er
 	routes := []struct {
 		name    string
 		pattern string
+		view    gogohttp.View
 	}{
-		{namePrefix + "_changelist", prefix + "/"},
-		{namePrefix + "_add", prefix + "/add/"},
-		{namePrefix + "_change", prefix + "/<path:object_id>/change/"},
-		{namePrefix + "_delete", prefix + "/<path:object_id>/delete/"},
-		{namePrefix + "_history", prefix + "/<path:object_id>/history/"},
-		{namePrefix + "_autocomplete", prefix + "/autocomplete/"},
-		{namePrefix + "_jsi18n", prefix + "/jsi18n/"},
+		{namePrefix + "_changelist", prefix + "/", adminChangeListView(site, admin)},
+		{namePrefix + "_add", prefix + "/add/", adminChangeFormView(site, admin, ChangeFormAdd)},
+		{namePrefix + "_change", prefix + "/<path:object_id>/change/", adminChangeFormView(site, admin, ChangeFormEdit)},
+		{namePrefix + "_delete", prefix + "/<path:object_id>/delete/", adminDeleteView(site, admin)},
+		{namePrefix + "_history", prefix + "/<path:object_id>/history/", adminHistoryView(site, admin)},
+		{namePrefix + "_autocomplete", prefix + "/autocomplete/", adminAutocompleteView()},
+		{namePrefix + "_jsi18n", prefix + "/jsi18n/", adminJSI18NView()},
 	}
 	for _, route := range routes {
-		if err := router.Handle(route.name, route.pattern, protectedAdminView(site, placeholderView(route.name)), "GET", "POST"); err != nil {
+		if err := router.Handle(route.name, route.pattern, protectedAdminView(site, route.view), "GET", "POST"); err != nil {
 			return err
 		}
 	}
@@ -70,7 +71,11 @@ func registerModelURLs(router *gogohttp.Router, site *Site, admin ModelAdmin) er
 		if !strings.HasSuffix(pattern, "/") {
 			pattern += "/"
 		}
-		if err := router.Handle(namePrefix+"_"+custom.Name, pattern, protectedAdminView(site, placeholderView(custom.Name)), "GET", "POST"); err != nil {
+		view := placeholderView(custom.Name)
+		if custom.Handler != nil {
+			view = gogohttp.FromHandler(custom.Handler)
+		}
+		if err := router.Handle(namePrefix+"_"+custom.Name, pattern, protectedAdminView(site, view), "GET", "POST"); err != nil {
 			return err
 		}
 	}
@@ -114,55 +119,146 @@ func placeholderView(name string) gogohttp.View {
 }
 
 func adminIndexView(site *Site) gogohttp.View {
-	return func(context.Context, *gogohttp.Request) gogohttp.Response {
-		return gogohttp.HTML(200, renderAdminIndex(site, ""))
+	return func(_ context.Context, request *gogohttp.Request) gogohttp.Response {
+		data := baseAdminPageData(site, request.Raw(), adminSiteOrDefault(site).IndexTitle, adminSiteOrDefault(site).IndexTitle, "dashboard")
+		data.Apps = groupedAdminModels(adminSiteOrDefault(site), "")
+		return renderAdminTemplate("index.html", data)
 	}
 }
 
 func adminAppListView(site *Site) gogohttp.View {
 	return func(_ context.Context, request *gogohttp.Request) gogohttp.Response {
-		return gogohttp.HTML(200, renderAdminIndex(site, strings.ToLower(request.PathParam("app_label"))))
+		site = adminSiteOrDefault(site)
+		appLabel := strings.ToLower(request.PathParam("app_label"))
+		data := baseAdminPageData(site, request.Raw(), appLabel, appLabel, "dashboard app-"+adminClassName(appLabel))
+		data.Apps = groupedAdminModels(site, appLabel)
+		data.Breadcrumbs = append(data.Breadcrumbs, adminBreadcrumb{URL: site.URLPrefix + "/" + appLabel + "/", Label: appLabel})
+		return renderAdminTemplate("index.html", data)
 	}
 }
 
-func renderAdminIndex(site *Site, onlyApp string) string {
-	if site == nil {
-		site = DefaultSite()
-	}
-	var builder strings.Builder
-	builder.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>")
-	builder.WriteString(html.EscapeString(site.Title))
-	builder.WriteString("</title></head><body><header><h1>")
-	builder.WriteString(html.EscapeString(site.Header))
-	builder.WriteString("</h1></header><main><h2>")
-	builder.WriteString(html.EscapeString(site.IndexTitle))
-	builder.WriteString("</h2>")
-
-	apps := groupedAdminModels(site, onlyApp)
-	if len(apps) == 0 {
-		builder.WriteString("<p>No admin models registered.</p>")
-	} else {
-		for _, app := range apps {
-			builder.WriteString("<section><h3><a href=\"")
-			builder.WriteString(html.EscapeString(site.URLPrefix + "/" + app.AppLabel + "/"))
-			builder.WriteString("\">")
-			builder.WriteString(html.EscapeString(app.AppLabel))
-			builder.WriteString("</a></h3><ul>")
-			for _, model := range app.Models {
-				modelPath := site.URLPrefix + "/" + app.AppLabel + "/" + strings.ToLower(model.Name) + "/"
-				builder.WriteString("<li><a href=\"")
-				builder.WriteString(html.EscapeString(modelPath))
-				builder.WriteString("\">")
-				builder.WriteString(html.EscapeString(model.Name))
-				builder.WriteString("</a> <a href=\"")
-				builder.WriteString(html.EscapeString(modelPath + "add/"))
-				builder.WriteString("\">Add</a></li>")
-			}
-			builder.WriteString("</ul></section>")
+func adminChangeListView(site *Site, modelAdmin ModelAdmin) gogohttp.View {
+	return func(_ context.Context, request *gogohttp.Request) gogohttp.Response {
+		user, ok := adminRequestUser(site, request.Raw())
+		if !ok || !(modelAdmin.HasViewPermission(request.Raw(), user) || modelAdmin.HasChangePermission(request.Raw(), user)) {
+			return gogohttp.Forbidden("Forbidden", nil)
 		}
+		changeList, err := BuildChangeList(modelAdmin, rowsFromModelAdmin(modelAdmin, request.Raw()), request.Raw().URL.Query())
+		if err != nil {
+			return gogohttp.BadRequest("Bad Request", err)
+		}
+		verboseName := modelVerboseName(modelAdmin)
+		data := modelAdminPageData(site, request.Raw(), modelAdmin, "Select "+verboseName+" to change", "Select "+verboseName+" to change", "change-list")
+		data.ChangeList = changeList
+		return renderAdminTemplate("change_list.html", data)
 	}
-	builder.WriteString("</main></body></html>")
-	return builder.String()
+}
+
+func adminChangeFormView(site *Site, modelAdmin ModelAdmin, mode ChangeFormMode) gogohttp.View {
+	return func(_ context.Context, request *gogohttp.Request) gogohttp.Response {
+		user, ok := adminRequestUser(site, request.Raw())
+		if !ok {
+			return gogohttp.Forbidden("Forbidden", nil)
+		}
+		objectID := request.PathParam("object_id")
+		formContext, err := BuildChangeForm(modelAdmin, ChangeFormInput{
+			Mode:     mode,
+			ObjectID: objectID,
+			User:     user,
+			Request:  request.Raw(),
+			Values:   formValues(request.Raw()),
+		})
+		if err != nil {
+			return gogohttp.Forbidden("Forbidden", err)
+		}
+		action := "Add"
+		if mode == ChangeFormEdit {
+			action = "Change"
+		}
+		verboseName := modelVerboseName(modelAdmin)
+		data := modelAdminPageData(site, request.Raw(), modelAdmin, action+" "+verboseName, action+" "+verboseName, "change-form")
+		data.Form = changeFormViewData(modelAdmin, formContext)
+		data.DeleteURL = data.ChangeListURL + objectID + "/delete/"
+		data.HistoryURL = data.ChangeListURL + objectID + "/history/"
+		data.Form.DeleteURL = data.DeleteURL
+		data.Form.HistoryURL = data.HistoryURL
+		return renderAdminTemplate("change_form.html", data)
+	}
+}
+
+func adminDeleteView(site *Site, modelAdmin ModelAdmin) gogohttp.View {
+	return func(_ context.Context, request *gogohttp.Request) gogohttp.Response {
+		user, ok := adminRequestUser(site, request.Raw())
+		if !ok || !modelAdmin.HasDeletePermission(request.Raw(), user) {
+			return gogohttp.Forbidden("Forbidden", nil)
+		}
+		objectID := request.PathParam("object_id")
+		data := modelAdminPageData(site, request.Raw(), modelAdmin, "Delete "+modelVerboseName(modelAdmin), "Are you sure?", "delete-confirmation")
+		data.Deletion = CollectDeletion([]DeletionObject{{
+			Label:    data.ModelVerboseName,
+			ObjectID: objectID,
+			Repr:     objectID,
+		}})
+		if request.Method() == http.MethodPost {
+			if err := ConfirmDeletion(data.Deletion); err != nil {
+				return gogohttp.Conflict("Conflict", err)
+			}
+			return gogohttp.TemporaryRedirect(data.ChangeListURL)
+		}
+		return renderAdminTemplate("delete_confirmation.html", data)
+	}
+}
+
+func adminHistoryView(site *Site, modelAdmin ModelAdmin) gogohttp.View {
+	return func(_ context.Context, request *gogohttp.Request) gogohttp.Response {
+		user, ok := adminRequestUser(site, request.Raw())
+		if !ok || !modelAdmin.HasViewPermission(request.Raw(), user) {
+			return gogohttp.Forbidden("Forbidden", nil)
+		}
+		data := modelAdminPageData(site, request.Raw(), modelAdmin, "History "+modelVerboseName(modelAdmin), "Object history", "history")
+		data.History = BuildHistoryPage(nil, modelAdmin.Model.Label(), request.PathParam("object_id"))
+		return renderAdminTemplate("history.html", data)
+	}
+}
+
+func adminAutocompleteView() gogohttp.View {
+	return func(context.Context, *gogohttp.Request) gogohttp.Response {
+		return gogohttp.JSON(http.StatusOK, map[string]any{
+			"results": []map[string]any{},
+			"pagination": map[string]bool{
+				"more": false,
+			},
+		})
+	}
+}
+
+func adminJSI18NView() gogohttp.View {
+	return func(context.Context, *gogohttp.Request) gogohttp.Response {
+		catalog := JavaScriptCatalog(map[string]string{
+			"Add":    "Add",
+			"Change": "Change",
+			"Delete": "Delete",
+			"Save":   "Save",
+		})
+		return gogohttp.Stream(catalog.ContentType+"; charset=utf-8", func(writer io.Writer) error {
+			_, err := io.WriteString(writer, catalog.Body)
+			return err
+		})
+	}
+}
+
+func formValues(request *http.Request) map[string]any {
+	values := map[string]any{}
+	if request.Method != http.MethodPost {
+		return values
+	}
+	if err := request.ParseForm(); err != nil {
+		return values
+	}
+	for key := range request.PostForm {
+		values[key] = request.PostFormValue(key)
+	}
+	return values
 }
 
 func groupedAdminModels(site *Site, onlyApp string) []IndexApp {
@@ -174,6 +270,7 @@ func groupedAdminModels(site *Site, onlyApp string) []IndexApp {
 			continue
 		}
 		appLabel := strings.ToLower(modelAdmin.Model.AppLabel)
+		modelName := strings.ToLower(modelAdmin.Model.ModelName)
 		if onlyApp != "" && appLabel != onlyApp {
 			continue
 		}
@@ -183,9 +280,12 @@ func groupedAdminModels(site *Site, onlyApp string) []IndexApp {
 			position = len(apps) - 1
 			appPositions[appLabel] = position
 		}
+		modelPath := site.URLPrefix + "/" + appLabel + "/" + modelName + "/"
 		apps[position].Models = append(apps[position].Models, IndexModel{
-			AppLabel: appLabel,
-			Name:     modelAdmin.Model.ModelName,
+			AppLabel:  appLabel,
+			Name:      modelAdmin.Model.ModelName,
+			AddURL:    modelPath + "add/",
+			ChangeURL: modelPath,
 		})
 	}
 	return apps

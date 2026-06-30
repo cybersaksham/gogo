@@ -16,6 +16,7 @@ func TestAdminEmbeddedAssetsExist(t *testing.T) {
 		"templates/change_form.html",
 		"templates/delete_confirmation.html",
 		"templates/history.html",
+		"templates/password_change.html",
 		"static/admin.css",
 		"static/admin.js",
 	}

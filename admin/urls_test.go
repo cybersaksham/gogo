@@ -89,6 +89,106 @@ func TestAdminIndexRouteRendersRegisteredModels(t *testing.T) {
 	}
 }
 
+func TestAdminModelRoutesRenderDjangoStylePages(t *testing.T) {
+	site := DefaultSite()
+	if err := site.ModelRegistry.RegisterMetadata(models.Metadata{
+		AppLabel:    "blog",
+		ModelName:   "Post",
+		TableName:   "blog_post",
+		Fields:      []models.FieldMeta{{Name: "id", Column: "id", PrimaryKey: true}, {Name: "title", Column: "title"}, {Name: "status", Column: "status"}},
+		VerboseName: "post",
+	}, ModelAdmin{
+		ListDisplay:    []string{"title", "status"},
+		SearchFields:   []string{"title"},
+		ListFilter:     []string{"status"},
+		Fields:         []string{"title", "status"},
+		ReadonlyFields: []string{"id"},
+	}); err != nil {
+		t.Fatalf("RegisterMetadata() error = %v", err)
+	}
+	router, err := site.URLs()
+	if err != nil {
+		t.Fatalf("URLs() error = %v", err)
+	}
+
+	tests := []struct {
+		path string
+		want []string
+	}{
+		{"/admin/blog/post/", []string{`<body class="dashboard app-blog model-post change-list"`, `id="changelist"`, `Add post`, `action-checkbox-column`, `searchbar`}},
+		{"/admin/blog/post/add/", []string{`<body class="dashboard app-blog model-post change-form"`, `id="post_form"`, `Save and continue editing`, `name="_addanother"`}},
+		{"/admin/blog/post/42/change/", []string{`<body class="dashboard app-blog model-post change-form"`, `History`, `Delete`, `name="_save"`}},
+		{"/admin/blog/post/42/delete/", []string{`<body class="dashboard app-blog model-post delete-confirmation"`, `Are you sure?`, `Yes, I'm sure`}},
+		{"/admin/blog/post/42/history/", []string{`<body class="dashboard app-blog model-post history"`, `Object history`, `Date/time`, `User`, `Action`}},
+	}
+	for _, test := range tests {
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, staffAdminRequest(http.MethodGet, test.path))
+		if response.Code != http.StatusOK {
+			t.Fatalf("%s status = %d body=%s", test.path, response.Code, response.Body.String())
+		}
+		if got := response.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
+			t.Fatalf("%s content type = %q", test.path, got)
+		}
+		for _, want := range test.want {
+			if !strings.Contains(response.Body.String(), want) {
+				t.Fatalf("%s body missing %q:\n%s", test.path, want, response.Body.String())
+			}
+		}
+	}
+
+	autocomplete := httptest.NewRecorder()
+	router.ServeHTTP(autocomplete, staffAdminRequest(http.MethodGet, "/admin/blog/post/autocomplete/"))
+	if autocomplete.Code != http.StatusOK || autocomplete.Header().Get("Content-Type") != "application/json" || !strings.Contains(autocomplete.Body.String(), `"results"`) {
+		t.Fatalf("autocomplete response = %d %q %s", autocomplete.Code, autocomplete.Header().Get("Content-Type"), autocomplete.Body.String())
+	}
+
+	jsi18n := httptest.NewRecorder()
+	router.ServeHTTP(jsi18n, staffAdminRequest(http.MethodGet, "/admin/blog/post/jsi18n/"))
+	if jsi18n.Code != http.StatusOK || !strings.Contains(jsi18n.Header().Get("Content-Type"), "application/javascript") || !strings.Contains(jsi18n.Body.String(), "window.gogoAdminCatalog") {
+		t.Fatalf("jsi18n response = %d %q %s", jsi18n.Code, jsi18n.Header().Get("Content-Type"), jsi18n.Body.String())
+	}
+}
+
+func TestAdminAuthViewsRenderDjangoStyleForms(t *testing.T) {
+	site := DefaultSite()
+	config := AuthViewConfig{Site: site}
+
+	for _, test := range []struct {
+		name    string
+		handler http.Handler
+		request *http.Request
+		want    []string
+	}{
+		{
+			name:    "login",
+			handler: LoginView(config),
+			request: httptest.NewRequest(http.MethodGet, "/admin/login/?next=/admin/", nil),
+			want:    []string{`<body class="login"`, `id="login-form"`, `csrfmiddlewaretoken`, `Log in`},
+		},
+		{
+			name:    "password change",
+			handler: PasswordChangeView(config),
+			request: staffAdminRequest(http.MethodGet, "/admin/password_change/"),
+			want:    []string{`<body class="dashboard password-change"`, `id="password-change-form"`, `old_password`, `new_password`, `Change my password`},
+		},
+	} {
+		response := httptest.NewRecorder()
+		test.handler.ServeHTTP(response, test.request)
+		if response.Code != http.StatusOK {
+			t.Fatalf("%s status = %d body=%s", test.name, response.Code, response.Body.String())
+		}
+		if got := response.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
+			t.Fatalf("%s content type = %q", test.name, got)
+		}
+		for _, want := range test.want {
+			if !strings.Contains(response.Body.String(), want) {
+				t.Fatalf("%s body missing %q:\n%s", test.name, want, response.Body.String())
+			}
+		}
+	}
+}
+
 func TestAdminRoutesRequireActiveStaffUser(t *testing.T) {
 	site := DefaultSite()
 	router, err := site.URLs()

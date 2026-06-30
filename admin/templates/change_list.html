@@ -1,15 +1,69 @@
 {{define "content"}}
-<form method="post">
-  <table class="change-list">
-    <thead><tr>{{range .Columns}}<th scope="col">{{.Name}}</th>{{end}}</tr></thead>
-    <tbody>
-      {{range .Rows}}
-        <tr>{{range $name, $value := .Values}}<td data-field="{{$name}}">{{$value}}</td>{{end}}</tr>
-      {{else}}
-        <tr><td>No results.</td></tr>
+<div id="content-main">
+  <ul class="object-tools">
+    <li><a href="{{.AddURL}}" class="addlink">Add {{.ModelVerboseName}}</a></li>
+  </ul>
+  <div id="changelist" class="module">
+    <div id="toolbar">
+      <form id="changelist-search" method="get" role="search">
+        <div>
+          <label for="searchbar"><span class="visually-hidden">Search</span></label>
+          <input type="text" size="40" name="q" value="{{.SearchQuery}}" id="searchbar">
+          <input type="submit" value="Search">
+          {{if .SearchHelpText}}<span class="help">{{.SearchHelpText}}</span>{{end}}
+        </div>
+      </form>
+    </div>
+    {{if .ListFilters}}
+    <div id="changelist-filter">
+      <h2>Filter</h2>
+      {{range .ListFilters}}
+      <details open>
+        <summary>{{.Label}}</summary>
+        <ul><li class="selected"><a href="?">{{.Name}}</a></li></ul>
+      </details>
       {{end}}
-    </tbody>
-  </table>
-</form>
+    </div>
+    {{end}}
+    <form id="changelist-form" method="post" novalidate>
+      <input type="hidden" name="csrfmiddlewaretoken" value="">
+      <div class="actions">
+        <label>Action:
+          <select name="action">
+            <option value="" selected>---------</option>
+            <option value="delete_selected">Delete selected {{.ModelVerboseNamePlural}}</option>
+          </select>
+        </label>
+        <button type="submit" class="button" title="Run the selected action" name="index" value="0">Go</button>
+        <span class="action-counter" data-actions-icnt="{{.ChangeList.Total}}">0 of {{.ChangeList.Total}} selected</span>
+      </div>
+      <div class="results">
+        <table id="result_list">
+          <thead>
+            <tr>
+              <th scope="col" class="action-checkbox-column">
+                <div class="text"><span><input type="checkbox" id="action-toggle" aria-label="Select all objects on this page"></span></div>
+              </th>
+              {{range .ChangeList.Columns}}
+              <th scope="col" class="column-{{.Name}}"><div class="text"><span>{{.Name}}</span></div></th>
+              {{end}}
+            </tr>
+          </thead>
+          <tbody>
+            {{range $row := .ChangeList.Rows}}
+            <tr>
+              <td class="action-checkbox"><input type="checkbox" name="_selected_action" value=""></td>
+              {{range $.ChangeList.Columns}}<td class="field-{{.Name}}">{{index $row.Values .Name}}</td>{{end}}
+            </tr>
+            {{else}}
+            <tr><td colspan="99">No {{$.ModelVerboseNamePlural}} are available.</td></tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+      <p class="paginator">{{.ChangeList.Total}} {{.ModelVerboseNamePlural}}</p>
+    </form>
+  </div>
+</div>
 {{end}}
 {{template "base" .}}

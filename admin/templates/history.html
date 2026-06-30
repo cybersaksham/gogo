@@ -1,9 +1,27 @@
 {{define "content"}}
-<section aria-labelledby="history-title">
-  <h2 id="history-title">History</h2>
-  <ol>
-    {{range .Entries}}<li><time>{{.ActionTime}}</time> {{.ActionFlag}} {{.ChangeMessage}}</li>{{else}}<li>No history.</li>{{end}}
-  </ol>
-</section>
+<div id="content-main">
+  <div class="module">
+    <table id="change-history">
+      <thead>
+        <tr>
+          <th scope="col">Date/time</th>
+          <th scope="col">User</th>
+          <th scope="col">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .History.Entries}}
+        <tr>
+          <th scope="row">{{.ActionTime}}</th>
+          <td>{{.UserID}}</td>
+          <td>{{.ChangeMessage}}</td>
+        </tr>
+        {{else}}
+        <tr><td colspan="3">This object does not have a change history.</td></tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+</div>
 {{end}}
 {{template "base" .}}

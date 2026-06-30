@@ -1,20 +1,27 @@
 {{define "content"}}
-<section aria-labelledby="admin-index-title">
-  <h2 id="admin-index-title">{{or .IndexTitle "Site administration"}}</h2>
+<div id="content-main">
   {{range .Apps}}
-    <section class="app-group" aria-label="{{.AppLabel}}">
-      <h3>{{.AppLabel}}</h3>
-      <ul>
-        {{range .Models}}
-          <li><a href="{{.ChangeURL}}">{{.Name}}</a>{{if .AddURL}} <a href="{{.AddURL}}">Add</a>{{end}}</li>
-        {{else}}
-          <li>No models available.</li>
-        {{end}}
-      </ul>
-    </section>
+    <div class="app-{{.AppLabel}} module">
+      <table>
+        <caption>
+          <a href="/admin/{{.AppLabel}}/" class="section" title="Models in the {{.AppLabel}} application">{{.AppLabel}}</a>
+        </caption>
+        <tbody>
+          {{range .Models}}
+          <tr class="model-{{.Name}}">
+            <th scope="row"><a href="{{.ChangeURL}}">{{.Name}}</a></th>
+            <td>{{if .AddURL}}<a href="{{.AddURL}}" class="addlink">Add</a>{{end}}</td>
+            <td>{{if .ChangeURL}}<a href="{{.ChangeURL}}" class="changelink">Change</a>{{end}}</td>
+          </tr>
+          {{else}}
+          <tr><td>No models available.</td></tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
   {{else}}
-    <p>No applications are available.</p>
+    <p>You do not have permission to view or edit anything.</p>
   {{end}}
-</section>
+</div>
 {{end}}
 {{template "base" .}}

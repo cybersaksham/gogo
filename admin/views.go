@@ -24,8 +24,7 @@ type AuthViewConfig struct {
 func LoginView(config AuthViewConfig) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte("admin login"))
+			renderAdminHTTPTemplate(w, "login.html", baseLoginPageData(config, r, ""))
 			return
 		}
 		if err := r.ParseForm(); err != nil {
@@ -38,11 +37,11 @@ func LoginView(config AuthViewConfig) http.Handler {
 			Password: r.FormValue("password"),
 		})
 		if err != nil {
-			http.Error(w, "login failed", http.StatusUnauthorized)
+			renderAdminHTTPTemplateStatus(w, "login.html", baseLoginPageData(config, r, "Please enter the correct username and password for a staff account."), http.StatusUnauthorized)
 			return
 		}
 		if !ok || !user.IsStaff {
-			http.Error(w, "admin access denied", http.StatusForbidden)
+			renderAdminHTTPTemplateStatus(w, "login.html", baseLoginPageData(config, r, "Please enter the correct username and password for a staff account."), http.StatusForbidden)
 			return
 		}
 		if err := saveAdminSession(r.Context(), w, config, user); err != nil {
@@ -76,8 +75,7 @@ func PasswordChangeView(config AuthViewConfig) http.Handler {
 			return
 		}
 		if r.Method != http.MethodPost {
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte("password change"))
+			renderAdminHTTPTemplate(w, "password_change.html", basePasswordChangePageData(config, r, ""))
 			return
 		}
 		if err := r.ParseForm(); err != nil {
@@ -87,7 +85,7 @@ func PasswordChangeView(config AuthViewConfig) http.Handler {
 		form := auth.PasswordChangeForm{User: user, OldPassword: r.FormValue("old_password"), NewPassword: r.FormValue("new_password")}
 		valid, err := form.Validate()
 		if err != nil || !valid {
-			http.Error(w, "password change failed", http.StatusBadRequest)
+			renderAdminHTTPTemplate(w, "password_change.html", basePasswordChangePageData(config, r, "Please correct the error below."))
 			return
 		}
 		if err := form.Save(); err != nil {
@@ -112,9 +110,45 @@ func currentAdminUser(r *http.Request, config AuthViewConfig) (auth.User, bool) 
 // PasswordChangeDoneView renders a small completion response.
 func PasswordChangeDoneView() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("password changed"))
+		_, _ = w.Write([]byte("<!doctype html><html><body>Password changed</body></html>"))
 	})
+}
+
+func renderAdminHTTPTemplate(w http.ResponseWriter, name string, data adminPageData) {
+	renderAdminHTTPTemplateStatus(w, name, data, http.StatusOK)
+}
+
+func renderAdminHTTPTemplateStatus(w http.ResponseWriter, name string, data adminPageData, status int) {
+	rendered, err := RenderTemplate(name, data, nil)
+	if err != nil {
+		http.Error(w, "admin template failed", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	_, _ = w.Write([]byte(rendered))
+}
+
+func baseLoginPageData(config AuthViewConfig, request *http.Request, errorMessage string) adminPageData {
+	site := config.site()
+	data := baseAdminPageData(site, request, "Log in", "Log in", "login")
+	data.Next = request.URL.Query().Get("next")
+	if data.Next == "" {
+		data.Next = request.FormValue("next")
+	}
+	data.Error = errorMessage
+	data.Breadcrumbs = nil
+	return data
+}
+
+func basePasswordChangePageData(config AuthViewConfig, request *http.Request, errorMessage string) adminPageData {
+	site := config.site()
+	data := baseAdminPageData(site, request, "Password change", "Password change", "dashboard password-change")
+	data.Error = errorMessage
+	data.Breadcrumbs = append(data.Breadcrumbs, adminBreadcrumb{URL: site.URLPrefix + "/password_change/", Label: "Password change"})
+	return data
 }
 
 func saveAdminSession(ctx context.Context, w http.ResponseWriter, config AuthViewConfig, user auth.User) error {

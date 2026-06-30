@@ -4,16 +4,41 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{or .Title "Gogo admin"}}</title>
+  <title>{{or .Title "Gogo site admin"}}</title>
   <link rel="stylesheet" href="/static/admin.css">
 </head>
-<body class="gogo-admin">
-  <header class="admin-header">
-    <h1>{{or .Header "Gogo administration"}}</h1>
-  </header>
-  <main id="content" tabindex="-1">
-    {{block "content" .}}{{end}}
-  </main>
+<body class="{{if .BodyClass}}{{.BodyClass}}{{else}}dashboard{{end}}" data-admin-utc-offset="0">
+  <div id="container">
+    <header id="header">
+      <div id="branding">
+        <h1 id="site-name"><a href="{{.SiteURL}}">{{or .Header "Gogo administration"}}</a></h1>
+      </div>
+      {{if .UserName}}
+      <div id="user-tools">
+        Welcome, <strong>{{.UserName}}</strong>.
+        <a href="{{.PasswordChangeURL}}">Change password</a> /
+        <form id="logout-form" method="post" action="{{.LogoutURL}}">
+          <button type="submit">Log out</button>
+        </form>
+      </div>
+      {{end}}
+    </header>
+    {{if .Breadcrumbs}}
+    <nav aria-label="Breadcrumbs">
+      <div class="breadcrumbs">
+        {{range $index, $crumb := .Breadcrumbs}}
+          {{if $index}} &rsaquo; {{end}}{{if $crumb.URL}}<a href="{{$crumb.URL}}">{{$crumb.Label}}</a>{{else}}{{$crumb.Label}}{{end}}
+        {{end}}
+      </div>
+    </nav>
+    {{end}}
+    <main id="content" class="colM" tabindex="-1">
+      {{if .ContentTitle}}<h1>{{.ContentTitle}}</h1>{{end}}
+      {{block "content" .}}{{end}}
+      <br class="clear">
+    </main>
+    <footer id="footer"></footer>
+  </div>
   <script src="/static/admin.js" defer></script>
 </body>
 </html>
