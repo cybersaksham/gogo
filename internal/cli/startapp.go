@@ -53,7 +53,7 @@ func (c startappCommand) Run(_ context.Context, args []string) error {
 		return err
 	}
 
-	files, err := gogotemplates.AppFiles(gogotemplates.AppData{AppName: appName, AppLabel: appName})
+	files, err := gogotemplates.AppFiles(gogotemplates.AppData{AppName: appName, AppLabel: appName, ModulePath: modulePathForGeneratedApp(target)})
 	if err != nil {
 		return fmt.Errorf("%w: render app templates: %v", ErrCommandFailed, err)
 	}
@@ -72,6 +72,22 @@ func (c startappCommand) Run(_ context.Context, args []string) error {
 	}
 
 	return nil
+}
+
+func modulePathForGeneratedApp(target string) string {
+	targetAbs, err := filepath.Abs(target)
+	if err != nil {
+		return ""
+	}
+	appsDir := filepath.Dir(targetAbs)
+	if filepath.Base(appsDir) != "apps" {
+		return ""
+	}
+	modulePath, err := readModulePath(filepath.Join(filepath.Dir(appsDir), "go.mod"))
+	if err != nil {
+		return ""
+	}
+	return modulePath
 }
 
 func autoInstallGeneratedApp(target, appName string) error {

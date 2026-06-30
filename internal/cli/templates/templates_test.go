@@ -288,8 +288,32 @@ func TestAppTemplatesRenderParseablePublicGoFiles(t *testing.T) {
 	}
 }
 
+func TestAppTemplatesRenderMeaningfulModuleAwareTests(t *testing.T) {
+	files, err := AppFiles(AppData{AppName: "blog", AppLabel: "blog", ModulePath: "sample"})
+	if err != nil {
+		t.Fatalf("AppFiles() error = %v", err)
+	}
+
+	tests := files[filepath.Join("tests", "blog_test.go")]
+	for _, want := range []string{
+		`blog "sample/apps/blog"`,
+		"TestGeneratedAppMetadata",
+		"TestGeneratedAppRegistrations",
+		"TestGeneratedAppHTTPRoute",
+		"TestGeneratedAppAdminFormSerializerAndTasks",
+		"TestGeneratedAppAPIRoutes",
+	} {
+		if !strings.Contains(tests, want) {
+			t.Fatalf("generated app tests missing %q:\n%s", want, tests)
+		}
+	}
+	if strings.Contains(tests, "TestScaffold") {
+		t.Fatalf("generated app tests must not be placeholder-only:\n%s", tests)
+	}
+}
+
 func TestGeneratedAppCompilesAsDownstreamModule(t *testing.T) {
-	files, err := AppFiles(AppData{AppName: "blog", AppLabel: "blog"})
+	files, err := AppFiles(AppData{AppName: "blog", AppLabel: "blog", ModulePath: "sample"})
 	if err != nil {
 		t.Fatalf("AppFiles() error = %v", err)
 	}

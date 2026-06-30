@@ -19,8 +19,9 @@ type ProjectData struct {
 }
 
 type AppData struct {
-	AppName  string
-	AppLabel string
+	AppName    string
+	AppLabel   string
+	ModulePath string
 }
 
 type templateFile struct {
