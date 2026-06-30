@@ -149,6 +149,18 @@ func TestAdminPasswordChangeTemplateIncludesHiddenUsername(t *testing.T) {
 	}
 }
 
+func TestAdminFormTemplatesUseDjangoFieldFlexContainers(t *testing.T) {
+	for _, name := range []string{"templates/change_form.html", "templates/password_change.html"} {
+		body, ok := ReadAsset(name)
+		if !ok {
+			t.Fatalf("ReadAsset(%s) missing", name)
+		}
+		if !strings.Contains(string(body), `class="flex-container"`) {
+			t.Fatalf("%s missing Django flex-container field layout", name)
+		}
+	}
+}
+
 func containsString(values []string, value string) bool {
 	for _, item := range values {
 		if item == value {
