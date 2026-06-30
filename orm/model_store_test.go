@@ -96,10 +96,10 @@ func TestMetadataStoreCRUDDumpAndLoad(t *testing.T) {
 
 func notesItemMeta() models.Metadata {
 	return models.Metadata{
-		AppLabel:   "notes",
-		ModelName:  "Item",
-		TableName:  "notes_item",
-		DBTable:    "notes_item",
+		AppLabel:    "notes",
+		ModelName:   "Item",
+		TableName:   "notes_item",
+		DBTable:     "notes_item",
 		VerboseName: "item",
 		Fields: []models.FieldMeta{
 			{Name: "id", Column: "id", PrimaryKey: true},

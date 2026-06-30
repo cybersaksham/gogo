@@ -296,7 +296,7 @@ func TestAppTemplatesRenderMeaningfulModuleAwareTests(t *testing.T) {
 
 	tests := files[filepath.Join("tests", "blog_test.go")]
 	for _, want := range []string{
-		`blog "sample/apps/blog"`,
+		`generatedapp "sample/apps/blog"`,
 		"TestGeneratedAppMetadata",
 		"TestGeneratedAppRegistrations",
 		"TestGeneratedAppHTTPRoute",

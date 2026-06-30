@@ -1,5 +1,4 @@
 package tests
-
 {{if .ModulePath}}
 import (
 	"context"
@@ -9,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	blog "{{.ModulePath}}/apps/{{.AppLabel}}"
+	generatedapp "{{.ModulePath}}/apps/{{.AppLabel}}"
 
 	"github.com/cybersaksham/gogo/admin"
 	"github.com/cybersaksham/gogo/api"
@@ -20,8 +19,8 @@ import (
 )
 
 func TestGeneratedAppMetadata(t *testing.T) {
-	metadata := blog.Item{}.ModelMeta()
-	if metadata.AppLabel != blog.AppLabel || metadata.ModelName != "Item" || metadata.TableName != blog.AppLabel+"_item" {
+	metadata := generatedapp.Item{}.ModelMeta()
+	if metadata.AppLabel != generatedapp.AppLabel || metadata.ModelName != "Item" || metadata.TableName != generatedapp.AppLabel+"_item" {
 		t.Fatalf("metadata = %#v", metadata)
 	}
 	for _, field := range []string{"id", "name", "slug", "created_at", "updated_at"} {
@@ -29,14 +28,14 @@ func TestGeneratedAppMetadata(t *testing.T) {
 			t.Fatalf("metadata fields missing %s: %#v", field, metadata.Fields)
 		}
 	}
-	if len(blog.ModelMetadata()) != 1 {
-		t.Fatalf("ModelMetadata length = %d, want 1", len(blog.ModelMetadata()))
+	if len(generatedapp.ModelMetadata()) != 1 {
+		t.Fatalf("ModelMetadata length = %d, want 1", len(generatedapp.ModelMetadata()))
 	}
 }
 
 func TestGeneratedAppRegistrations(t *testing.T) {
 	registry := app.NewRegistry()
-	if err := blog.NewConfig().Ready(context.Background(), registry); err != nil {
+	if err := generatedapp.NewConfig().Ready(context.Background(), registry); err != nil {
 		t.Fatalf("Ready() error = %v", err)
 	}
 	if got := registry.Models(); len(got) != 1 || got[0].Name != "Item" {
@@ -45,16 +44,16 @@ func TestGeneratedAppRegistrations(t *testing.T) {
 	if got := registry.Admin(); len(got) != 1 || got[0].Handler != "RegisterAdmin" {
 		t.Fatalf("Admin() = %#v", got)
 	}
-	if got := registry.Routes(); len(got) != 1 || got[0].Path != "/"+blog.AppLabel+"/" {
+	if got := registry.Routes(); len(got) != 1 || got[0].Path != "/"+generatedapp.AppLabel+"/" {
 		t.Fatalf("Routes() = %#v", got)
 	}
-	if got := registry.APIRoutes(); len(got) != 1 || got[0].Path != "/api/"+blog.AppLabel+"/items/" {
+	if got := registry.APIRoutes(); len(got) != 1 || got[0].Path != "/api/"+generatedapp.AppLabel+"/items/" {
 		t.Fatalf("APIRoutes() = %#v", got)
 	}
 	if got := registry.Forms(); len(got) != 1 || got[0].Name != "ItemForm" {
 		t.Fatalf("Forms() = %#v", got)
 	}
-	if got := registry.Tasks(); len(got) != 1 || got[0].Name != blog.AppLabel+".example" {
+	if got := registry.Tasks(); len(got) != 1 || got[0].Name != generatedapp.AppLabel+".example" {
 		t.Fatalf("Tasks() = %#v", got)
 	}
 	if got := registry.Migrations(); len(got) != 1 || got[0].Name != "0001_initial" {
@@ -64,41 +63,41 @@ func TestGeneratedAppRegistrations(t *testing.T) {
 
 func TestGeneratedAppHTTPRoute(t *testing.T) {
 	router := gogohttp.NewRouter()
-	if err := blog.RegisterRoutes(router); err != nil {
+	if err := generatedapp.RegisterRoutes(router); err != nil {
 		t.Fatalf("RegisterRoutes() error = %v", err)
 	}
 	response := httptest.NewRecorder()
-	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/"+blog.AppLabel+"/", nil))
-	if response.Code != http.StatusOK || strings.TrimSpace(response.Body.String()) != blog.AppLabel+" index" {
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/"+generatedapp.AppLabel+"/", nil))
+	if response.Code != http.StatusOK || strings.TrimSpace(response.Body.String()) != generatedapp.AppLabel+" index" {
 		t.Fatalf("route response = %d body=%q", response.Code, response.Body.String())
 	}
 }
 
 func TestGeneratedAppAdminFormSerializerAndTasks(t *testing.T) {
 	adminRegistry := admin.NewRegistry()
-	if err := blog.RegisterAdmin(adminRegistry); err != nil {
+	if err := generatedapp.RegisterAdmin(adminRegistry); err != nil {
 		t.Fatalf("RegisterAdmin() error = %v", err)
 	}
-	modelAdmin, ok := adminRegistry.GetAdmin(blog.AppLabel + ".Item")
+	modelAdmin, ok := adminRegistry.GetAdmin(generatedapp.AppLabel + ".Item")
 	if !ok || !containsString(modelAdmin.ListDisplay, "slug") {
 		t.Fatalf("registered admin = %#v, ok=%v", modelAdmin, ok)
 	}
 
-	form := blog.NewItemForm(map[string]any{"name": "First item", "slug": "first-item"})
+	form := generatedapp.NewItemForm(map[string]any{"name": "First item", "slug": "first-item"})
 	if !form.IsValid() || form.CleanedData["slug"] != "first-item" {
 		t.Fatalf("form valid=%v cleaned=%#v errors=%#v", form.IsValid(), form.CleanedData, form.Errors())
 	}
 
-	validated, errors, ok := blog.ItemSerializer().Validate(map[string]any{"name": "First item", "slug": "first-item"})
+	validated, errors, ok := generatedapp.ItemSerializer().Validate(map[string]any{"name": "First item", "slug": "first-item"})
 	if !ok || validated["slug"] != "first-item" || len(errors) != 0 {
 		t.Fatalf("serializer valid=%v validated=%#v errors=%#v", ok, validated, errors)
 	}
 
 	queueApp := queue.NewApp(queue.AppOptions{})
-	if err := blog.RegisterTasks(queueApp); err != nil {
+	if err := generatedapp.RegisterTasks(queueApp); err != nil {
 		t.Fatalf("RegisterTasks() error = %v", err)
 	}
-	task, ok := queueApp.Task(blog.AppLabel + ".example")
+	task, ok := queueApp.Task(generatedapp.AppLabel + ".example")
 	if !ok || task.Options.Queue != "default" || task.Options.MaxRetries != 3 {
 		t.Fatalf("registered task = %#v, ok=%v", task, ok)
 	}
@@ -114,17 +113,17 @@ func TestGeneratedAppAPIRoutes(t *testing.T) {
 	t.Setenv("DATABASE_URL", "sqlite://"+filepath.ToSlash(filepath.Join(t.TempDir(), "api.sqlite3")))
 
 	router := api.NewRouter(api.WithAPIPrefix("/api"))
-	if err := blog.RegisterAPI(router); err != nil {
+	if err := generatedapp.RegisterAPI(router); err != nil {
 		t.Fatalf("RegisterAPI() error = %v", err)
 	}
 	routes := router.Routes()
 	for _, name := range []string{
-		blog.AppLabel + "-item-list",
-		blog.AppLabel + "-item-create",
-		blog.AppLabel + "-item-detail",
-		blog.AppLabel + "-item-update",
-		blog.AppLabel + "-item-partial-update",
-		blog.AppLabel + "-item-destroy",
+		generatedapp.AppLabel + "-item-list",
+		generatedapp.AppLabel + "-item-create",
+		generatedapp.AppLabel + "-item-detail",
+		generatedapp.AppLabel + "-item-update",
+		generatedapp.AppLabel + "-item-partial-update",
+		generatedapp.AppLabel + "-item-destroy",
 	} {
 		if !hasAPIRoute(routes, name) {
 			t.Fatalf("API routes missing %s: %#v", name, routes)
