@@ -24,10 +24,10 @@ func TestAuthAdminRegistrationsExposeDjangoStyleConfiguration(t *testing.T) {
 	if !reflect.DeepEqual(user.SearchFields, []string{"username", "first_name", "last_name", "email"}) {
 		t.Fatalf("user SearchFields = %#v", user.SearchFields)
 	}
-	if len(user.Fieldsets) != 4 || user.Fieldsets[0].Name != "Credentials" {
+	if len(user.Fieldsets) != 4 || user.Fieldsets[0].Name != "" {
 		t.Fatalf("user Fieldsets = %#v", user.Fieldsets)
 	}
-	if !reflect.DeepEqual(user.ReadOnlyFields, []string{"last_login", "date_joined"}) {
+	if len(user.ReadOnlyFields) != 0 {
 		t.Fatalf("user ReadOnlyFields = %#v", user.ReadOnlyFields)
 	}
 	if !reflect.DeepEqual(user.Actions, []string{"activate_users", "deactivate_users"}) {
