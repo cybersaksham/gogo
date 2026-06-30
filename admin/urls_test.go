@@ -30,6 +30,8 @@ func TestAdminURLsGenerateNamespacedRoutesAndReverse(t *testing.T) {
 		"admin:login",
 		"admin:logout",
 		"admin:password_change",
+		"admin:css",
+		"admin:js",
 		"admin:app_list",
 		"admin:blog_post_changelist",
 		"admin:blog_post_add",
@@ -54,6 +56,36 @@ func TestAdminURLsGenerateNamespacedRoutesAndReverse(t *testing.T) {
 	index, err := router.Reverse("admin:index", nil)
 	if err != nil || index != "/admin/" {
 		t.Fatalf("Reverse(index) = %q, %v", index, err)
+	}
+}
+
+func TestAdminURLsServeEmbeddedAssets(t *testing.T) {
+	site := DefaultSite()
+	router, err := site.URLs()
+	if err != nil {
+		t.Fatalf("URLs() error = %v", err)
+	}
+
+	tests := []struct {
+		path        string
+		contentType string
+		want        string
+	}{
+		{"/static/admin.css", "text/css; charset=utf-8", "#container"},
+		{"/static/admin.js", "application/javascript; charset=utf-8", "admin-ready"},
+	}
+	for _, test := range tests {
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, test.path, nil))
+		if response.Code != http.StatusOK {
+			t.Fatalf("%s status = %d body=%s", test.path, response.Code, response.Body.String())
+		}
+		if got := response.Header().Get("Content-Type"); got != test.contentType {
+			t.Fatalf("%s content type = %q", test.path, got)
+		}
+		if !strings.Contains(response.Body.String(), test.want) {
+			t.Fatalf("%s body missing %q", test.path, test.want)
+		}
 	}
 }
 

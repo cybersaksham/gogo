@@ -18,15 +18,18 @@ func (s *Site) URLs() (*gogohttp.Router, error) {
 		name    string
 		pattern string
 		view    gogohttp.View
+		methods []string
 	}{
-		{"admin:index", s.URLPrefix + "/", protectedAdminView(s, adminIndexView(s))},
-		{"admin:login", s.URLPrefix + "/login/", gogohttp.FromHandler(s.LoginView)},
-		{"admin:logout", s.URLPrefix + "/logout/", gogohttp.FromHandler(s.LogoutView)},
-		{"admin:password_change", s.URLPrefix + "/password_change/", protectedAdminView(s, gogohttp.FromHandler(s.PasswordChangeView))},
-		{"admin:app_list", s.URLPrefix + "/<str:app_label>/", protectedAdminView(s, adminAppListView(s))},
+		{"admin:index", s.URLPrefix + "/", protectedAdminView(s, adminIndexView(s)), []string{"GET", "POST"}},
+		{"admin:login", s.URLPrefix + "/login/", gogohttp.FromHandler(s.LoginView), []string{"GET", "POST"}},
+		{"admin:logout", s.URLPrefix + "/logout/", gogohttp.FromHandler(s.LogoutView), []string{"GET", "POST"}},
+		{"admin:password_change", s.URLPrefix + "/password_change/", protectedAdminView(s, gogohttp.FromHandler(s.PasswordChangeView)), []string{"GET", "POST"}},
+		{"admin:css", "/static/admin.css", adminAssetView("static/admin.css", "text/css; charset=utf-8"), []string{"GET"}},
+		{"admin:js", "/static/admin.js", adminAssetView("static/admin.js", "application/javascript; charset=utf-8"), []string{"GET"}},
+		{"admin:app_list", s.URLPrefix + "/<str:app_label>/", protectedAdminView(s, adminAppListView(s)), []string{"GET", "POST"}},
 	}
 	for _, route := range routes {
-		if err := router.Handle(route.name, route.pattern, route.view, "GET", "POST"); err != nil {
+		if err := router.Handle(route.name, route.pattern, route.view, route.methods...); err != nil {
 			return nil, err
 		}
 	}
@@ -115,6 +118,19 @@ func adminAccessDenied(site *Site, request *http.Request) gogohttp.Response {
 func placeholderView(name string) gogohttp.View {
 	return func(context.Context, *gogohttp.Request) gogohttp.Response {
 		return gogohttp.Text(200, name)
+	}
+}
+
+func adminAssetView(name, contentType string) gogohttp.View {
+	return func(context.Context, *gogohttp.Request) gogohttp.Response {
+		body, ok := ReadAsset(name)
+		if !ok {
+			return gogohttp.NotFound("Not Found", nil)
+		}
+		return gogohttp.Stream(contentType, func(writer io.Writer) error {
+			_, err := writer.Write(body)
+			return err
+		})
 	}
 }
 
