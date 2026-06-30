@@ -17,8 +17,93 @@ None.
 
 ### Fixed
 
+None.
+
+## v0.6.0 - 2026-06-30
+
+Feature release for Django admin UI parity, built-in auth admin registration,
+and generated-project admin readiness.
+
+### Release Metadata
+
+- Previous release: `v0.5.1`.
+- New release: `v0.6.0`.
+- Module path: `github.com/cybersaksham/gogo`.
+- CLI install path: `github.com/cybersaksham/gogo/cmd/gogo`.
+
+### Added
+
+- Added embedded Django admin static CSS, JavaScript, image assets, and vendor
+  notices for admin page rendering without external static setup.
+- Added Django-named admin templates and reusable partials for base layout,
+  changelists, change forms, object tools, submit rows, filters, pagination,
+  delete confirmations, history pages, auth user forms, and widgets.
+- Added built-in auth model admin registration so generated projects register
+  users, groups, permissions, and content types automatically.
+- Added an auth SQL store and generated-project management wiring for built-in
+  auth data access through the framework database layer.
+- Added an admin JavaScript catalog endpoint and Django-compatible JavaScript
+  i18n helpers required by bundled admin widgets.
+- Added regression coverage for generated project admin/auth registration,
+  migration command wiring, static assets, admin routes, widget rendering, and
+  Django-style auth UserAdmin behavior.
+
+### Changed
+
+- Changed admin pages to use Django-style body classes, breadcrumbs, object
+  tools, sidebar markup, recent actions, fieldset structure, changelist tables,
+  action bars, filters, search controls, and submit rows.
+- Changed admin change forms to render Django-style widgets for password hash
+  display, checkboxes, email fields, split date/time inputs, raw ID widgets,
+  autocomplete widgets, related object links, clearable file inputs, and
+  filtered many-to-many selectors.
+- Changed admin changelists to link display rows, preserve Django column class
+  names, render boolean columns with Django yes/no icons, and load the
+  changelist filter-state script.
+- Changed generated project templates so default admin setup imports public
+  framework auth/admin APIs and registers built-in auth models by default.
+- Changed admin model pages to load page-specific Django CSS and JavaScript
+  stacks instead of the generic dashboard bundle.
+
+### Fixed
+
 - Fixed slashless admin index requests (`/admin`) returning `404` instead of
   redirecting to the canonical Django-style `/admin/` path.
+- Fixed auth UserAdmin rendering editable password inputs instead of Django's
+  read-only password hash summary with reset action.
+- Fixed auth UserAdmin permissions rendering raw text fields for booleans,
+  groups, and user permissions instead of Django checkbox rows and filtered
+  many-to-many selector widgets.
+- Fixed generated admin changelists showing SQLite numeric boolean values as
+  raw `1`/`0` text instead of Django boolean icons.
+- Fixed model admin pages carrying the dashboard body class and unrelated CSS,
+  which caused list and form pages to diverge from Django admin layout.
+- Fixed missing admin widget JavaScript loading that prevented Django's
+  two-pane filtered select and date/time shortcut widgets from initializing.
+
+### Breaking
+
+- None.
+
+### Migration Notes
+
+- Existing generated projects should update their `go.mod` requirement to
+  `github.com/cybersaksham/gogo v0.6.0` and run `go mod tidy`.
+- Existing generated projects should regenerate or manually adopt the updated
+  project admin template if they want built-in auth models registered in admin
+  automatically.
+- No database migration format or public module path changes are required for
+  this release.
+
+### Verification
+
+- Passed `make ci` before tagging.
+- Passed `go test -tags=integration ./...` before tagging.
+- Passed release dry run for `v0.6.0` before tagging.
+- Passed live generated-client admin smoke against `../My_Gogo`, including
+  Django-style User changelist boolean icons, User change form password hash
+  display, checkbox rows, date/time shortcuts, and transformed filtered
+  many-to-many selectors.
 
 ## v0.5.1 - 2026-06-30
 
