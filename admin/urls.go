@@ -193,6 +193,7 @@ func adminIndexView(site *Site) gogohttp.View {
 		data.Apps = groupedAdminModels(adminSiteOrDefault(site), "")
 		data.Breadcrumbs = nil
 		data.ContentClass = "colMS"
+		data.ShowNavSidebar = false
 		return renderAdminTemplate("index.html", data)
 	}
 }
@@ -204,6 +205,7 @@ func adminAppListView(site *Site) gogohttp.View {
 		data := baseAdminPageData(site, request.Raw(), appLabel, appLabel, "dashboard app-"+adminClassName(appLabel))
 		data.Apps = groupedAdminModels(site, appLabel)
 		data.ContentClass = "colMS"
+		data.ShowNavSidebar = false
 		data.Breadcrumbs = append(data.Breadcrumbs, adminBreadcrumb{URL: site.URLPrefix + "/" + appLabel + "/", Label: appLabel})
 		return renderAdminTemplate("index.html", data)
 	}

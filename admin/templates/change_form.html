@@ -1,16 +1,18 @@
 {{define "content"}}
 <div id="content-main">
+  {{if or .HistoryURL .DeleteURL}}
   <ul class="object-tools">
     {{if .HistoryURL}}<li><a href="{{.HistoryURL}}" class="historylink">History</a></li>{{end}}
     {{if .DeleteURL}}<li><a href="{{.DeleteURL}}" class="deletelink">Delete</a></li>{{end}}
   </ul>
+  {{end}}
   <form method="post" id="{{.Form.ID}}" novalidate>
     <input type="hidden" name="csrfmiddlewaretoken" value="{{.CSRFToken}}">
     {{if .Form.SaveOnTop}}{{template "submit-row" .}}{{end}}
     <div>
-      {{range .Form.Fieldsets}}
-      <fieldset class="module aligned">
-        {{if .Name}}<h2>{{.Name}}</h2>{{end}}
+      {{range $index, $fieldset := .Form.Fieldsets}}
+      <fieldset class="module aligned"{{if .Name}} aria-labelledby="fieldset-0-{{$index}}-heading"{{end}}>
+        {{if .Name}}<h2 id="fieldset-0-{{$index}}-heading" class="fieldset-heading">{{.Name}}</h2>{{end}}
         {{range .Fields}}
         <div class="{{.FieldCSS}}">
           <div>
@@ -27,6 +29,7 @@
       {{end}}
     </div>
     {{template "submit-row" .}}
+    <script id="django-admin-form-add-constants" src="/admin/static/admin/js/change_form.js" async></script>
   </form>
 </div>
 {{end}}

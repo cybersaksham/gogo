@@ -152,6 +152,7 @@ func baseLoginPageData(config AuthViewConfig, request *http.Request, errorMessag
 	}
 	data.Error = errorMessage
 	data.Breadcrumbs = nil
+	data.ShowNavSidebar = false
 	return data
 }
 

@@ -41,6 +41,7 @@ type adminPageData struct {
 	PasswordChangeURL string
 	ContentClass      string
 	OmitContentClass  bool
+	ShowNavSidebar    bool
 	StaticCSSURL      string
 	StaticCSSURLs     []string
 	StaticHeadJSURLs  []string
@@ -123,6 +124,7 @@ func baseAdminPageData(site *Site, request *http.Request, title, contentTitle, b
 		LogoutURL:         site.URLPrefix + "/logout/",
 		PasswordChangeURL: site.URLPrefix + "/password_change/",
 		ContentClass:      "colM",
+		ShowNavSidebar:    true,
 		StaticCSSURL:      site.URLPrefix + "/static/admin.css",
 		StaticCSSURLs: []string{
 			site.URLPrefix + "/static/admin/css/base.css",

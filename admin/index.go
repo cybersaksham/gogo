@@ -27,6 +27,16 @@ type IndexModel struct {
 	ChangeURL string
 }
 
+// LowerName returns the Django admin CSS object name.
+func (m IndexModel) LowerName() string {
+	return strings.ToLower(m.Name)
+}
+
+// RowID returns the Django admin app-model row identifier used by ARIA links.
+func (m IndexModel) RowID() string {
+	return strings.ToLower(m.AppLabel) + "-" + strings.ToLower(m.Name)
+}
+
 // BuildIndex builds the permission-filtered admin index.
 func BuildIndex(site *Site, router *gogohttp.Router, user auth.User) (IndexContext, error) {
 	return buildIndex(site, router, user, "")

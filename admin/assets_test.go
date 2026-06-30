@@ -43,24 +43,101 @@ func TestAdminEmbeddedAssetsExist(t *testing.T) {
 }
 
 func TestAdminTemplatesRenderBlocksAndAllowOverrides(t *testing.T) {
-	rendered, err := RenderTemplate("index.html", map[string]any{"Header": "Gogo administration", "Apps": []IndexApp{{AppLabel: "blog"}}}, nil)
+	rendered, err := RenderTemplate("index.html", adminPageData{
+		Header:         "Gogo administration",
+		SiteURL:        "/admin/",
+		ShowNavSidebar: true,
+		ContentClass:   "colM",
+		Apps: []IndexApp{{AppLabel: "blog", Models: []IndexModel{{
+			AppLabel:  "blog",
+			Name:      "Post",
+			AddURL:    "/admin/blog/post/add/",
+			ChangeURL: "/admin/blog/post/",
+		}}}},
+	}, nil)
 	if err != nil {
 		t.Fatalf("RenderTemplate(index) error = %v", err)
 	}
 	for _, want := range []string{
 		`href="#content-start" class="skip-to-content-link"`,
+		`<button class="theme-toggle">`,
+		`<svg xmlns="http://www.w3.org/2000/svg" class="base-svgs">`,
+		`id="toggle-nav-sidebar"`,
+		`<nav class="sticky" id="nav-sidebar" aria-label="Sidebar">`,
 		`<div class="main" id="main">`,
 		`<main id="content-start" class="content" tabindex="-1">`,
 		`<div id="content" class="colM">`,
 		"Gogo administration",
 		"blog",
 		`id="recent-actions-module"`,
+		`<thead class="visually-hidden">`,
+		`aria-describedby="blog-post"`,
 		`href="/admin/static/admin/css/base.css"`,
 		`href="/admin/static/admin/css/dashboard.css"`,
 		`href="/admin/static/admin/css/responsive.css"`,
 	} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("rendered index missing %q:\n%s", want, rendered)
+		}
+	}
+}
+
+func TestAdminChangeListTemplateMatchesDjangoStructure(t *testing.T) {
+	rendered, err := RenderTemplate("change_list.html", adminPageData{
+		CSRFToken:              "token",
+		AddURL:                 "/admin/blog/post/add/",
+		ModelVerboseName:       "post",
+		ModelVerboseNamePlural: "posts",
+		ChangeList:             ChangeList{Total: 2, Columns: []ChangeListColumn{{Name: "title"}}},
+	}, nil)
+	if err != nil {
+		t.Fatalf("RenderTemplate(change_list) error = %v", err)
+	}
+	for _, want := range []string{
+		`<div class="module" id="changelist">`,
+		`<div class="changelist-form-container">`,
+		`<h2 id="changelist-search-form" class="visually-hidden">Search posts</h2>`,
+		`<form id="changelist-search" method="get" role="search" aria-labelledby="changelist-search-form">`,
+		`<label for="searchbar"><img src="/admin/static/admin/img/search.svg" alt="Search"></label>`,
+		`<div class="changelist-footer">`,
+		`<nav class="paginator" aria-labelledby="pagination">`,
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("change_list missing %q:\n%s", want, rendered)
+		}
+	}
+}
+
+func TestAdminChangeFormTemplateMatchesDjangoFieldsetStructure(t *testing.T) {
+	rendered, err := RenderTemplate("change_form.html", adminPageData{
+		CSRFToken: "token",
+		Form: adminFormData{
+			ID: "post_form",
+			Fieldsets: []adminFieldsetData{{
+				Name: "Main",
+				Fields: []adminFormFieldData{{
+					Name:       "title",
+					Label:      "Title",
+					FieldID:    "id_title",
+					FieldCSS:   "form-row field-title",
+					WidgetHTML: `<input type="text" name="title" id="id_title">`,
+				}},
+			}},
+			SaveButtons: []adminSubmitButton{{Name: "_save", Value: "Save", Class: "default"}},
+		},
+	}, nil)
+	if err != nil {
+		t.Fatalf("RenderTemplate(change_form) error = %v", err)
+	}
+	for _, want := range []string{
+		`id="fieldset-0-0-heading" class="fieldset-heading"`,
+		`class="flex-container"`,
+		`<div class="submit-row">`,
+		`<script id="django-admin-form-add-constants"`,
+		`src="/admin/static/admin/js/change_form.js"`,
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("change_form missing %q:\n%s", want, rendered)
 		}
 	}
 }

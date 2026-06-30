@@ -3,66 +3,80 @@
   <ul class="object-tools">
     <li><a href="{{.AddURL}}" class="addlink">Add {{.ModelVerboseName}}</a></li>
   </ul>
-  <div id="changelist" class="module">
-    <div id="toolbar">
-      <form id="changelist-search" method="get" role="search">
-        <div>
-          <label for="searchbar"><span class="visually-hidden">Search</span></label>
-          <input type="text" size="40" name="q" value="{{.SearchQuery}}" id="searchbar">
-          <input type="submit" value="Search">
-          {{if .SearchHelpText}}<span class="help">{{.SearchHelpText}}</span>{{end}}
-        </div>
-      </form>
-    </div>
+  <div class="module{{if .ListFilters}} filtered{{end}}" id="changelist">
+    <div class="changelist-form-container">
     {{if .ListFilters}}
-    <div id="changelist-filter">
-      <h2>Filter</h2>
+    <search id="changelist-filter" aria-labelledby="changelist-filter-header">
+      <h2 id="changelist-filter-header">Filter</h2>
       {{range .ListFilters}}
       <details open>
         <summary>{{.Label}}</summary>
         <ul><li class="selected"><a href="?">{{.Name}}</a></li></ul>
       </details>
       {{end}}
-    </div>
+    </search>
     {{end}}
-    <form id="changelist-form" method="post" novalidate>
-      <input type="hidden" name="csrfmiddlewaretoken" value="{{.CSRFToken}}">
-      <div class="actions">
-        <label>Action:
-          <select name="action">
-            <option value="" selected>---------</option>
-            <option value="delete_selected">Delete selected {{.ModelVerboseNamePlural}}</option>
-          </select>
-        </label>
-        <button type="submit" class="button" title="Run the selected action" name="index" value="0">Go</button>
-        <span class="action-counter" data-actions-icnt="{{.ChangeList.Total}}">0 of {{.ChangeList.Total}} selected</span>
+    <div>
+      <div id="toolbar">
+        <h2 id="changelist-search-form" class="visually-hidden">Search {{.ModelVerboseNamePlural}}</h2>
+        <form id="changelist-search" method="get" role="search" aria-labelledby="changelist-search-form">
+          <div>
+            <label for="searchbar"><img src="/admin/static/admin/img/search.svg" alt="Search"></label>
+            <input type="text" size="40" name="q" value="{{.SearchQuery}}" id="searchbar"{{if .SearchHelpText}} aria-describedby="searchbar_helptext"{{end}}>
+            <input type="submit" value="Search">
+          </div>
+          {{if .SearchHelpText}}<br class="clear"><div class="help" id="searchbar_helptext">{{.SearchHelpText}}</div>{{end}}
+        </form>
       </div>
-      <div class="results">
-        <table id="result_list">
-          <thead>
-            <tr>
-              <th scope="col" class="action-checkbox-column">
-                <div class="text"><span><input type="checkbox" id="action-toggle" aria-label="Select all objects on this page"></span></div>
-              </th>
-              {{range .ChangeList.Columns}}
-              <th scope="col" class="column-{{.Name}}"><div class="text"><span>{{.Name}}</span></div></th>
+      <form id="changelist-form" method="post" novalidate>
+        <input type="hidden" name="csrfmiddlewaretoken" value="{{.CSRFToken}}">
+        <div class="actions">
+          <label>Action:
+            <select name="action">
+              <option value="" selected>---------</option>
+              <option value="delete_selected">Delete selected {{.ModelVerboseNamePlural}}</option>
+            </select>
+          </label>
+          <button type="submit" class="button" name="index" value="0">Run</button>
+          <span class="action-counter" data-actions-icnt="{{.ChangeList.Total}}">0 of {{.ChangeList.Total}} selected</span>
+        </div>
+        <div class="results">
+          <table id="result_list">
+            <thead>
+              <tr>
+                <th scope="col" class="action-checkbox-column">
+                  <div class="text"><span><input type="checkbox" id="action-toggle" aria-label="Select all objects on this page"></span></div>
+                  <div class="clear"></div>
+                </th>
+                {{range .ChangeList.Columns}}
+                <th scope="col" class="column-{{.Name}}">
+                  <div class="text"><span>{{.Name}}</span></div>
+                  <div class="clear"></div>
+                </th>
+                {{end}}
+              </tr>
+            </thead>
+            <tbody>
+              {{range $row := .ChangeList.Rows}}
+              <tr>
+                <td class="action-checkbox"><input type="checkbox" name="_selected_action" value="{{$row.ObjectID}}"></td>
+                {{range $row.Cells}}<td class="{{.Class}}">{{if .LinkURL}}<a href="{{.LinkURL}}">{{.Value}}</a>{{else}}{{.Value}}{{end}}</td>{{end}}
+              </tr>
+              {{else}}
+              <tr><td colspan="99">No {{$.ModelVerboseNamePlural}} are available.</td></tr>
               {{end}}
-            </tr>
-          </thead>
-          <tbody>
-            {{range $row := .ChangeList.Rows}}
-            <tr>
-              <td class="action-checkbox"><input type="checkbox" name="_selected_action" value="{{$row.ObjectID}}"></td>
-              {{range $row.Cells}}<td class="{{.Class}}">{{if .LinkURL}}<a href="{{.LinkURL}}">{{.Value}}</a>{{else}}{{.Value}}{{end}}</td>{{end}}
-            </tr>
-            {{else}}
-            <tr><td colspan="99">No {{$.ModelVerboseNamePlural}} are available.</td></tr>
-            {{end}}
-          </tbody>
-        </table>
-      </div>
-      <p class="paginator">{{.ChangeList.Total}} {{.ModelVerboseNamePlural}}</p>
-    </form>
+            </tbody>
+          </table>
+        </div>
+        <div class="changelist-footer">
+          <nav class="paginator" aria-labelledby="pagination">
+            <h2 id="pagination" class="visually-hidden">Pagination {{.ModelVerboseNamePlural}}</h2>
+            {{.ChangeList.Total}} {{.ModelVerboseNamePlural}}
+          </nav>
+        </div>
+      </form>
+    </div>
+    </div>
   </div>
 </div>
 {{end}}

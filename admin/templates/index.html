@@ -1,17 +1,26 @@
 {{define "content"}}
-<div id="content-main">
+<div id="content-main" class="app-list">
   {{range .Apps}}
     <div class="app-{{.AppLabel}} module">
       <table>
         <caption>
           <a href="/admin/{{.AppLabel}}/" class="section" title="Models in the {{.AppLabel}} application">{{.AppLabel}}</a>
         </caption>
+        <thead class="visually-hidden">
+          <tr>
+            <th scope="col">Model name</th>
+            <th scope="col">Add link</th>
+            <th scope="col">Change or view list link</th>
+          </tr>
+        </thead>
         <tbody>
           {{range .Models}}
-          <tr class="model-{{.Name}}">
-            <th scope="row"><a href="{{.ChangeURL}}">{{.Name}}</a></th>
-            <td>{{if .AddURL}}<a href="{{.AddURL}}" class="addlink">Add</a>{{end}}</td>
-            <td>{{if .ChangeURL}}<a href="{{.ChangeURL}}" class="changelink">Change</a>{{end}}</td>
+          <tr class="model-{{.LowerName}}">
+            <th scope="row" id="{{.RowID}}">
+              {{if .ChangeURL}}<a href="{{.ChangeURL}}">{{.Name}}</a>{{else}}{{.Name}}{{end}}
+            </th>
+            {{if .AddURL}}<td><a href="{{.AddURL}}" class="addlink" aria-describedby="{{.RowID}}">Add</a></td>{{else}}<td></td>{{end}}
+            {{if .ChangeURL}}<td><a href="{{.ChangeURL}}" class="changelink" aria-describedby="{{.RowID}}">Change</a></td>{{else}}<td></td>{{end}}
           </tr>
           {{else}}
           <tr><td>No models available.</td></tr>
