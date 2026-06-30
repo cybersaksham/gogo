@@ -19,6 +19,60 @@ None.
 
 None.
 
+## v0.5.1 - 2026-06-30
+
+Patch release for installed CLI project delegation inside generated projects.
+
+### Release Metadata
+
+- Previous release: `v0.5.0`.
+- New release: `v0.5.1`.
+- Module path: `github.com/cybersaksham/gogo`.
+- CLI install path: `github.com/cybersaksham/gogo/cmd/gogo`.
+
+### Added
+
+- Added regression coverage for the installed `gogo` binary delegating
+  project-aware commands to generated `manage.go` when run inside a generated
+  project.
+
+### Changed
+
+- Changed the installed `gogo` binary so project-aware commands run from inside
+  a generated project delegate to `go run manage.go <command>`.
+- Updated generated client agent rules and public command documentation to
+  describe installed CLI delegation and the explicit `manage.go` entrypoint.
+
+### Fixed
+
+- Fixed global `gogo dumpdata`, `gogo inspect`, and other project-aware
+  commands using generic in-memory/default wiring instead of generated project
+  settings, model metadata, fixtures, routes, admin, app configs, and queue
+  task registrations.
+
+### Breaking
+
+- None.
+
+### Migration Notes
+
+- Existing generated projects do not need template changes for this fix. Update
+  their `go.mod` requirement to `github.com/cybersaksham/gogo v0.5.1` and run
+  `go mod tidy`.
+- Users can continue calling `go run manage.go <command>` directly. After
+  installing `v0.5.1`, running `gogo <project-aware-command>` from a generated
+  project delegates to the same entrypoint.
+
+### Verification
+
+- Passed `go test ./cmd/gogo ./internal/cli ./management`.
+- Passed `make ci`.
+- Passed `go test -tags=integration ./...`.
+- Passed `go test -race ./queue/... ./orm/... ./http/...`.
+- Verified a patched local CLI binary returns generated project fixture data
+  and queue task registration through delegated `gogo dumpdata` and
+  `gogo inspect` commands.
+
 ## v0.5.0 - 2026-06-30
 
 Feature release for database-backed generated projects, admin CSRF protection,

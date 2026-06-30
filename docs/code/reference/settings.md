@@ -50,8 +50,10 @@ Settings live in `conf.Settings` and are loaded from defaults, `.env`, and proce
 
 Root CLI commands are registered through `internal/cli`. Public users call the
 installed `gogo` binary for global help, version, and project creation. Inside
-a generated project, users call `go run manage.go <command>` so commands load
-project settings, routes, admin, app configs, and queue tasks.
+a generated project, `go run manage.go <command>` is the explicit project
+entrypoint, and the installed `gogo` binary delegates project-aware commands to
+that entrypoint so commands load project settings, routes, admin, app configs,
+model metadata, fixtures, and queue tasks.
 
 | Command | Status | Purpose |
 | --- | --- | --- |
@@ -59,6 +61,7 @@ project settings, routes, admin, app configs, and queue tasks.
 | `gogo --help` | available | List commands. |
 | `gogo version` | available | Print version. |
 | `gogo --version` | available | Print version. |
+| `gogo <project-aware-command>` | available | Delegate to `go run manage.go <project-aware-command>` inside a generated project. |
 | `go run manage.go check` | available | Load settings and run system checks. Use `--deploy` for production readiness checks. |
 | `go run manage.go runserver` | available | Build middleware and run the HTTP server with project HTTP routes, API routes, admin, and development static/media mounts. |
 | `gogo startproject` | available | Generate project scaffold. |

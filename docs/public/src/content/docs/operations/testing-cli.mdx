@@ -5,10 +5,11 @@ description: Verify projects and use the Gogo command line.
 
 ## Project checks
 
-Inside a generated project, run project-aware commands through `manage.go`.
-The installed `gogo` binary creates projects and can show global help/version
-metadata; `manage.go` loads the project settings, router, admin registry, app
-configs, and queue task registrations.
+Inside a generated project, `go run manage.go <command>` is the explicit
+Django-style project entrypoint. The installed `gogo` binary also delegates
+project-aware commands to `go run manage.go <command>` when it is run from the
+project, so settings, routes, admin, app configs, model metadata, fixtures, and
+queue task registrations are loaded.
 
 ```bash
 go run manage.go check
@@ -26,6 +27,7 @@ Generated projects also include a `Makefile` for common workflows.
 | `gogo --help` or `gogo -h` | show available commands |
 | `gogo version`, `gogo --version`, or `gogo -version` | print CLI version metadata |
 | `gogo startproject` | create a project scaffold |
+| `gogo <project-aware-command>` | delegate to `go run manage.go <project-aware-command>` inside a generated project |
 | `go run manage.go check` | run settings and system checks |
 | `go run manage.go runserver` | run the development HTTP server with HTTP routes, API routes, admin, and development static/media mounts |
 | `go run manage.go startapp` | create and auto-install an app scaffold |

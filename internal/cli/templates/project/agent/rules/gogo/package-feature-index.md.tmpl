@@ -81,17 +81,19 @@ go doc github.com/cybersaksham/gogo/<package>
 
 ## CLI Command Surface
 
-Inside a generated project, prefer `go run manage.go <command>` for
-project-aware commands. The generated `manage.go` imports this project and
-passes settings, app configs, routes, admin, and queue tasks into Gogo. Use the
-installed `gogo` binary for global help/version checks and for creating new
-projects.
+Inside a generated project, `go run manage.go <command>` is the explicit
+Django-style project entrypoint. The installed `gogo` binary also delegates
+project-aware commands to `go run manage.go <command>` when it is run from this
+project, so settings, app configs, routes, admin, model metadata, fixtures, and
+queue tasks are loaded. Use `gogo startproject` outside an existing project to
+create a new project.
 
 | Command | Use for |
 | --- | --- |
 | `gogo help`, `gogo --help`, `gogo -h` | show commands |
 | `gogo version`, `gogo --version`, `gogo -version` | show version metadata |
 | `gogo startproject [--force] <name> [path]` | create a project scaffold |
+| `gogo <project-aware-command>` | delegate to `go run manage.go <project-aware-command>` when run inside this project |
 | `go run manage.go help`, `go run manage.go --help`, `go run manage.go -h` | show project command help |
 | `go run manage.go version`, `go run manage.go --version`, `go run manage.go -version` | show framework version metadata |
 | `go run manage.go check` | run settings and system checks |

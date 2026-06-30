@@ -16,9 +16,10 @@ Framework module: `github.com/cybersaksham/gogo`.
 
 ## Common Commands
 
-Use `go run manage.go <command>` for project-aware commands. The installed
-`gogo` binary can create new projects, but `manage.go` is the Django-style
-entrypoint for this generated project.
+Use `go run manage.go <command>` as the explicit Django-style project
+entrypoint. The installed `gogo` binary delegates project-aware commands to
+`go run manage.go <command>` when it is run from this project, so either form is
+valid after the CLI is installed.
 
 | Command | Use for |
 | --- | --- |
@@ -29,6 +30,7 @@ entrypoint for this generated project.
 | `gogo help`, `gogo --help`, `gogo -h` | list CLI commands |
 | `gogo version`, `gogo --version`, `gogo -version` | show version metadata |
 | `gogo startproject` | create a Gogo project |
+| `gogo <project-aware-command>` | delegate to `go run manage.go <project-aware-command>` inside this project |
 | `go run manage.go check` | run settings and system checks |
 | `go run manage.go runserver` | run the development server with HTTP routes, API routes, admin, and development static/media mounts |
 | `go run manage.go startapp` | create and auto-install a Gogo app |
