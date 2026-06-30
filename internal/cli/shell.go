@@ -37,6 +37,11 @@ type shellCommand struct {
 	executor ShellExecutor
 }
 
+var stdinIsTerminal = func(file *os.File) bool {
+	info, err := file.Stat()
+	return err == nil && info.Mode()&os.ModeCharDevice != 0
+}
+
 func (c shellCommand) Name() string {
 	return "shell"
 }
@@ -75,6 +80,15 @@ func (c shellCommand) runWithIO(ctx context.Context, args []string, stdout, stde
 }
 
 func defaultShellExecutor(ctx context.Context, config ShellConfig) error {
+	if config.Command == "" && !stdinIsTerminal(os.Stdin) {
+		if config.Stdout != nil {
+			if _, err := fmt.Fprintln(config.Stdout, "shell requires an interactive terminal; use --command for non-interactive execution"); err != nil {
+				return fmt.Errorf("%w: write shell output: %v", ErrCommandFailed, err)
+			}
+		}
+		return nil
+	}
+
 	shell := strings.TrimSpace(os.Getenv("SHELL"))
 	if shell == "" {
 		shell = "sh"

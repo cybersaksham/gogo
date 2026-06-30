@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -72,5 +73,24 @@ func TestDBShellResolverMovesCredentialsToEnvironment(t *testing.T) {
 	}
 	if executable != "mysql" || strings.Contains(strings.Join(args, " "), "secret") || !reflect.DeepEqual(env, []string{"MYSQL_PWD=secret"}) {
 		t.Fatalf("mysql command/env = %s %#v %#v", executable, args, env)
+	}
+}
+
+func TestDBShellDefaultExecutorReportsNonInteractiveWithoutCommand(t *testing.T) {
+	previous := stdinIsTerminal
+	stdinIsTerminal = func(*os.File) bool { return false }
+	defer func() { stdinIsTerminal = previous }()
+
+	var stdout bytes.Buffer
+	if err := defaultDBShellExecutor(context.Background(), DBShellConfig{
+		Executable: "sqlite3",
+		Args:       []string{"./db.sqlite3"},
+		Stdout:     &stdout,
+		Stderr:     &bytes.Buffer{},
+	}); err != nil {
+		t.Fatalf("defaultDBShellExecutor() error = %v", err)
+	}
+	if !strings.Contains(stdout.String(), "dbshell requires an interactive terminal") || !strings.Contains(stdout.String(), "--command") || !strings.Contains(stdout.String(), "--dry-run") {
+		t.Fatalf("stdout = %q", stdout.String())
 	}
 }

@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -59,5 +61,19 @@ DATABASE_URL=postgres://shell
 	}
 	if stdout.String() != "shell-ok" {
 		t.Fatalf("stdout = %q, want shell-ok", stdout.String())
+	}
+}
+
+func TestShellDefaultExecutorReportsNonInteractiveWithoutCommand(t *testing.T) {
+	previous := stdinIsTerminal
+	stdinIsTerminal = func(*os.File) bool { return false }
+	defer func() { stdinIsTerminal = previous }()
+
+	var stdout bytes.Buffer
+	if err := defaultShellExecutor(context.Background(), ShellConfig{Stdout: &stdout, Stderr: &bytes.Buffer{}}); err != nil {
+		t.Fatalf("defaultShellExecutor() error = %v", err)
+	}
+	if !strings.Contains(stdout.String(), "shell requires an interactive terminal") || !strings.Contains(stdout.String(), "--command") {
+		t.Fatalf("stdout = %q", stdout.String())
 	}
 }

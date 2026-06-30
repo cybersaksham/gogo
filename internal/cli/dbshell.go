@@ -173,6 +173,15 @@ func resolveDBShellCommand(databaseURL, command string, extraArgs []string) (str
 }
 
 func defaultDBShellExecutor(ctx context.Context, config DBShellConfig) error {
+	if config.Command == "" && !stdinIsTerminal(os.Stdin) {
+		if config.Stdout != nil {
+			if _, err := fmt.Fprintln(config.Stdout, "dbshell requires an interactive terminal; use --command for non-interactive SQL or --dry-run to inspect the resolved command"); err != nil {
+				return fmt.Errorf("%w: write dbshell output: %v", ErrCommandFailed, err)
+			}
+		}
+		return nil
+	}
+
 	if _, err := exec.LookPath(config.Executable); err != nil {
 		return fmt.Errorf("%w: %s not found in PATH", ErrCommandFailed, config.Executable)
 	}
