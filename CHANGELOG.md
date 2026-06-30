@@ -19,6 +19,84 @@ None.
 
 None.
 
+## v0.4.0 - 2026-06-30
+
+Feature release for Django-style admin model pages, generated-project first-run
+readiness, and downstream smoke reliability.
+
+### Release Metadata
+
+- Previous release: `v0.3.0`.
+- New release: `v0.4.0`.
+- Module path: `github.com/cybersaksham/gogo`.
+- CLI install path: `github.com/cybersaksham/gogo/cmd/gogo`.
+
+### Added
+
+- Added Django-style admin changelist, add form, change form, delete
+  confirmation, object history, autocomplete, and JavaScript catalog route
+  rendering for registered model admins.
+- Added Django-style admin login and password-change HTML forms with stable
+  IDs, body classes, breadcrumbs, object tools, changelist controls, submit
+  rows, and form field rendering.
+- Added embedded admin CSS and JavaScript serving under each admin site's
+  `/admin/static/` path so generated projects load admin styling without
+  manual static-file setup.
+- Added generated-project smoke coverage for first-run module readiness and
+  the downstream admin page workflow.
+- Added a client project smoke report documenting automatic scaffolded files,
+  manual local-only setup, verified commands, HTTP checks, and remaining
+  expected env behavior.
+
+### Changed
+
+- Changed generated project module hydration to be best-effort so local builds,
+  unpublished test versions, or temporarily unavailable module proxies do not
+  make `startproject` fail.
+- Changed generated project `go.mod` output for released CLIs to include the
+  framework dependency graph needed by first-run project-local commands.
+- Changed admin page templates and bundled styles to follow the familiar Django
+  admin structure, selectors, and visual layout more closely.
+
+### Fixed
+
+- Fixed generated projects requiring manual module tidying before
+  `go run manage.go startapp` could run in common release installs.
+- Fixed registered admin model routes returning placeholder text such as
+  `admin:notes_item_changelist` instead of useful HTML pages.
+- Fixed admin add forms showing invalid History/Delete links and double-slash
+  delete URLs before an object exists.
+- Fixed admin form widgets rendering empty values as `&lt;nil&gt;`.
+- Fixed generated-project admin pages linking to `/static/admin.css` and
+  `/static/admin.js`, which could be intercepted by the project's static mount
+  and return `404`.
+
+### Breaking
+
+- None.
+
+### Migration Notes
+
+- Existing generated projects should update their `go.mod` requirement to
+  `github.com/cybersaksham/gogo v0.4.0` and run `go mod tidy`.
+- Existing generated projects that already mount admin routes will get the new
+  admin pages and `/admin/static/` assets after updating the framework version.
+- Required environment variables remain unchanged. Projects still need a valid
+  `GOGO_SECRET_KEY` and `DATABASE_URL` for checks and runtime commands.
+
+### Verification
+
+- Passed `make ci` before tagging.
+- Passed `go test -tags=integration ./...` before tagging.
+- Passed release dry run for `v0.4.0` before tagging.
+
+### Artifacts
+
+- The GitHub release workflow publishes CLI binaries for Linux, macOS, and
+  Windows on `amd64` and `arm64`.
+- The GitHub release workflow publishes `checksums.txt` with SHA256 checksums
+  for release artifacts.
+
 ## v0.3.0 - 2026-06-29
 
 Feature release for generated-project admin authentication, real migration
