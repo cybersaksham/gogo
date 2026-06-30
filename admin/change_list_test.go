@@ -146,3 +146,23 @@ func TestChangeListTemplateUsesDjangoBooleanIconsFiltersAndActionMarkup(t *testi
 		}
 	}
 }
+
+func TestChangeListRendersNumericDjangoBooleanFieldsAsIcons(t *testing.T) {
+	changeList, err := BuildChangeList(ModelAdmin{
+		Model:        authMetadataByLabel()["auth.User"],
+		ListDisplay:  []string{"username", "is_staff", "is_active"},
+		ListEditable: []string{"is_staff"},
+	}, []map[string]any{
+		{"id": 1, "username": "admin", "is_staff": int64(1), "is_active": int64(0)},
+	}, url.Values{})
+	if err != nil {
+		t.Fatalf("BuildChangeList() error = %v", err)
+	}
+
+	if got := changeList.Rows[0].Values["is_staff"]; got != BooleanIcon(true) {
+		t.Fatalf("is_staff display = %#v", got)
+	}
+	if got := changeList.Rows[0].Values["is_active"]; got != BooleanIcon(false) {
+		t.Fatalf("is_active display = %#v", got)
+	}
+}

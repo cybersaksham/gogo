@@ -142,7 +142,7 @@ func buildDisplayRows(admin ModelAdmin, rows []map[string]any) []ChangeListRow {
 			if computed, ok := admin.ComputedColumns[column]; ok {
 				value = computed(row)
 			}
-			display := displayValue(value, admin.EmptyValueDisplay)
+			display := displayValue(column, value, admin.EmptyValueDisplay)
 			values[column] = display
 			cell := ChangeListCell{
 				Name:  column,
@@ -235,7 +235,10 @@ func paginateRows(rows []map[string]any, page, perPage int) []map[string]any {
 	return rows[start:end]
 }
 
-func displayValue(value any, empty string) any {
+func displayValue(field string, value any, empty string) any {
+	if isBooleanAdminField(field, value) {
+		return BooleanIcon(widgetBool(value))
+	}
 	switch typed := value.(type) {
 	case bool:
 		return BooleanIcon(typed)
