@@ -250,6 +250,44 @@ func TestSquashMigrationsWritesReplacementMigrationFile(t *testing.T) {
 	runCLICommand(t, dir, "go", "test", "./apps/blog/migrations")
 }
 
+func TestSquashedMigrationIsSatisfiedWhenReplacedMigrationsAreApplied(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "db.sqlite3")
+	writeMigrationEnv(t, dir, dbPath)
+	migrationsDir := filepath.Join(dir, "apps", "blog", "migrations")
+	writeGeneratedMigration(t, migrationsDir, migrations.Migration{
+		AppLabel:   "blog",
+		Name:       "0001_initial",
+		Atomic:     true,
+		Operations: []migrations.Operation{migrations.ManifestOperation{NameValue: "CreateModel:blog.Item"}},
+	})
+	t.Chdir(dir)
+
+	root := NewRoot()
+	if err := root.Execute(context.Background(), []string{"migrate"}, &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
+		t.Fatalf("initial migrate error = %v", err)
+	}
+	if err := root.Execute(context.Background(), []string{"squashmigrations", "blog", "0001_initial", "0001_initial", "--noinput"}, &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
+		t.Fatalf("squashmigrations error = %v", err)
+	}
+
+	var showOut bytes.Buffer
+	if err := root.Execute(context.Background(), []string{"showmigrations"}, &showOut, &bytes.Buffer{}); err != nil {
+		t.Fatalf("showmigrations error = %v", err)
+	}
+	if !strings.Contains(showOut.String(), "[X] blog.0001_squashed_0001_initial (replaces applied: 0001_initial)") {
+		t.Fatalf("showmigrations stdout = %q", showOut.String())
+	}
+
+	var planOut bytes.Buffer
+	if err := root.Execute(context.Background(), []string{"migrate", "--plan"}, &planOut, &bytes.Buffer{}); err != nil {
+		t.Fatalf("migrate --plan error = %v", err)
+	}
+	if !strings.Contains(planOut.String(), "no migrations to apply") || strings.Contains(planOut.String(), "0001_squashed_0001_initial") {
+		t.Fatalf("migrate --plan stdout = %q", planOut.String())
+	}
+}
+
 func TestOptimizeMigrationReportsNoopWhenNoSafeRewriteExists(t *testing.T) {
 	dir := t.TempDir()
 	migrationsDir := filepath.Join(dir, "apps", "blog", "migrations")

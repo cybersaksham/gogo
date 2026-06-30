@@ -6,10 +6,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/cybersaksham/gogo/conf"
@@ -269,22 +273,22 @@ func runShowMigrations(ctx context.Context, options migrationOptions, stdout io.
 		_ = database.Close()
 	}
 	for _, target := range targets {
-		names, err := migrationFileNames(target.dir)
+		known, err := knownMigrationsForTarget(target)
 		if err != nil {
-			return fmt.Errorf("%w: list migrations: %v", ErrCommandFailed, err)
+			return err
 		}
-		if len(names) == 0 {
+		if len(known) == 0 {
 			if _, err := fmt.Fprintf(stdout, "[ ] %s (no migrations)\n", target.appLabel); err != nil {
 				return err
 			}
 			continue
 		}
-		for _, name := range names {
+		for _, migration := range known {
 			marker := " "
-			if _, ok := applied[target.appLabel+"."+name]; ok {
+			if migrationSatisfied(migration, applied) {
 				marker = "X"
 			}
-			if _, err := fmt.Fprintf(stdout, "[%s] %s.%s\n", marker, target.appLabel, name); err != nil {
+			if _, err := fmt.Fprintf(stdout, "[%s] %s%s\n", marker, migration.Identity(), migrationReplacementSuffix(migration, applied)); err != nil {
 				return err
 			}
 		}
@@ -296,13 +300,11 @@ func knownMigrations(appLabel string) ([]migrations.Migration, error) {
 	targets := migrationTargets(appLabel)
 	var known []migrations.Migration
 	for _, target := range targets {
-		names, err := migrationFileNames(target.dir)
+		targetMigrations, err := knownMigrationsForTarget(target)
 		if err != nil {
-			return nil, fmt.Errorf("%w: list migrations: %v", ErrCommandFailed, err)
+			return nil, err
 		}
-		for _, name := range names {
-			known = append(known, migrationFromName(target.appLabel, name))
-		}
+		known = append(known, targetMigrations...)
 	}
 	sort.SliceStable(known, func(i, j int) bool {
 		if known[i].AppLabel == known[j].AppLabel {
@@ -311,6 +313,29 @@ func knownMigrations(appLabel string) ([]migrations.Migration, error) {
 		return known[i].AppLabel < known[j].AppLabel
 	})
 	return known, nil
+}
+
+func knownMigrationsForTarget(target migrationTarget) ([]migrations.Migration, error) {
+	names, err := migrationFileNames(target.dir)
+	if err != nil {
+		return nil, fmt.Errorf("%w: list migrations: %v", ErrCommandFailed, err)
+	}
+	known := make([]migrations.Migration, 0, len(names))
+	for _, name := range names {
+		known = append(known, migrationFromFile(target.appLabel, target.dir, name))
+	}
+	return known, nil
+}
+
+func migrationFromFile(appLabel, dir, name string) migrations.Migration {
+	migration := migrationFromName(appLabel, name)
+	metadata, err := parseGeneratedMigrationMetadata(filepath.Join(dir, name+".go"))
+	if err != nil {
+		return migration
+	}
+	migration.Dependencies = metadata.Dependencies
+	migration.Replaces = metadata.Replaces
+	return migration
 }
 
 func migrationFromName(appLabel, name string) migrations.Migration {
@@ -333,12 +358,132 @@ func migrationOperations(appLabel, name string) []migrations.Operation {
 func pendingMigrations(known []migrations.Migration, applied map[string]struct{}) []migrations.Migration {
 	pending := make([]migrations.Migration, 0, len(known))
 	for _, migration := range known {
-		if _, ok := applied[migration.Identity()]; ok {
+		if migrationSatisfied(migration, applied) {
 			continue
 		}
 		pending = append(pending, migration)
 	}
 	return pending
+}
+
+func migrationSatisfied(migration migrations.Migration, applied map[string]struct{}) bool {
+	if _, ok := applied[migration.Identity()]; ok {
+		return true
+	}
+	return replacedMigrationsApplied(migration, applied)
+}
+
+func replacedMigrationsApplied(migration migrations.Migration, applied map[string]struct{}) bool {
+	if len(migration.Replaces) == 0 {
+		return false
+	}
+	for _, dependency := range migration.Replaces {
+		if _, ok := applied[dependency.AppLabel+"."+dependency.Name]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func migrationReplacementSuffix(migration migrations.Migration, applied map[string]struct{}) string {
+	if len(migration.Replaces) == 0 {
+		return ""
+	}
+	label := "replaces"
+	if replacedMigrationsApplied(migration, applied) {
+		label = "replaces applied"
+	}
+	return " (" + label + ": " + strings.Join(replacementNames(migration), ", ") + ")"
+}
+
+func replacementNames(migration migrations.Migration) []string {
+	names := make([]string, 0, len(migration.Replaces))
+	for _, dependency := range migration.Replaces {
+		if dependency.AppLabel == migration.AppLabel {
+			names = append(names, dependency.Name)
+			continue
+		}
+		names = append(names, dependency.AppLabel+"."+dependency.Name)
+	}
+	return names
+}
+
+type generatedMigrationMetadata struct {
+	Dependencies []migrations.Dependency
+	Replaces     []migrations.Dependency
+}
+
+func parseGeneratedMigrationMetadata(path string) (generatedMigrationMetadata, error) {
+	file, err := parser.ParseFile(token.NewFileSet(), path, nil, 0)
+	if err != nil {
+		return generatedMigrationMetadata{}, err
+	}
+	var metadata generatedMigrationMetadata
+	ast.Inspect(file, func(node ast.Node) bool {
+		keyValue, ok := node.(*ast.KeyValueExpr)
+		if !ok {
+			return true
+		}
+		key, ok := keyValue.Key.(*ast.Ident)
+		if !ok {
+			return true
+		}
+		switch key.Name {
+		case "Dependencies":
+			metadata.Dependencies = parseMigrationDependencies(keyValue.Value)
+		case "Replaces":
+			metadata.Replaces = parseMigrationDependencies(keyValue.Value)
+		}
+		return true
+	})
+	return metadata, nil
+}
+
+func parseMigrationDependencies(expr ast.Expr) []migrations.Dependency {
+	literal, ok := expr.(*ast.CompositeLit)
+	if !ok {
+		return nil
+	}
+	dependencies := make([]migrations.Dependency, 0, len(literal.Elts))
+	for _, element := range literal.Elts {
+		dependencyLiteral, ok := element.(*ast.CompositeLit)
+		if !ok {
+			continue
+		}
+		var dependency migrations.Dependency
+		for _, field := range dependencyLiteral.Elts {
+			keyValue, ok := field.(*ast.KeyValueExpr)
+			if !ok {
+				continue
+			}
+			key, ok := keyValue.Key.(*ast.Ident)
+			if !ok {
+				continue
+			}
+			switch key.Name {
+			case "AppLabel":
+				dependency.AppLabel = stringLiteralValue(keyValue.Value)
+			case "Name":
+				dependency.Name = stringLiteralValue(keyValue.Value)
+			}
+		}
+		if dependency.AppLabel != "" && dependency.Name != "" {
+			dependencies = append(dependencies, dependency)
+		}
+	}
+	return dependencies
+}
+
+func stringLiteralValue(expr ast.Expr) string {
+	literal, ok := expr.(*ast.BasicLit)
+	if !ok || literal.Kind != token.STRING {
+		return ""
+	}
+	value, err := strconv.Unquote(literal.Value)
+	if err != nil {
+		return ""
+	}
+	return value
 }
 
 func appliedMigrationSet(ctx context.Context, recorder migrations.Recorder) (map[string]struct{}, error) {
