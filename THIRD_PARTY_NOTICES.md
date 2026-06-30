@@ -1,11 +1,15 @@
 # Third-Party Notices
 
-## Django Admin Static Assets
+## Django Admin Assets
 
-Gogo includes CSS, JavaScript, and image assets derived from Django admin static
-files to provide Django-compatible admin panel styling and browser behavior.
+Gogo includes CSS, JavaScript, image assets, and admin template markup derived
+from Django admin files to provide Django-compatible admin panel styling,
+browser behavior, and page structure.
 
-Source: Django 6.0.6, `django/contrib/admin/static/admin`
+Source:
+
+- Django 6.0.6, `django/contrib/admin/static/admin`
+- Django 6.0.6, `django/contrib/admin/templates/admin`
 
 License:
 
