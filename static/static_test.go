@@ -87,6 +87,27 @@ func TestCollectStaticWritesHashedFilesAndManifest(t *testing.T) {
 	}
 }
 
+func TestCollectStaticDryRunDiscoversFilesWithoutWriting(t *testing.T) {
+	projectDir := t.TempDir()
+	destination := filepath.Join(t.TempDir(), "staticfiles")
+	writeStaticFile(t, projectDir, "css/app.css", "body{}")
+
+	result, err := Collect(context.Background(), CollectOptions{
+		Finder:      FinderConfig{ProjectDirs: []string{projectDir}},
+		Destination: destination,
+		DryRun:      true,
+	})
+	if err != nil {
+		t.Fatalf("Collect() dry-run error = %v", err)
+	}
+	if len(result.Copied) != 1 || result.Copied[0].SourcePath != "css/app.css" {
+		t.Fatalf("Copied = %#v, want discovered css/app.css", result.Copied)
+	}
+	if _, err := os.Stat(destination); !os.IsNotExist(err) {
+		t.Fatalf("dry-run destination stat error = %v, want not exist", err)
+	}
+}
+
 func writeStaticFile(t *testing.T, root, name, content string) {
 	t.Helper()
 	path := filepath.Join(root, filepath.FromSlash(name))

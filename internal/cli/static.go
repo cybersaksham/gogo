@@ -48,7 +48,11 @@ func (c collectstaticCommand) runWithIO(ctx context.Context, args []string, stdo
 	if err != nil {
 		return fmt.Errorf("%w: collect static files: %v", ErrCommandFailed, err)
 	}
-	if _, err := fmt.Fprintf(stdout, "collected %d static files\n", len(result.Copied)); err != nil {
+	verb := "collected"
+	if options.DryRun {
+		verb = "would collect"
+	}
+	if _, err := fmt.Fprintf(stdout, "%s %d static files\n", verb, len(result.Copied)); err != nil {
 		return fmt.Errorf("%w: write collectstatic output: %v", ErrCommandFailed, err)
 	}
 	return nil
@@ -63,6 +67,7 @@ func parseCollectstaticFlags(args []string) (static.CollectOptions, error) {
 	flags.StringVar(&options.Destination, "dest", "", "collection destination")
 	flags.BoolVar(&options.Manifest, "manifest", false, "write hashed manifest")
 	flags.BoolVar(&options.Clear, "clear", false, "clear destination before collecting")
+	flags.BoolVar(&options.DryRun, "dry-run", false, "discover files without writing output")
 	flags.Var(&projectDirs, "project-dir", "project static directory")
 	flags.Var(&appDirs, "app-dir", "app static directory")
 	if err := flags.Parse(args); err != nil {

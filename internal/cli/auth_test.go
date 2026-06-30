@@ -109,6 +109,41 @@ func TestChangePasswordUpdatesExistingUser(t *testing.T) {
 	}
 }
 
+func TestChangePasswordAcceptsDjangoStylePositionalUsername(t *testing.T) {
+	hash, err := auth.EncodePBKDF2PasswordWithIterations("old-secret", "salt", 1)
+	if err != nil {
+		t.Fatalf("EncodePBKDF2PasswordWithIterations() error = %v", err)
+	}
+	store, _ := auth.NewMemoryUserStore(auth.User{AbstractUser: auth.AbstractUser{
+		AbstractBaseUser: auth.AbstractBaseUser{ID: 1, Password: hash, IsActive: true},
+		Username:         "admin",
+	}})
+	command := NewChangePasswordCommand(store)
+	var stdout bytes.Buffer
+
+	err = command.(interface {
+		runWithIO(context.Context, []string, io.Writer, io.Writer) error
+	}).runWithIO(context.Background(), []string{
+		"admin",
+		"--password", "CorrectHorseBatteryStaple42",
+		"--noinput",
+	}, &stdout, io.Discard)
+	if err != nil {
+		t.Fatalf("changepassword positional error = %v", err)
+	}
+
+	user, ok, err := store.FindByUsername(context.Background(), "admin")
+	if err != nil || !ok {
+		t.Fatalf("FindByUsername(admin) = %#v, %v, %v", user, ok, err)
+	}
+	if ok, _ := auth.CheckPassword("CorrectHorseBatteryStaple42", user.Password); !ok {
+		t.Fatalf("changed password does not verify")
+	}
+	if !strings.Contains(stdout.String(), "changed password for admin on database default") {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+}
+
 func TestDefaultAuthStorePersistsAcrossRootExecutions(t *testing.T) {
 	root := t.TempDir()
 	writeTextFile(t, filepath.Join(root, "go.mod"), "module sampleproject\n\ngo 1.26.4\n")

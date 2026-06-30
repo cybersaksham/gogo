@@ -142,6 +142,11 @@ type authCommandOptions struct {
 
 func parseAuthFlags(command string, args []string) (authCommandOptions, error) {
 	options := authCommandOptions{database: "default"}
+	positionalUsername := ""
+	if command == "changepassword" && len(args) > 0 && args[0] != "" && args[0][0] != '-' {
+		positionalUsername = args[0]
+		args = append([]string{}, args[1:]...)
+	}
 	flags := flag.NewFlagSet(command, flag.ContinueOnError)
 	flags.StringVar(&options.username, "username", "", "username")
 	flags.StringVar(&options.email, "email", "", "email")
@@ -151,6 +156,12 @@ func parseAuthFlags(command string, args []string) (authCommandOptions, error) {
 	flags.SetOutput(io.Discard)
 	if err := flags.Parse(args); err != nil {
 		return options, err
+	}
+	if options.username == "" && positionalUsername != "" {
+		options.username = positionalUsername
+	}
+	if command == "changepassword" && options.username == "" && flags.NArg() > 0 {
+		options.username = flags.Arg(0)
 	}
 	return options, nil
 }

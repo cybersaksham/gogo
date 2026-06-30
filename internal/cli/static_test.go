@@ -42,6 +42,31 @@ func TestCollectstaticCommandRunsConfiguredCollector(t *testing.T) {
 	}
 }
 
+func TestCollectstaticCommandSupportsDryRun(t *testing.T) {
+	var captured static.CollectOptions
+	command := NewCollectstaticCommand(func(_ context.Context, options static.CollectOptions) (static.CollectResult, error) {
+		captured = options
+		return static.CollectResult{Copied: []static.CollectedFile{{SourcePath: "css/app.css"}}}, nil
+	})
+
+	var stdout bytes.Buffer
+	err := command.(interface {
+		runWithIO(context.Context, []string, io.Writer, io.Writer) error
+	}).runWithIO(context.Background(), []string{
+		"--dest", "public/static",
+		"--dry-run",
+	}, &stdout, &bytes.Buffer{})
+	if err != nil {
+		t.Fatalf("runWithIO() error = %v", err)
+	}
+	if !captured.DryRun {
+		t.Fatalf("DryRun = false, want true")
+	}
+	if stdout.String() != "would collect 1 static files\n" {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+}
+
 func TestCollectstaticDefaultsFromGeneratedProject(t *testing.T) {
 	dir := t.TempDir()
 	writeTextFile(t, filepath.Join(dir, ".env"), `

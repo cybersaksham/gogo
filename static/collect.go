@@ -14,6 +14,7 @@ type CollectOptions struct {
 	Destination string
 	Manifest    bool
 	Clear       bool
+	DryRun      bool
 }
 
 // CollectedFile describes one copied output file.
@@ -39,13 +40,15 @@ func Collect(ctx context.Context, options CollectOptions) (CollectResult, error)
 	if err != nil {
 		return CollectResult{}, err
 	}
-	if options.Clear {
+	if options.Clear && !options.DryRun {
 		if err := os.RemoveAll(options.Destination); err != nil {
 			return CollectResult{}, err
 		}
 	}
-	if err := os.MkdirAll(options.Destination, 0o755); err != nil {
-		return CollectResult{}, err
+	if !options.DryRun {
+		if err := os.MkdirAll(options.Destination, 0o755); err != nil {
+			return CollectResult{}, err
+		}
 	}
 
 	result := CollectResult{Duplicates: duplicates}
@@ -63,8 +66,10 @@ func Collect(ctx context.Context, options CollectOptions) (CollectResult, error)
 		if options.Manifest {
 			outputPath = result.Manifest[file.Path]
 		}
-		if err := writeCollectedFile(options.Destination, outputPath, file.Content); err != nil {
-			return CollectResult{}, err
+		if !options.DryRun {
+			if err := writeCollectedFile(options.Destination, outputPath, file.Content); err != nil {
+				return CollectResult{}, err
+			}
 		}
 		result.Copied = append(result.Copied, CollectedFile{
 			SourcePath: file.Path,
@@ -73,7 +78,7 @@ func Collect(ctx context.Context, options CollectOptions) (CollectResult, error)
 			Size:       int64(len(file.Content)),
 		})
 	}
-	if options.Manifest {
+	if options.Manifest && !options.DryRun {
 		encoded, err := json.MarshalIndent(result.Manifest, "", "  ")
 		if err != nil {
 			return CollectResult{}, err
