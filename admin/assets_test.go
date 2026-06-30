@@ -11,14 +11,50 @@ import (
 
 func TestAdminEmbeddedAssetsExist(t *testing.T) {
 	want := []string{
+		"templates/404.html",
+		"templates/500.html",
+		"templates/actions.html",
+		"templates/app_index.html",
+		"templates/app_list.html",
+		"templates/auth/user/add_form.html",
+		"templates/auth/user/change_password.html",
 		"templates/base.html",
+		"templates/base_site.html",
+		"templates/change_form_object_tools.html",
 		"templates/index.html",
 		"templates/login.html",
+		"templates/change_list_object_tools.html",
+		"templates/change_list_results.html",
 		"templates/change_list.html",
 		"templates/change_form.html",
+		"templates/color_theme_toggle.html",
+		"templates/date_hierarchy.html",
 		"templates/delete_confirmation.html",
+		"templates/delete_selected_confirmation.html",
+		"templates/edit_inline/stacked.html",
+		"templates/edit_inline/tabular.html",
+		"templates/filter.html",
 		"templates/history.html",
+		"templates/includes/fieldset.html",
+		"templates/includes/object_delete_summary.html",
+		"templates/invalid_setup.html",
+		"templates/nav_sidebar.html",
+		"templates/object_history.html",
+		"templates/pagination.html",
 		"templates/password_change.html",
+		"templates/popup_response.html",
+		"templates/prepopulated_fields_js.html",
+		"templates/search_form.html",
+		"templates/submit_line.html",
+		"templates/widgets/clearable_file_input.html",
+		"templates/widgets/date.html",
+		"templates/widgets/foreign_key_raw_id.html",
+		"templates/widgets/many_to_many_raw_id.html",
+		"templates/widgets/radio.html",
+		"templates/widgets/related_widget_wrapper.html",
+		"templates/widgets/split_datetime.html",
+		"templates/widgets/time.html",
+		"templates/widgets/url.html",
 		"static/admin.css",
 		"static/admin.js",
 		"static/admin/css/base.css",
@@ -39,6 +75,26 @@ func TestAdminEmbeddedAssetsExist(t *testing.T) {
 		if body, ok := ReadAsset(name); !ok || len(body) == 0 {
 			t.Fatalf("ReadAsset(%s) = %d, %v", name, len(body), ok)
 		}
+	}
+}
+
+func TestAdminPopupResponseTemplateIsStandalone(t *testing.T) {
+	rendered, err := RenderTemplate("popup_response.html", map[string]any{"PopupResponseData": `{"value":"42"}`}, nil)
+	if err != nil {
+		t.Fatalf("RenderTemplate(popup_response) error = %v", err)
+	}
+	for _, want := range []string{
+		`<!DOCTYPE html>`,
+		`id="django-admin-popup-response-constants"`,
+		`src="/admin/static/admin/js/popup_response.js"`,
+		`data-popup-response="{&#34;value&#34;:&#34;42&#34;}"`,
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("popup response missing %q:\n%s", want, rendered)
+		}
+	}
+	if strings.Contains(rendered, `id="container"`) {
+		t.Fatalf("popup response should not render inside admin base:\n%s", rendered)
 	}
 }
 

@@ -10,8 +10,41 @@ import (
 	"sort"
 )
 
-//go:embed templates/*.html static/*
+//go:embed templates static/*
 var embeddedAssets embed.FS
+
+var adminTemplatePartials = []string{
+	"templates/actions.html",
+	"templates/app_list.html",
+	"templates/change_form_object_tools.html",
+	"templates/change_list_object_tools.html",
+	"templates/change_list_results.html",
+	"templates/color_theme_toggle.html",
+	"templates/date_hierarchy.html",
+	"templates/filter.html",
+	"templates/includes/fieldset.html",
+	"templates/includes/object_delete_summary.html",
+	"templates/nav_sidebar.html",
+	"templates/pagination.html",
+	"templates/prepopulated_fields_js.html",
+	"templates/search_form.html",
+	"templates/submit_line.html",
+	"templates/widgets/clearable_file_input.html",
+	"templates/widgets/date.html",
+	"templates/widgets/foreign_key_raw_id.html",
+	"templates/widgets/many_to_many_raw_id.html",
+	"templates/widgets/radio.html",
+	"templates/widgets/related_widget_wrapper.html",
+	"templates/widgets/split_datetime.html",
+	"templates/widgets/time.html",
+	"templates/widgets/url.html",
+	"templates/edit_inline/stacked.html",
+	"templates/edit_inline/tabular.html",
+}
+
+var standaloneAdminTemplates = map[string]struct{}{
+	"popup_response.html": {},
+}
 
 // AssetNames returns embedded admin asset paths.
 func AssetNames() []string {
@@ -50,7 +83,19 @@ func RenderTemplate(name string, data any, overrideDirs []string) (string, error
 		return buffer.String(), nil
 	}
 
-	tpl, err := template.ParseFS(embeddedAssets, "templates/base.html", "templates/"+name)
+	if _, ok := standaloneAdminTemplates[name]; ok {
+		tpl, err := template.ParseFS(embeddedAssets, "templates/"+name)
+		if err != nil {
+			return "", err
+		}
+		var buffer bytes.Buffer
+		if err := tpl.Execute(&buffer, data); err != nil {
+			return "", err
+		}
+		return buffer.String(), nil
+	}
+
+	tpl, err := template.ParseFS(embeddedAssets, templateFilesFor(name)...)
 	if err != nil {
 		return "", err
 	}
@@ -59,6 +104,23 @@ func RenderTemplate(name string, data any, overrideDirs []string) (string, error
 		return "", err
 	}
 	return buffer.String(), nil
+}
+
+func templateFilesFor(name string) []string {
+	target := "templates/" + name
+	files := []string{"templates/base.html"}
+	seen := map[string]struct{}{"templates/base.html": {}}
+	for _, partial := range adminTemplatePartials {
+		if _, ok := seen[partial]; ok {
+			continue
+		}
+		files = append(files, partial)
+		seen[partial] = struct{}{}
+	}
+	if _, ok := seen[target]; !ok {
+		files = append(files, target)
+	}
+	return files
 }
 
 func readTemplateOverride(name string, overrideDirs []string) ([]byte, bool, error) {

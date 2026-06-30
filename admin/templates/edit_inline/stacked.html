@@ -1,0 +1,8 @@
+{{define "edit-inline-stacked"}}
+<div class="inline-group" id="{{.Prefix}}-group" data-inline-type="stacked" data-inline-formset="{{.FormsetData}}">
+  <fieldset class="module">
+    <h2>{{.VerboseNamePlural}}</h2>
+    {{range .Forms}}<div class="inline-related">{{.}}</div>{{end}}
+  </fieldset>
+</div>
+{{end}}

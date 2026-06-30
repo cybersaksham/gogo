@@ -1,0 +1,11 @@
+{{define "edit-inline-tabular"}}
+<div class="inline-group" id="{{.Prefix}}-group" data-inline-type="tabular" data-inline-formset="{{.FormsetData}}">
+  <fieldset class="module">
+    <h2>{{.VerboseNamePlural}}</h2>
+    <table>
+      <thead><tr>{{range .Headers}}<th class="{{.Class}}">{{.Label}}</th>{{end}}</tr></thead>
+      <tbody>{{range .Rows}}<tr class="form-row">{{.}}</tr>{{end}}</tbody>
+    </table>
+  </fieldset>
+</div>
+{{end}}
