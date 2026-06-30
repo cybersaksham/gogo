@@ -288,7 +288,7 @@ func TestAdminFormTemplatesUseDjangoFieldFlexContainers(t *testing.T) {
 		if !ok {
 			t.Fatalf("ReadAsset(%s) missing", name)
 		}
-		if !strings.Contains(string(body), `class="flex-container"`) {
+		if !strings.Contains(string(body), `class="flex-container`) {
 			t.Fatalf("%s missing Django flex-container field layout", name)
 		}
 	}

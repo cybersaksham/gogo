@@ -7,9 +7,15 @@
     <search id="changelist-filter" aria-labelledby="changelist-filter-header">
       <h2 id="changelist-filter-header">Filter</h2>
       {{range .ListFilters}}
-      <details open>
-        <summary>{{.Label}}</summary>
-        <ul><li class="selected"><a href="?">{{.Name}}</a></li></ul>
+      <details data-filter-title="{{.Title}}" open>
+        <summary>
+          By {{.Title}}
+        </summary>
+        <ul>
+          <li class="selected"><a href="?">All</a></li>
+          <li><a href="?{{.Name}}__exact=1">Yes</a></li>
+          <li><a href="?{{.Name}}__exact=0">No</a></li>
+        </ul>
       </details>
       {{end}}
     </search>
@@ -33,13 +39,14 @@
           <table id="result_list">
             <thead>
               <tr>
-                <th scope="col" class="action-checkbox-column">
-                  <div class="text"><span><input type="checkbox" id="action-toggle" aria-label="Select all objects on this page"></span></div>
+                <th class="action-checkbox-column" scope="col">
+                  <div class="text"><span><input type="checkbox" id="action-toggle" aria-label="Select all objects on this page for an action"></span></div>
                   <div class="clear"></div>
                 </th>
-                {{range .ChangeList.Columns}}
-                <th scope="col" class="column-{{.Name}}">
-                  <div class="text"><span>{{.Name}}</span></div>
+                {{range $index, $column := .ChangeList.Columns}}
+                <th class="sortable column-{{$column.Name}}{{if eq $index 0}} sorted ascending{{end}}" scope="col">
+                  {{if eq $index 0}}<div class="sortoptions"><a class="sortremove" href="?o=" title="Remove from sorting"></a><a class="toggle ascending" href="?o=-1" title="Toggle sorting"></a></div>{{end}}
+                  <div class="text"><a href="?o=1" role="button">{{$column.Label}}</a></div>
                   <div class="clear"></div>
                 </th>
                 {{end}}
@@ -48,8 +55,8 @@
             <tbody>
               {{range $row := .ChangeList.Rows}}
               <tr>
-                <td class="action-checkbox"><input type="checkbox" name="_selected_action" value="{{$row.ObjectID}}"></td>
-                {{range $row.Cells}}<td class="{{.Class}}">{{if .LinkURL}}<a href="{{.LinkURL}}">{{.Value}}</a>{{else}}{{.Value}}{{end}}</td>{{end}}
+                <td class="action-checkbox"><input type="checkbox" class="action-select" name="_selected_action" value="{{$row.ObjectID}}" aria-label="Select this object for an action"></td>
+                {{range $row.Cells}}{{if .LinkURL}}<th class="{{.Class}}"><a href="{{.LinkURL}}">{{.Value}}</a></th>{{else}}<td class="{{.Class}}">{{.Value}}</td>{{end}}{{end}}
               </tr>
               {{else}}
               <tr><td colspan="99">No {{$.ModelVerboseNamePlural}} are available.</td></tr>

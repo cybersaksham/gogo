@@ -57,13 +57,18 @@ func NumberInput(config WidgetConfig) string {
 	return input("number", config, nil)
 }
 
+// EmailInput renders an email input.
+func EmailInput(config WidgetConfig) string {
+	return input("email", config, nil)
+}
+
 // Checkbox renders a checkbox input.
 func Checkbox(config WidgetConfig) string {
 	extra := map[string]string{}
-	if checked, _ := config.Value.(bool); checked {
+	if widgetBool(config.Value) {
 		extra["checked"] = "checked"
 	}
-	return input("checkbox", config, extra)
+	return inputWithValue("checkbox", config, extra, false)
 }
 
 // Select renders a select input.
@@ -178,6 +183,32 @@ func FilteredSelectMultiple(config WidgetConfig) string {
 // ReadonlyDisplay renders an escaped readonly value.
 func ReadonlyDisplay(config WidgetConfig) string {
 	return fmt.Sprintf(`<span class="readonly" data-field="%s">%s</span>`, esc(config.Name), esc(fmt.Sprint(config.Value)))
+}
+
+// PasswordHashDisplay renders Django's read-only password hash summary.
+func PasswordHashDisplay(config WidgetConfig) string {
+	algorithm, iterations, salt, hash := splitPasswordHash(fmt.Sprint(config.Value))
+	var builder strings.Builder
+	builder.WriteString(fmt.Sprintf(`<div aria-describedby="%s_helptext" disabled id="%s">`, esc("id_"+config.Name), esc("id_"+config.Name)))
+	if algorithm != "" {
+		builder.WriteString(`<p>`)
+		builder.WriteString(fmt.Sprintf(`<strong>algorithm</strong>: <bdi>%s</bdi> `, esc(algorithm)))
+		if iterations != "" {
+			builder.WriteString(fmt.Sprintf(`<strong>iterations</strong>: <bdi>%s</bdi> `, esc(iterations)))
+		}
+		if salt != "" {
+			builder.WriteString(fmt.Sprintf(`<strong>salt</strong>: <bdi>%s</bdi> `, esc(maskHashPart(salt, 6))))
+		}
+		if hash != "" {
+			builder.WriteString(fmt.Sprintf(`<strong>hash</strong>: <bdi>%s</bdi>`, esc(maskHashPart(hash, 6))))
+		}
+		builder.WriteString(`</p>`)
+	} else {
+		builder.WriteString(`<p><strong>No password set.</strong></p>`)
+	}
+	builder.WriteString(`<p><a class="button" href="../password/" role="button">Reset password</a></p>`)
+	builder.WriteString(`</div>`)
+	return builder.String()
 }
 
 // RelatedWidgetWrapper renders Django admin's relation action shell.
@@ -308,6 +339,49 @@ func selectedValues(value any) map[string]struct{} {
 		}
 	}
 	return result
+}
+
+func widgetBool(value any) bool {
+	switch typed := value.(type) {
+	case bool:
+		return typed
+	case string:
+		normalized := strings.ToLower(strings.TrimSpace(typed))
+		return normalized == "1" || normalized == "true" || normalized == "on" || normalized == "yes"
+	case int:
+		return typed != 0
+	case int64:
+		return typed != 0
+	default:
+		return false
+	}
+}
+
+func splitPasswordHash(value string) (algorithm, iterations, salt, hash string) {
+	parts := strings.Split(value, "$")
+	if len(parts) > 0 {
+		algorithm = parts[0]
+	}
+	if len(parts) > 1 {
+		iterations = parts[1]
+	}
+	if len(parts) > 2 {
+		salt = parts[2]
+	}
+	if len(parts) > 3 {
+		hash = parts[3]
+	}
+	return algorithm, iterations, salt, hash
+}
+
+func maskHashPart(value string, keep int) string {
+	if value == "" {
+		return ""
+	}
+	if keep <= 0 || len(value) <= keep {
+		return value
+	}
+	return value[:keep] + strings.Repeat("*", min(16, len(value)-keep))
 }
 
 func splitAdminDateTime(value any) (string, string) {

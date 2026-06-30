@@ -1,6 +1,6 @@
 {{define "submit-line"}}
 <div class="submit-row">
   {{range .Form.SaveButtons}}<input type="submit" value="{{.Value}}"{{if .Class}} class="{{.Class}}"{{end}} name="{{.Name}}">{{end}}
-  {{if .DeleteURL}}<p class="deletelink-box"><a href="{{.DeleteURL}}" class="deletelink">Delete</a></p>{{end}}
+  {{if .DeleteURL}}<a role="button" href="{{.DeleteURL}}" class="deletelink">Delete</a>{{end}}
 </div>
 {{end}}

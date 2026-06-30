@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/cybersaksham/gogo/auth"
 	"github.com/cybersaksham/gogo/models"
@@ -23,6 +24,10 @@ type WidgetKind string
 const (
 	WidgetText                   WidgetKind = "text"
 	WidgetReadonly               WidgetKind = "readonly"
+	WidgetCheckbox               WidgetKind = "checkbox"
+	WidgetDateTime               WidgetKind = "datetime"
+	WidgetEmail                  WidgetKind = "email"
+	WidgetPasswordHash           WidgetKind = "password_hash"
 	WidgetRawID                  WidgetKind = "raw_id"
 	WidgetAutocomplete           WidgetKind = "autocomplete"
 	WidgetRadio                  WidgetKind = "radio"
@@ -77,6 +82,7 @@ type ChangeFormContext struct {
 	FilterHorizontal    []string
 	FilterVertical      []string
 	RelatedPopupEnabled bool
+	ModelLabel          string
 }
 
 // ChangeFormField describes one rendered form field.
@@ -130,6 +136,7 @@ func BuildChangeForm(admin ModelAdmin, input ChangeFormInput) (ChangeFormContext
 		FilterHorizontal:    append([]string(nil), admin.FilterHorizontal...),
 		FilterVertical:      append([]string(nil), admin.FilterVertical...),
 		RelatedPopupEnabled: true,
+		ModelLabel:          admin.Model.Label(),
 	}
 	return context, nil
 }
@@ -160,7 +167,7 @@ func buildChangeFormFields(admin ModelAdmin, fields []string, values map[string]
 	filtered := setFromSlice(append(append([]string(nil), admin.FilterHorizontal...), admin.FilterVertical...))
 	result := make(map[string]ChangeFormField, len(fields)+len(readonly))
 	for _, field := range fields {
-		result[field] = ChangeFormField{Name: field, Widget: widgetForField(field, readonly, rawID, autocomplete, radio, filtered), Readonly: hasKey(readonly, field), Value: values[field]}
+		result[field] = ChangeFormField{Name: field, Widget: widgetForField(admin.Model.Label(), field, values[field], readonly, rawID, autocomplete, radio, filtered), Readonly: hasKey(readonly, field), Value: values[field]}
 	}
 	for field := range readonly {
 		if _, ok := result[field]; !ok {
@@ -170,10 +177,12 @@ func buildChangeFormFields(admin ModelAdmin, fields []string, values map[string]
 	return result
 }
 
-func widgetForField(field string, readonly, rawID, autocomplete, radio, filtered map[string]struct{}) WidgetKind {
+func widgetForField(modelLabel, field string, value any, readonly, rawID, autocomplete, radio, filtered map[string]struct{}) WidgetKind {
 	switch {
 	case hasKey(readonly, field):
 		return WidgetReadonly
+	case modelLabel == "auth.User" && field == "password":
+		return WidgetPasswordHash
 	case hasKey(rawID, field):
 		return WidgetRawID
 	case hasKey(autocomplete, field):
@@ -182,8 +191,38 @@ func widgetForField(field string, readonly, rawID, autocomplete, radio, filtered
 		return WidgetRadio
 	case hasKey(filtered, field):
 		return WidgetFilteredSelectMultiple
+	case isBooleanAdminField(field, value):
+		return WidgetCheckbox
+	case isDateTimeAdminField(field, value):
+		return WidgetDateTime
+	case field == "email":
+		return WidgetEmail
 	default:
 		return WidgetText
+	}
+}
+
+func isBooleanAdminField(field string, value any) bool {
+	if _, ok := value.(bool); ok {
+		return true
+	}
+	switch field {
+	case "is_active", "is_staff", "is_superuser", "enabled":
+		return true
+	default:
+		return false
+	}
+}
+
+func isDateTimeAdminField(field string, value any) bool {
+	if _, ok := value.(time.Time); ok {
+		return true
+	}
+	switch field {
+	case "last_login", "date_joined", "created_at", "updated_at", "expire_date":
+		return true
+	default:
+		return false
 	}
 }
 

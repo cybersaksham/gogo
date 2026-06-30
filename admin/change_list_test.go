@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/url"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -95,5 +96,53 @@ func TestChangeListHonorsExplicitListDisplayLinks(t *testing.T) {
 	}
 	if got := changeList.Rows[0].Cells[1].LinkURL; got != "7/change/" {
 		t.Fatalf("slug link = %q", got)
+	}
+}
+
+func TestChangeListTemplateUsesDjangoBooleanIconsFiltersAndActionMarkup(t *testing.T) {
+	changeList, err := BuildChangeList(ModelAdmin{
+		Model:             authMetadataByLabel()["auth.User"],
+		ListDisplay:       []string{"username", "email", "is_staff"},
+		ListDisplayLinks:  []string{"username"},
+		ListFilter:        []string{"is_staff", "is_superuser", "is_active"},
+		EmptyValueDisplay: "-",
+	}, []map[string]any{
+		{"id": 1, "username": "admin", "email": "admin@example.com", "is_staff": true},
+	}, url.Values{})
+	if err != nil {
+		t.Fatalf("BuildChangeList() error = %v", err)
+	}
+
+	rendered, err := RenderTemplate("change_list.html", adminPageData{
+		CSRFToken:              "token",
+		AddURL:                 "/admin/auth/user/add/",
+		ModelVerboseName:       "user",
+		ModelVerboseNamePlural: "users",
+		ListFilters:            listFilters(ModelAdmin{ListFilter: []string{"is_staff", "is_superuser", "is_active"}}),
+		Actions:                []Action{DeleteSelectedAction()},
+		ChangeList:             changeList,
+	}, nil)
+	if err != nil {
+		t.Fatalf("RenderTemplate(change_list) error = %v", err)
+	}
+	for _, want := range []string{
+		`<div class="module filtered" id="changelist">`,
+		`<search id="changelist-filter" aria-labelledby="changelist-filter-header">`,
+		`<h2 id="changelist-filter-header">Filter</h2>`,
+		`data-filter-title="staff status"`,
+		`<summary>`,
+		`By staff status`,
+		`<input type="hidden" name="select_across" value="0" class="select-across">`,
+		`<button type="submit" class="button" title="Run the selected action" name="index" value="0">Run</button>`,
+		`<th class="action-checkbox-column" scope="col">`,
+		`aria-label="Select all objects on this page for an action"`,
+		`<th class="sortable column-username`,
+		`<div class="text"><a href="?o=1" role="button">Username</a></div>`,
+		`<th class="field-username"><a href="1/change/">admin</a></th>`,
+		`<td class="field-is_staff"><img src="/admin/static/admin/img/icon-yes.svg" alt="True"></td>`,
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("change list missing %q:\n%s", want, rendered)
+		}
 	}
 }

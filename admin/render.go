@@ -26,6 +26,7 @@ type adminSubmitButton struct {
 type adminListFilter struct {
 	Name  string
 	Label string
+	Title string
 }
 
 type adminPageData struct {
@@ -92,9 +93,15 @@ type adminFieldsetData struct {
 type adminFormFieldData struct {
 	Name       string
 	Label      string
+	LabelClass string
+	LabelFor   bool
 	FieldID    string
 	FieldCSS   string
+	HelpID     string
 	Readonly   bool
+	Checkbox   bool
+	Fieldset   bool
+	Required   bool
 	HelpText   string
 	Errors     string
 	WidgetHTML template.HTML
@@ -200,13 +207,39 @@ func changeFormViewData(modelAdmin ModelAdmin, context ChangeFormContext) adminF
 			if !ok {
 				field = ChangeFormField{Name: fieldName, Widget: WidgetText}
 			}
-			fieldsetData.Fields = append(fieldsetData.Fields, adminFormFieldData{
+			fieldData := adminFormFieldData{
 				Name:       fieldName,
-				Label:      adminLabel(fieldName),
+				Label:      adminFieldLabel(modelAdmin, field),
 				FieldID:    "id_" + fieldName,
-				FieldCSS:   "form-row field-" + adminClassName(fieldName),
+				FieldCSS:   "form-row field-" + fieldName,
+				LabelFor:   field.Widget != WidgetPasswordHash && !field.Readonly,
 				Readonly:   field.Readonly,
+				Checkbox:   field.Widget == WidgetCheckbox,
+				Fieldset:   field.Widget == WidgetFilteredSelectMultiple || field.Widget == WidgetDateTime,
+				Required:   adminFieldRequired(modelAdmin, field),
+				HelpText:   adminFieldHelpText(modelAdmin, field),
 				WidgetHTML: template.HTML(renderAdminFormWidget(field)),
+			}
+			if fieldData.Required {
+				fieldData.LabelClass = "required"
+			}
+			if fieldData.HelpText != "" {
+				fieldData.HelpID = fieldData.FieldID + "_helptext"
+			}
+			fieldsetData.Fields = append(fieldsetData.Fields, adminFormFieldData{
+				Name:       fieldData.Name,
+				Label:      fieldData.Label,
+				LabelClass: fieldData.LabelClass,
+				LabelFor:   fieldData.LabelFor,
+				FieldID:    fieldData.FieldID,
+				FieldCSS:   fieldData.FieldCSS,
+				HelpID:     fieldData.HelpID,
+				Readonly:   fieldData.Readonly,
+				Checkbox:   fieldData.Checkbox,
+				Fieldset:   fieldData.Fieldset,
+				Required:   fieldData.Required,
+				HelpText:   fieldData.HelpText,
+				WidgetHTML: fieldData.WidgetHTML,
 			})
 		}
 		form.Fieldsets = append(form.Fieldsets, fieldsetData)
@@ -234,6 +267,15 @@ func renderAdminFormWidget(field ChangeFormField) string {
 	switch field.Widget {
 	case WidgetReadonly:
 		return ReadonlyDisplay(config)
+	case WidgetPasswordHash:
+		return PasswordHashDisplay(config)
+	case WidgetCheckbox:
+		config.Attrs = map[string]string{"id": "id_" + field.Name}
+		return Checkbox(config)
+	case WidgetDateTime:
+		return DateTimeInput(config)
+	case WidgetEmail:
+		return EmailInput(config)
 	case WidgetRawID:
 		config.Attrs["class"] = "vForeignKeyRawIdAdminField"
 		return RawIDRelationWidget(config)
@@ -243,9 +285,108 @@ func renderAdminFormWidget(field ChangeFormField) string {
 	case WidgetRadio:
 		return Select(config)
 	case WidgetFilteredSelectMultiple:
-		return FilteredSelectMultiple(config)
+		config.Attrs = map[string]string{
+			"id":              "id_" + field.Name,
+			"class":           "selectfilter",
+			"data-context":    "available-source",
+			"data-field-name": strings.ReplaceAll(field.Name, "_", " "),
+			"data-is-stacked": "0",
+		}
+		widget := FilteredSelectMultiple(config)
+		related := WidgetConfig{
+			Name:              field.Name,
+			RelatedModelName:  relatedModelName(field.Name),
+			RelatedModelLabel: relatedModelName(field.Name),
+			AddRelatedURL:     relatedAddURL(field.Name),
+			URLParams:         "_to_field=id&_popup=1",
+			CanAddRelated:     field.Name == "groups",
+		}
+		return RelatedWidgetWrapper(related, widget)
 	default:
 		return TextInput(config)
+	}
+}
+
+func adminFieldLabel(modelAdmin ModelAdmin, field ChangeFormField) string {
+	if modelAdmin.Model.Label() == "auth.User" {
+		switch field.Name {
+		case "username":
+			return "Username"
+		case "password":
+			return "Password"
+		case "first_name":
+			return "First name"
+		case "last_name":
+			return "Last name"
+		case "email":
+			return "Email address"
+		case "is_active":
+			return "Active"
+		case "is_staff":
+			return "Staff status"
+		case "is_superuser":
+			return "Superuser status"
+		case "groups":
+			return "Groups"
+		case "user_permissions":
+			return "User permissions"
+		case "last_login":
+			return "Last login"
+		case "date_joined":
+			return "Date joined"
+		}
+	}
+	return adminLabel(field.Name)
+}
+
+func adminFieldRequired(modelAdmin ModelAdmin, field ChangeFormField) bool {
+	if modelAdmin.Model.Label() == "auth.User" {
+		return field.Name == "username"
+	}
+	return false
+}
+
+func adminFieldHelpText(modelAdmin ModelAdmin, field ChangeFormField) string {
+	if modelAdmin.Model.Label() == "auth.User" {
+		switch field.Name {
+		case "username":
+			return "Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only."
+		case "password":
+			return "Raw passwords are not stored, so there is no way to see the user's password."
+		case "is_active":
+			return "Designates whether this user should be treated as active. Unselect this instead of deleting accounts."
+		case "is_staff":
+			return "Designates whether the user can log into this admin site."
+		case "is_superuser":
+			return "Designates that this user has all permissions without explicitly assigning them."
+		case "groups":
+			return "The groups this user belongs to. A user will get all permissions granted to each of their groups. Hold down \"Control\", or \"Command\" on a Mac, to select more than one."
+		case "user_permissions":
+			return "Specific permissions for this user. Hold down \"Control\", or \"Command\" on a Mac, to select more than one."
+		}
+	}
+	return ""
+}
+
+func relatedModelName(field string) string {
+	switch field {
+	case "groups":
+		return "group"
+	case "user_permissions", "permissions":
+		return "permission"
+	default:
+		return strings.TrimSuffix(field, "s")
+	}
+}
+
+func relatedAddURL(field string) string {
+	switch field {
+	case "groups":
+		return "/admin/auth/group/add/"
+	case "user_permissions", "permissions":
+		return "/admin/auth/permission/add/"
+	default:
+		return ""
 	}
 }
 
@@ -269,9 +410,24 @@ func submitButtons(buttons []SaveButton) []adminSubmitButton {
 func listFilters(modelAdmin ModelAdmin) []adminListFilter {
 	filters := make([]adminListFilter, 0, len(modelAdmin.ListFilter))
 	for _, name := range modelAdmin.ListFilter {
-		filters = append(filters, adminListFilter{Name: name, Label: adminLabel(name)})
+		filters = append(filters, adminListFilter{Name: name, Label: adminLabel(name), Title: adminFilterTitle(name)})
 	}
 	return filters
+}
+
+func adminFilterTitle(name string) string {
+	switch name {
+	case "is_staff":
+		return "staff status"
+	case "is_superuser":
+		return "superuser status"
+	case "is_active":
+		return "active"
+	case "groups":
+		return "group"
+	default:
+		return strings.ToLower(adminLabel(name))
+	}
 }
 
 func modelVerboseName(modelAdmin ModelAdmin) string {

@@ -2,7 +2,7 @@
 <div class="actions">
   <label>Action: <select name="action" required>
     <option value="" selected>---------</option>
-    {{range .Actions}}<option value="{{.Name}}">{{.Label}}</option>{{end}}
+    {{range .Actions}}<option value="{{.Name}}">{{if eq .Name "delete_selected"}}Delete selected {{$.ModelVerboseNamePlural}}{{else}}{{.Label}}{{end}}</option>{{end}}
   </select></label>
   <input type="hidden" name="select_across" value="0" class="select-across">
   <button type="submit" class="button" title="Run the selected action" name="index" value="0">Run</button>

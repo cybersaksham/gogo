@@ -1,8 +1,7 @@
 {{define "change-form-object-tools"}}
-{{if or .HistoryURL .DeleteURL}}
+{{if .HistoryURL}}
 <ul class="object-tools">
   {{if .HistoryURL}}<li><a href="{{.HistoryURL}}" class="historylink">History</a></li>{{end}}
-  {{if .DeleteURL}}<li><a href="{{.DeleteURL}}" class="deletelink">Delete</a></li>{{end}}
 </ul>
 {{end}}
 {{end}}

@@ -10,14 +10,22 @@
         {{if .Name}}<h2 id="fieldset-0-{{$index}}-heading" class="fieldset-heading">{{.Name}}</h2>{{end}}
         {{range .Fields}}
         <div class="{{.FieldCSS}}">
+          {{if .Fieldset}}<fieldset{{if .HelpID}} aria-describedby="{{.HelpID}}"{{end}}><legend for="{{.FieldID}}">{{.Label}}:</legend>{{end}}
           <div>
-            <div class="flex-container">
-              <label{{if not .Readonly}} for="{{.FieldID}}"{{end}}>{{.Label}}:</label>
-              {{if .Readonly}}<div class="readonly">{{.WidgetHTML}}</div>{{else}}{{.WidgetHTML}}{{end}}
+            <div class="flex-container{{if .Checkbox}} checkbox-row{{end}}">
+              {{if .Checkbox}}
+                {{.WidgetHTML}}<label class="vCheckboxLabel" for="{{.FieldID}}">{{.Label}}</label>
+              {{else if .Fieldset}}
+                {{if .Readonly}}<div class="readonly">{{.WidgetHTML}}</div>{{else}}{{.WidgetHTML}}{{end}}
+              {{else}}
+                <label{{if .LabelClass}} class="{{.LabelClass}}"{{end}}{{if .LabelFor}} for="{{.FieldID}}"{{end}}>{{.Label}}:</label>
+                {{if .Readonly}}<div class="readonly">{{.WidgetHTML}}</div>{{else}}{{.WidgetHTML}}{{end}}
+              {{end}}
             </div>
-            {{if .HelpText}}<div class="help">{{.HelpText}}</div>{{end}}
+            {{if .HelpText}}<div class="help"{{if .HelpID}} id="{{.HelpID}}"{{end}}><div>{{.HelpText}}</div></div>{{end}}
             {{if .Errors}}<ul class="errorlist"><li>{{.Errors}}</li></ul>{{end}}
           </div>
+          {{if .Fieldset}}</fieldset>{{end}}
         </div>
         {{end}}
       </fieldset>

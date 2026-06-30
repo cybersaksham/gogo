@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/cybersaksham/gogo/auth"
 )
@@ -98,5 +99,91 @@ func TestChangeFormRelatedPopupAndJavaScriptCatalog(t *testing.T) {
 	js := JavaScriptCatalog(map[string]string{"Save": "Save", "Delete": "Delete"})
 	if js.ContentType != "application/javascript" || !strings.Contains(js.Body, `"Save":"Save"`) {
 		t.Fatalf("js catalog = %#v", js)
+	}
+}
+
+func TestAuthUserChangeFormUsesDjangoUserAdminWidgets(t *testing.T) {
+	metadata := authMetadataByLabel()["auth.User"]
+	modelAdmin := ModelAdmin{
+		Model:            metadata,
+		Fieldsets:        []Fieldset{{Fields: []string{"username", "password"}}, {Name: "Permissions", Fields: []string{"is_active", "is_staff", "is_superuser", "groups", "user_permissions"}}, {Name: "Important dates", Fields: []string{"last_login", "date_joined"}}},
+		FilterHorizontal: []string{"groups", "user_permissions"},
+		Hooks: ModelAdminHooks{
+			HasChangePermission: func(*http.Request, auth.User) bool { return true },
+			HasDeletePermission: func(*http.Request, auth.User) bool { return true },
+		},
+	}
+	user := auth.User{AbstractUser: auth.AbstractUser{AbstractBaseUser: auth.AbstractBaseUser{ID: 1, IsActive: true, Authenticated: true}}}
+	values := map[string]any{
+		"username":         "admin",
+		"password":         "pbkdf2_sha256$720000$saltvalue$hashvalue",
+		"is_active":        true,
+		"is_staff":         true,
+		"is_superuser":     true,
+		"groups":           []string{},
+		"user_permissions": []string{"1"},
+		"last_login":       time.Date(2026, 6, 30, 15, 43, 47, 0, time.UTC),
+		"date_joined":      time.Date(2026, 6, 30, 8, 59, 42, 0, time.UTC),
+	}
+
+	form, err := BuildChangeForm(modelAdmin, ChangeFormInput{
+		Mode:     ChangeFormEdit,
+		ObjectID: "1",
+		User:     user,
+		Request:  httptest.NewRequest(http.MethodGet, "/admin/auth/user/1/change/", nil),
+		Values:   values,
+	})
+	if err != nil {
+		t.Fatalf("BuildChangeForm(auth user) error = %v", err)
+	}
+
+	checks := map[string]WidgetKind{
+		"password":         WidgetPasswordHash,
+		"is_active":        WidgetCheckbox,
+		"is_staff":         WidgetCheckbox,
+		"is_superuser":     WidgetCheckbox,
+		"groups":           WidgetFilteredSelectMultiple,
+		"user_permissions": WidgetFilteredSelectMultiple,
+		"last_login":       WidgetDateTime,
+		"date_joined":      WidgetDateTime,
+	}
+	for field, want := range checks {
+		if got := form.Fields[field].Widget; got != want {
+			t.Fatalf("%s widget = %s, want %s in %#v", field, got, want, form.Fields[field])
+		}
+	}
+
+	rendered, err := RenderTemplate("change_form.html", adminPageData{
+		CSRFToken:  "token",
+		DeleteURL:  "/admin/auth/user/1/delete/",
+		HistoryURL: "/admin/auth/user/1/history/",
+		Form:       changeFormViewData(modelAdmin, form),
+	}, nil)
+	if err != nil {
+		t.Fatalf("RenderTemplate(change_form) error = %v", err)
+	}
+	for _, want := range []string{
+		`<label>Password:</label>`,
+		`id="id_password"`,
+		`<strong>algorithm</strong>: <bdi>pbkdf2_sha256</bdi>`,
+		`<a class="button" href="../password/" role="button">Reset password</a>`,
+		`Raw passwords are not stored`,
+		`<div class="flex-container checkbox-row">`,
+		`<input type="checkbox" name="is_active"`,
+		`<label class="vCheckboxLabel" for="id_is_active">Active</label>`,
+		`<select name="groups"`,
+		`class="selectfilter filtered-select-multiple selectfilter"`,
+		`data-field-name="groups"`,
+		`<p class="datetime">`,
+		`name="last_login_0"`,
+		`name="date_joined_1"`,
+		`<a role="button" href="/admin/auth/user/1/delete/" class="deletelink">Delete</a>`,
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("auth user change form missing %q:\n%s", want, rendered)
+		}
+	}
+	if strings.Contains(rendered, `name="password"`) {
+		t.Fatalf("password hash should not render as editable input:\n%s", rendered)
 	}
 }

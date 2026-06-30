@@ -24,12 +24,15 @@ func TestRegisterAuthModelsRegistersDjangoStyleAuthAdmin(t *testing.T) {
 		t.Fatalf("auth.User list display = %#v", userAdmin.ListDisplay)
 	}
 	if !reflect.DeepEqual(userAdmin.Fieldsets, []Fieldset{
-		{Name: "Credentials", Fields: []string{"username", "password"}},
+		{Fields: []string{"username", "password"}},
 		{Name: "Personal info", Fields: []string{"first_name", "last_name", "email"}},
 		{Name: "Permissions", Fields: []string{"is_active", "is_staff", "is_superuser", "groups", "user_permissions"}},
 		{Name: "Important dates", Fields: []string{"last_login", "date_joined"}},
 	}) {
 		t.Fatalf("auth.User fieldsets = %#v", userAdmin.Fieldsets)
+	}
+	if len(userAdmin.ReadonlyFields) != 0 {
+		t.Fatalf("auth.User readonly fields = %#v", userAdmin.ReadonlyFields)
 	}
 
 	permissionAdmin, ok := registry.GetAdmin("auth.Permission")

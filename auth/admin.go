@@ -27,14 +27,13 @@ func AdminRegistrations() []AdminRegistration {
 			ListFilter:   []string{"is_staff", "is_superuser", "is_active", "groups"},
 			SearchFields: []string{"username", "first_name", "last_name", "email"},
 			Fieldsets: []AdminFieldset{
-				{Name: "Credentials", Fields: []string{"username", "password"}},
+				{Fields: []string{"username", "password"}},
 				{Name: "Personal info", Fields: []string{"first_name", "last_name", "email"}},
 				{Name: "Permissions", Fields: []string{"is_active", "is_staff", "is_superuser", "groups", "user_permissions"}},
 				{Name: "Important dates", Fields: []string{"last_login", "date_joined"}},
 			},
-			ReadOnlyFields: []string{"last_login", "date_joined"},
-			Actions:        []string{"activate_users", "deactivate_users"},
-			Ordering:       []string{"username"},
+			Actions:  []string{"activate_users", "deactivate_users"},
+			Ordering: []string{"username"},
 		},
 		{
 			Model:          "auth.Group",

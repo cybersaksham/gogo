@@ -3,6 +3,7 @@ package admin
 import (
 	"errors"
 	"fmt"
+	"html/template"
 	"net/url"
 	"sort"
 	"strconv"
@@ -36,6 +37,25 @@ type ChangeListColumn struct {
 	Editable bool
 	Computed bool
 	Link     bool
+}
+
+// Label returns the Django-style column header label.
+func (c ChangeListColumn) Label() string {
+	switch c.Name {
+	case "email":
+		return "Email address"
+	case "first_name":
+		return "First name"
+	case "last_name":
+		return "Last name"
+	case "is_staff":
+		return "Staff status"
+	case "is_active":
+		return "Active"
+	case "is_superuser":
+		return "Superuser status"
+	}
+	return adminLabel(c.Name)
 }
 
 // ChangeListRow stores rendered values for one object.
@@ -126,7 +146,7 @@ func buildDisplayRows(admin ModelAdmin, rows []map[string]any) []ChangeListRow {
 			values[column] = display
 			cell := ChangeListCell{
 				Name:  column,
-				Class: "field-" + adminClassName(column),
+				Class: "field-" + column,
 				Value: display,
 			}
 			if _, ok := links[column]; ok && objectID != "" {
@@ -232,11 +252,11 @@ func displayValue(value any, empty string) any {
 }
 
 // BooleanIcon renders a stable boolean display marker.
-func BooleanIcon(value bool) string {
+func BooleanIcon(value bool) template.HTML {
 	if value {
-		return "yes"
+		return template.HTML(`<img src="/admin/static/admin/img/icon-yes.svg" alt="True">`)
 	}
-	return "no"
+	return template.HTML(`<img src="/admin/static/admin/img/icon-no.svg" alt="False">`)
 }
 
 func preservedFilters(values url.Values) string {
