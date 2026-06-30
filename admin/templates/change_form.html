@@ -1,14 +1,9 @@
 {{define "content"}}
 <div id="content-main">
-  {{if or .HistoryURL .DeleteURL}}
-  <ul class="object-tools">
-    {{if .HistoryURL}}<li><a href="{{.HistoryURL}}" class="historylink">History</a></li>{{end}}
-    {{if .DeleteURL}}<li><a href="{{.DeleteURL}}" class="deletelink">Delete</a></li>{{end}}
-  </ul>
-  {{end}}
+  {{template "change-form-object-tools" .}}
   <form method="post" id="{{.Form.ID}}" novalidate>
     <input type="hidden" name="csrfmiddlewaretoken" value="{{.CSRFToken}}">
-    {{if .Form.SaveOnTop}}{{template "submit-row" .}}{{end}}
+    {{if .Form.SaveOnTop}}{{template "submit-line" .}}{{end}}
     <div>
       {{range $index, $fieldset := .Form.Fieldsets}}
       <fieldset class="module aligned"{{if .Name}} aria-labelledby="fieldset-0-{{$index}}-heading"{{end}}>
@@ -28,18 +23,9 @@
       </fieldset>
       {{end}}
     </div>
-    {{template "submit-row" .}}
+    {{template "submit-line" .}}
     <script id="django-admin-form-add-constants" src="/admin/static/admin/js/change_form.js" async></script>
   </form>
-</div>
-{{end}}
-
-{{define "submit-row"}}
-<div class="submit-row">
-  {{range .Form.SaveButtons}}
-    <input type="submit" value="{{.Value}}" class="{{.Class}}" name="{{.Name}}">
-  {{end}}
-  {{if .DeleteURL}}<p class="deletelink-box"><a href="{{.DeleteURL}}" class="deletelink">Delete</a></p>{{end}}
 </div>
 {{end}}
 
