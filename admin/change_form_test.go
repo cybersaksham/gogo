@@ -97,7 +97,7 @@ func TestChangeFormRelatedPopupAndJavaScriptCatalog(t *testing.T) {
 		t.Fatalf("popup response = %#v", popup)
 	}
 	js := JavaScriptCatalog(map[string]string{"Save": "Save", "Delete": "Delete"})
-	if js.ContentType != "application/javascript" || !strings.Contains(js.Body, `"Save":"Save"`) || !strings.Contains(js.Body, `function gettext`) || !strings.Contains(js.Body, `function interpolate`) || !strings.Contains(js.Body, `function get_format`) {
+	if js.ContentType != "application/javascript" || !strings.Contains(js.Body, `"Save":"Save"`) || !strings.Contains(js.Body, `function gettext`) || !strings.Contains(js.Body, `function gettext_noop`) || !strings.Contains(js.Body, `function pgettext`) || !strings.Contains(js.Body, `function interpolate`) || !strings.Contains(js.Body, `function get_format`) {
 		t.Fatalf("js catalog = %#v", js)
 	}
 }

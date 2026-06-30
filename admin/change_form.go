@@ -274,8 +274,17 @@ function gettext(msgid) {
   const value = window.gogoAdminCatalog[msgid];
   return typeof value === "undefined" ? msgid : value;
 }
+function gettext_noop(msgid) {
+  return msgid;
+}
+function pgettext(context, msgid) {
+  return gettext(msgid);
+}
 function ngettext(singular, plural, count) {
   return count === 1 ? gettext(singular) : gettext(plural);
+}
+function npgettext(context, singular, plural, count) {
+  return ngettext(singular, plural, count);
 }
 function interpolate(fmt, obj, named) {
   if (named) {
