@@ -135,6 +135,20 @@ func TestAdminTemplatesAllowOverrides(t *testing.T) {
 	}
 }
 
+func TestAdminPasswordChangeTemplateIncludesHiddenUsername(t *testing.T) {
+	rendered, err := RenderTemplate("password_change.html", map[string]any{
+		"CSRFToken": "token",
+		"UserName":  "admin",
+	}, nil)
+	if err != nil {
+		t.Fatalf("RenderTemplate(password_change) error = %v", err)
+	}
+	want := `name="username" value="admin" autocomplete="username" hidden`
+	if !strings.Contains(rendered, want) {
+		t.Fatalf("password change template missing %q:\n%s", want, rendered)
+	}
+}
+
 func containsString(values []string, value string) bool {
 	for _, item := range values {
 		if item == value {
