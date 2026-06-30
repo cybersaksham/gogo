@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 
@@ -29,7 +30,7 @@ func (c startprojectCommand) Summary() string {
 	return "Create a new Gogo project"
 }
 
-func (c startprojectCommand) Run(_ context.Context, args []string) error {
+func (c startprojectCommand) Run(ctx context.Context, args []string) error {
 	flags := flag.NewFlagSet("startproject", flag.ContinueOnError)
 	force := flags.Bool("force", false, "allow generation into a non-empty directory")
 	if err := flags.Parse(args); err != nil {
@@ -55,11 +56,12 @@ func (c startprojectCommand) Run(_ context.Context, args []string) error {
 		return err
 	}
 
-	files, err := gogotemplates.ProjectFiles(gogotemplates.ProjectData{
+	projectData := gogotemplates.ProjectData{
 		ProjectName:       projectName,
 		ModulePath:        projectName,
 		GogoModuleVersion: version.ModuleVersion(),
-	})
+	}
+	files, err := gogotemplates.ProjectFiles(projectData)
 	if err != nil {
 		return fmt.Errorf("%w: render project templates: %v", ErrCommandFailed, err)
 	}
@@ -73,6 +75,22 @@ func (c startprojectCommand) Run(_ context.Context, args []string) error {
 		}
 	}
 
+	if projectData.GogoModuleVersion != "" {
+		if err := hydrateProjectModule(ctx, target); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func hydrateProjectModule(ctx context.Context, target string) error {
+	command := exec.CommandContext(ctx, "go", "mod", "download", "all")
+	command.Dir = target
+	output, err := command.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%w: hydrate generated module: go mod download all failed: %v\n%s", ErrCommandFailed, err, output)
+	}
 	return nil
 }
 

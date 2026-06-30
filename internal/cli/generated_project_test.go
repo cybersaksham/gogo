@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/cybersaksham/gogo/internal/version"
 )
 
 func TestGeneratedProjectWithAppCompilesAsDownstreamModule(t *testing.T) {
@@ -35,6 +37,24 @@ func TestGeneratedProjectWithAppCompilesAsDownstreamModule(t *testing.T) {
 	}
 	runGeneratedCommand(t, target, "go", "test", "./...")
 	assertNoInternalFrameworkImports(t, target)
+}
+
+func TestGeneratedProjectCanRunStartappBeforeManualTidy(t *testing.T) {
+	oldVersion := version.Version
+	version.Version = "0.3.0"
+	defer func() { version.Version = oldVersion }()
+
+	target := filepath.Join(t.TempDir(), "sampleproject")
+	if err := NewStartprojectCommand().Run(context.Background(), []string{"sampleproject", target}); err != nil {
+		t.Fatalf("startproject error = %v", err)
+	}
+
+	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatalf("resolve repo root: %v", err)
+	}
+	runGeneratedCommand(t, target, "go", "mod", "edit", "-replace", "github.com/cybersaksham/gogo="+filepath.ToSlash(repoRoot))
+	runGeneratedCommand(t, target, "go", "run", "manage.go", "startapp", "blog", "apps/blog")
 }
 
 func generatedRuntimeRouteTestSource() string {
