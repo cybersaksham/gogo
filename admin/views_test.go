@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/cybersaksham/gogo/auth"
+	gogohttp "github.com/cybersaksham/gogo/http"
 	"github.com/cybersaksham/gogo/sessions"
 )
 
@@ -34,6 +35,23 @@ func TestAdminLoginViewAllowsStaffAndSetsSession(t *testing.T) {
 	loaded, ok, err := sessionStore.Load(context.Background(), cookie.Value)
 	if err != nil || !ok || loaded.GetString("user_id") != "1" {
 		t.Fatalf("session after login = %#v, %v, %v", loaded, ok, err)
+	}
+}
+
+func TestAdminLoginViewRejectsMissingCSRF(t *testing.T) {
+	users := adminUserStore(t,
+		auth.User{AbstractUser: auth.AbstractUser{
+			AbstractBaseUser: auth.AbstractBaseUser{ID: 1, Password: fastHash(t, "secret"), IsActive: true},
+			Username:         "staff",
+			IsStaff:          true,
+		}},
+	)
+	handler := LoginView(AuthViewConfig{Site: DefaultSite(), UserStore: users, SessionStore: sessions.NewDatabaseStore("secret"), Cookie: sessions.CookieOptions{Name: "sid"}})
+
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, loginRequestWithoutCSRF("staff", "secret", "/admin/"))
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("missing csrf login response = %d body=%s", recorder.Code, recorder.Body.String())
 	}
 }
 
@@ -112,6 +130,19 @@ func fastHash(t *testing.T, password string) string {
 }
 
 func loginRequest(username, password, next string) *http.Request {
+	token := "test-csrf-token"
+	form := url.Values{}
+	form.Set("username", username)
+	form.Set("password", password)
+	form.Set("next", next)
+	form.Set(gogohttp.CSRFFormFieldName, token)
+	request := httptest.NewRequest("POST", "/admin/login/", strings.NewReader(form.Encode()))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request.AddCookie(&http.Cookie{Name: gogohttp.CSRFCookieName, Value: token})
+	return request
+}
+
+func loginRequestWithoutCSRF(username, password, next string) *http.Request {
 	form := url.Values{}
 	form.Set("username", username)
 	form.Set("password", password)

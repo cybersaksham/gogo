@@ -27,6 +27,10 @@ func LoginView(config AuthViewConfig) http.Handler {
 			renderAdminHTTPTemplate(w, "login.html", baseLoginPageData(config, r, ""))
 			return
 		}
+		if err := validateAdminCSRF(r); err != nil {
+			http.Error(w, csrfFailureMessage, http.StatusForbidden)
+			return
+		}
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "invalid form", http.StatusBadRequest)
 			return
@@ -78,6 +82,10 @@ func PasswordChangeView(config AuthViewConfig) http.Handler {
 			renderAdminHTTPTemplate(w, "password_change.html", basePasswordChangePageData(config, r, ""))
 			return
 		}
+		if err := validateAdminCSRF(r); err != nil {
+			http.Error(w, csrfFailureMessage, http.StatusForbidden)
+			return
+		}
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "invalid form", http.StatusBadRequest)
 			return
@@ -127,6 +135,9 @@ func renderAdminHTTPTemplateStatus(w http.ResponseWriter, name string, data admi
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if data.csrfCookie != nil {
+		http.SetCookie(w, data.csrfCookie)
+	}
 	w.WriteHeader(status)
 	_, _ = w.Write([]byte(rendered))
 }

@@ -93,6 +93,9 @@ func protectedAdminView(site *Site, view gogohttp.View) gogohttp.View {
 			site = DefaultSite()
 		}
 		if site.PermissionPolicy == nil || site.PermissionPolicy.HasAccess(request.Raw()) {
+			if err := validateAdminCSRF(request.Raw()); err != nil {
+				return gogohttp.Text(http.StatusForbidden, csrfFailureMessage)
+			}
 			return view(ctx, request)
 		}
 		return adminAccessDenied(site, request.Raw())

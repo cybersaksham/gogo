@@ -41,6 +41,7 @@ type adminPageData struct {
 	PasswordChangeURL string
 	StaticCSSURL      string
 	StaticJSURL       string
+	CSRFToken         string
 	Breadcrumbs       []adminBreadcrumb
 	Apps              []IndexApp
 
@@ -62,6 +63,8 @@ type adminPageData struct {
 
 	Next  string
 	Error string
+
+	csrfCookie *http.Cookie
 }
 
 type adminFormData struct {
@@ -95,7 +98,11 @@ func renderAdminTemplate(name string, data adminPageData) gogohttp.Response {
 	if err != nil {
 		return gogohttp.InternalServerError(err)
 	}
-	return gogohttp.HTML(http.StatusOK, rendered)
+	response := gogohttp.HTML(http.StatusOK, rendered)
+	if data.csrfCookie != nil {
+		response.Header().Add("Set-Cookie", data.csrfCookie.String())
+	}
+	return response
 }
 
 func baseAdminPageData(site *Site, request *http.Request, title, contentTitle, bodyClass string) adminPageData {
@@ -115,6 +122,7 @@ func baseAdminPageData(site *Site, request *http.Request, title, contentTitle, b
 		Breadcrumbs:       []adminBreadcrumb{{URL: site.URLPrefix + "/", Label: "Home"}},
 	}
 	data.UserName = adminUserDisplayName(site, request)
+	data.CSRFToken, data.csrfCookie = adminCSRFPageToken(request)
 	return data
 }
 

@@ -259,6 +259,35 @@ func TestAdminModelRoutesPersistCRUDThroughModelStore(t *testing.T) {
 	}
 }
 
+func TestAdminModelPostRejectsMissingCSRF(t *testing.T) {
+	meta := models.Metadata{
+		AppLabel:  "blog",
+		ModelName: "Post",
+		TableName: "blog_post",
+		Fields:    []models.FieldMeta{{Name: "id", Column: "id", PrimaryKey: true}, {Name: "title", Column: "title"}},
+	}
+	site := DefaultSite()
+	if err := site.ModelRegistry.RegisterMetadata(meta, ModelAdmin{Fields: []string{"title"}}); err != nil {
+		t.Fatalf("RegisterMetadata() error = %v", err)
+	}
+	router, err := site.URLs()
+	if err != nil {
+		t.Fatalf("URLs() error = %v", err)
+	}
+
+	request := staffAdminRequest(http.MethodPost, "/admin/blog/post/add/")
+	body := "title=First&_save=Save"
+	request.Body = io.NopCloser(strings.NewReader(body))
+	request.ContentLength = int64(len(body))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("missing csrf admin POST response = %d body=%s", response.Code, response.Body.String())
+	}
+}
+
 func TestAdminAuthViewsRenderDjangoStyleForms(t *testing.T) {
 	site := DefaultSite()
 	config := AuthViewConfig{Site: site}
@@ -289,6 +318,12 @@ func TestAdminAuthViewsRenderDjangoStyleForms(t *testing.T) {
 		}
 		if got := response.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
 			t.Fatalf("%s content type = %q", test.name, got)
+		}
+		if !strings.Contains(response.Header().Get("Set-Cookie"), gogohttp.CSRFCookieName+"=") {
+			t.Fatalf("%s Set-Cookie = %q, want csrf cookie", test.name, response.Header().Get("Set-Cookie"))
+		}
+		if strings.Contains(response.Body.String(), `name="csrfmiddlewaretoken" value=""`) {
+			t.Fatalf("%s rendered empty csrf token:\n%s", test.name, response.Body.String())
 		}
 		for _, want := range test.want {
 			if !strings.Contains(response.Body.String(), want) {
@@ -341,10 +376,18 @@ func staffAdminRequest(method, path string) *http.Request {
 }
 
 func staffAdminFormRequest(path, body string) *http.Request {
+	token := "test-csrf-token"
 	request := staffAdminRequest(http.MethodPost, path)
+	if !strings.Contains(body, gogohttp.CSRFFormFieldName+"=") {
+		if body != "" {
+			body += "&"
+		}
+		body += gogohttp.CSRFFormFieldName + "=" + token
+	}
 	request.Body = io.NopCloser(strings.NewReader(body))
 	request.ContentLength = int64(len(body))
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request.AddCookie(&http.Cookie{Name: gogohttp.CSRFCookieName, Value: token})
 	return request
 }
 

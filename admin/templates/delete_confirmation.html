@@ -7,7 +7,7 @@
   <h2>Summary</h2>
   <ul>{{range .Deletion.Objects}}<li>{{.}}</li>{{else}}<li>{{.ModelVerboseName}}: object</li>{{end}}</ul>
   <form method="post">
-    <input type="hidden" name="csrfmiddlewaretoken" value="">
+    <input type="hidden" name="csrfmiddlewaretoken" value="{{.CSRFToken}}">
     <div>
       <input type="submit" value="Yes, I'm sure">
       <a href="{{.ChangeListURL}}" class="button cancel-link">No, take me back</a>

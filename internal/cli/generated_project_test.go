@@ -66,6 +66,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -103,13 +104,18 @@ func TestGeneratedRouterMountsAppHTTPAPIAndAdminRoutes(t *testing.T) {
 	if loginPage.Code != http.StatusOK {
 		t.Fatalf("login page status = %d", loginPage.Code)
 	}
+	csrfToken := extractCSRFToken(t, loginPage.Body.String())
 
 	form := url.Values{}
 	form.Set("username", "admin")
 	form.Set("password", "CorrectHorseBatteryStaple42")
 	form.Set("next", "/admin/")
+	form.Set("csrfmiddlewaretoken", csrfToken)
 	loginRequest := httptest.NewRequest(http.MethodPost, "/admin/login/", strings.NewReader(form.Encode()))
 	loginRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	for _, cookie := range loginPage.Result().Cookies() {
+		loginRequest.AddCookie(cookie)
+	}
 	loginResponse := httptest.NewRecorder()
 	router.ServeHTTP(loginResponse, loginRequest)
 	if loginResponse.Code != http.StatusFound || loginResponse.Header().Get("Location") != "/admin/" {
@@ -129,6 +135,17 @@ func TestGeneratedRouterMountsAppHTTPAPIAndAdminRoutes(t *testing.T) {
 	if authenticatedAdmin.Code != http.StatusOK || !strings.Contains(authenticatedAdmin.Body.String(), "Site administration") {
 		t.Fatalf("authenticated admin response = %d body=%s", authenticatedAdmin.Code, authenticatedAdmin.Body.String())
 	}
+}
+
+var csrfInputPattern = regexp.MustCompile("name=\"csrfmiddlewaretoken\" value=\"([^\"]+)\"")
+
+func extractCSRFToken(t *testing.T, body string) string {
+	t.Helper()
+	matches := csrfInputPattern.FindStringSubmatch(body)
+	if len(matches) != 2 || matches[1] == "" {
+		t.Fatalf("login page did not render csrf token:\n%s", body)
+	}
+	return matches[1]
 }
 `
 }
