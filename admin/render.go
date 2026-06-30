@@ -40,7 +40,9 @@ type adminPageData struct {
 	LogoutURL         string
 	PasswordChangeURL string
 	StaticCSSURL      string
+	StaticCSSURLs     []string
 	StaticJSURL       string
+	StaticJSURLs      []string
 	CSRFToken         string
 	Breadcrumbs       []adminBreadcrumb
 	Apps              []IndexApp
@@ -118,8 +120,20 @@ func baseAdminPageData(site *Site, request *http.Request, title, contentTitle, b
 		LogoutURL:         site.URLPrefix + "/logout/",
 		PasswordChangeURL: site.URLPrefix + "/password_change/",
 		StaticCSSURL:      site.URLPrefix + "/static/admin.css",
-		StaticJSURL:       site.URLPrefix + "/static/admin.js",
-		Breadcrumbs:       []adminBreadcrumb{{URL: site.URLPrefix + "/", Label: "Home"}},
+		StaticCSSURLs: []string{
+			site.URLPrefix + "/static/admin/css/base.css",
+			site.URLPrefix + "/static/admin/css/dark_mode.css",
+			site.URLPrefix + "/static/admin/css/nav_sidebar.css",
+			site.URLPrefix + "/static/admin/css/dashboard.css",
+			site.URLPrefix + "/static/admin/css/forms.css",
+			site.URLPrefix + "/static/admin/css/changelists.css",
+			site.URLPrefix + "/static/admin/css/login.css",
+			site.URLPrefix + "/static/admin/css/widgets.css",
+			site.URLPrefix + "/static/admin/css/responsive.css",
+		},
+		StaticJSURL:  site.URLPrefix + "/static/admin.js",
+		StaticJSURLs: []string{site.URLPrefix + "/static/admin.js"},
+		Breadcrumbs:  []adminBreadcrumb{{URL: site.URLPrefix + "/", Label: "Home"}},
 	}
 	data.UserName = adminUserDisplayName(site, request)
 	data.CSRFToken, data.csrfCookie = adminCSRFPageToken(request)

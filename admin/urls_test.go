@@ -38,6 +38,7 @@ func TestAdminURLsGenerateNamespacedRoutesAndReverse(t *testing.T) {
 		"admin:password_change",
 		"admin:css",
 		"admin:js",
+		"admin:static",
 		"admin:app_list",
 		"admin:blog_post_changelist",
 		"admin:blog_post_add",

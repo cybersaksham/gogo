@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
+	"path"
 	"strings"
 
 	"github.com/cybersaksham/gogo/auth"
@@ -29,6 +31,7 @@ func (s *Site) URLs() (*gogohttp.Router, error) {
 		{"admin:password_change", s.URLPrefix + "/password_change/", protectedAdminView(s, gogohttp.FromHandler(s.PasswordChangeView)), []string{"GET", "POST"}},
 		{"admin:css", s.URLPrefix + "/static/admin.css", adminAssetView("static/admin.css", "text/css; charset=utf-8"), []string{"GET"}},
 		{"admin:js", s.URLPrefix + "/static/admin.js", adminAssetView("static/admin.js", "application/javascript; charset=utf-8"), []string{"GET"}},
+		{"admin:static", s.URLPrefix + "/static/<path:asset_path>", adminStaticAssetView(), []string{"GET"}},
 		{"admin:app_list", s.URLPrefix + "/<str:app_label>/", protectedAdminView(s, adminAppListView(s)), []string{"GET", "POST"}},
 	}
 	for _, route := range routes {
@@ -148,6 +151,40 @@ func adminAssetView(name, contentType string) gogohttp.View {
 			return err
 		})
 	}
+}
+
+func adminStaticAssetView() gogohttp.View {
+	return func(_ context.Context, request *gogohttp.Request) gogohttp.Response {
+		assetPath := strings.TrimLeft(request.PathParam("asset_path"), "/")
+		if assetPath == "" || strings.Contains(assetPath, "\x00") || hasTraversalSegment(assetPath) {
+			return gogohttp.NotFound("Not Found", nil)
+		}
+		cleaned := path.Clean(assetPath)
+		if cleaned == "." || strings.HasPrefix(cleaned, "../") {
+			return gogohttp.NotFound("Not Found", nil)
+		}
+		body, ok := ReadAsset("static/" + cleaned)
+		if !ok {
+			return gogohttp.NotFound("Not Found", nil)
+		}
+		contentType := mime.TypeByExtension(path.Ext(cleaned))
+		if contentType == "" {
+			contentType = "application/octet-stream"
+		}
+		return gogohttp.Stream(contentType, func(writer io.Writer) error {
+			_, err := writer.Write(body)
+			return err
+		})
+	}
+}
+
+func hasTraversalSegment(assetPath string) bool {
+	for _, segment := range strings.Split(assetPath, "/") {
+		if segment == ".." {
+			return true
+		}
+	}
+	return false
 }
 
 func adminIndexView(site *Site) gogohttp.View {
