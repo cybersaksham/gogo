@@ -54,6 +54,7 @@ func TestAdminTemplatesRenderBlocksAndAllowOverrides(t *testing.T) {
 		`<div id="content" class="colM">`,
 		"Gogo administration",
 		"blog",
+		`id="recent-actions-module"`,
 		`href="/admin/static/admin/css/base.css"`,
 		`href="/admin/static/admin/css/dashboard.css"`,
 		`href="/admin/static/admin/css/responsive.css"`,
