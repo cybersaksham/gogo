@@ -46,14 +46,23 @@ func TestAdminChoiceDateFileAndRelationWidgets(t *testing.T) {
 			t.Fatalf("widget did not render input: %s", rendered)
 		}
 	}
+	if got := DateInput(WidgetConfig{Name: "date", Value: "2026-06-28"}); !strings.Contains(got, `class="vDateField"`) || !strings.Contains(got, `type="text"`) || !strings.Contains(got, `size="10"`) {
+		t.Fatalf("date input = %s", got)
+	}
+	if got := TimeInput(WidgetConfig{Name: "time", Value: "12:30"}); !strings.Contains(got, `class="vTimeField"`) || !strings.Contains(got, `size="8"`) {
+		t.Fatalf("time input = %s", got)
+	}
+	if got := DateTimeInput(WidgetConfig{Name: "dt", Value: "2026-06-28T12:30"}); !strings.Contains(got, `class="vDateTimeField"`) {
+		t.Fatalf("datetime input = %s", got)
+	}
 
 	clearable := ClearableFileInput(WidgetConfig{Name: "avatar", Value: "current.png"})
-	if !strings.Contains(clearable, `avatar-clear`) || !strings.Contains(clearable, `current.png`) {
+	if !strings.Contains(clearable, `avatar-clear_id`) || !strings.Contains(clearable, `Currently:`) || !strings.Contains(clearable, `Change:`) || !strings.Contains(clearable, `current.png`) {
 		t.Fatalf("clearable file = %s", clearable)
 	}
 
 	rawID := RawIDRelationWidget(WidgetConfig{Name: "author", Value: 7, RelationURL: "/admin/auth/user/"})
-	if !strings.Contains(rawID, `data-lookup-url="/admin/auth/user/"`) {
+	if !strings.Contains(rawID, `data-lookup-url="/admin/auth/user/"`) || !strings.Contains(rawID, `class="related-lookup"`) || !strings.Contains(rawID, `id="lookup_id_author"`) {
 		t.Fatalf("raw id = %s", rawID)
 	}
 
@@ -63,7 +72,7 @@ func TestAdminChoiceDateFileAndRelationWidgets(t *testing.T) {
 	}
 
 	filtered := FilteredSelectMultiple(WidgetConfig{Name: "groups", Value: []string{"staff"}, Choices: []WidgetChoice{{Value: "staff", Label: "Staff"}}})
-	if !strings.Contains(filtered, `class="filtered-select-multiple"`) || !strings.Contains(filtered, `selected`) {
+	if !strings.Contains(filtered, `filtered-select-multiple`) || !strings.Contains(filtered, `selectfilter`) || !strings.Contains(filtered, `selected`) {
 		t.Fatalf("filtered = %s", filtered)
 	}
 

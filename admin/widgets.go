@@ -58,17 +58,22 @@ func SelectMultiple(config WidgetConfig) string {
 
 // DateInput renders a date input.
 func DateInput(config WidgetConfig) string {
-	return input("date", config, nil)
+	config = withWidgetClass(config, "vDateField")
+	config = withAttr(config, "size", "10")
+	return input("text", config, nil)
 }
 
 // TimeInput renders a time input.
 func TimeInput(config WidgetConfig) string {
-	return input("time", config, nil)
+	config = withWidgetClass(config, "vTimeField")
+	config = withAttr(config, "size", "8")
+	return input("text", config, nil)
 }
 
 // DateTimeInput renders a datetime-local input.
 func DateTimeInput(config WidgetConfig) string {
-	return input("datetime-local", config, nil)
+	config = withWidgetClass(config, "vDateTimeField")
+	return input("text", config, nil)
 }
 
 // FileInput renders a file input.
@@ -81,14 +86,18 @@ func FileInput(config WidgetConfig) string {
 func ClearableFileInput(config WidgetConfig) string {
 	current := ""
 	if fmt.Sprint(config.Value) != "" {
-		current = `<span class="current-file">` + esc(fmt.Sprint(config.Value)) + `</span>`
+		clearID := esc(config.Name) + `-clear_id`
+		current = `Currently: <span class="current-file">` + esc(fmt.Sprint(config.Value)) + `</span><br>` +
+			fmt.Sprintf(`<input type="checkbox" name="%s-clear" id="%s"> <label for="%s">Clear</label><br>`, esc(config.Name), clearID, clearID) +
+			`Change: `
 	}
-	return current + FileInput(config) + fmt.Sprintf(`<label><input type="checkbox" name="%s-clear" value="1"> Clear</label>`, esc(config.Name))
+	return current + FileInput(config)
 }
 
 // RawIDRelationWidget renders a raw ID relation input.
 func RawIDRelationWidget(config WidgetConfig) string {
-	return input("text", config, map[string]string{"data-lookup-url": config.RelationURL})
+	return input("text", config, map[string]string{"data-lookup-url": config.RelationURL}) +
+		fmt.Sprintf(`<a href="%s" class="related-lookup" id="lookup_id_%s" title="Lookup"></a>`, esc(config.RelationURL), esc(config.Name))
 }
 
 // AutocompleteWidget renders an autocomplete relation input.
@@ -102,7 +111,7 @@ func FilteredSelectMultiple(config WidgetConfig) string {
 	if attrs == nil {
 		attrs = map[string]string{}
 	}
-	attrs["class"] = strings.TrimSpace(attrs["class"] + " filtered-select-multiple")
+	attrs["class"] = strings.TrimSpace(attrs["class"] + " filtered-select-multiple selectfilter")
 	config.Attrs = attrs
 	return SelectMultiple(config)
 }
@@ -121,6 +130,26 @@ func input(inputType string, config WidgetConfig, extra map[string]string) strin
 		attrs[key] = value
 	}
 	return fmt.Sprintf(`<input type="%s" name="%s" value="%s"%s>`, esc(inputType), esc(config.Name), esc(fmt.Sprint(config.Value)), renderAttrs(attrs))
+}
+
+func withWidgetClass(config WidgetConfig, className string) WidgetConfig {
+	attrs := cloneStringMap(config.Attrs)
+	if attrs == nil {
+		attrs = map[string]string{}
+	}
+	attrs["class"] = strings.TrimSpace(attrs["class"] + " " + className)
+	config.Attrs = attrs
+	return config
+}
+
+func withAttr(config WidgetConfig, name, value string) WidgetConfig {
+	attrs := cloneStringMap(config.Attrs)
+	if attrs == nil {
+		attrs = map[string]string{}
+	}
+	attrs[name] = value
+	config.Attrs = attrs
+	return config
 }
 
 func selectWidget(config WidgetConfig, multiple bool, selected map[string]struct{}) string {
