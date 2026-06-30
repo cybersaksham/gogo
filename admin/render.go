@@ -62,6 +62,7 @@ type adminPageData struct {
 	SearchQuery            string
 	SearchHelpText         string
 	ListFilters            []adminListFilter
+	Actions                []Action
 	ChangeList             ChangeList
 	Form                   adminFormData
 	Deletion               DeletionSummary
@@ -172,6 +173,7 @@ func modelAdminPageData(site *Site, request *http.Request, modelAdmin ModelAdmin
 	data.SearchQuery = request.URL.Query().Get("q")
 	data.SearchHelpText = modelAdmin.SearchHelpText
 	data.ListFilters = listFilters(modelAdmin)
+	data.Actions = append([]Action{DeleteSelectedAction()}, modelAdmin.ActionDefinitions...)
 	data.Breadcrumbs = []adminBreadcrumb{
 		{URL: site.URLPrefix + "/", Label: "Home"},
 		{URL: site.URLPrefix + "/" + appLabel + "/", Label: appLabel},

@@ -1,8 +1,6 @@
 {{define "content"}}
 <div id="content-main">
-  <ul class="object-tools">
-    <li><a href="{{.AddURL}}" class="addlink">Add {{.ModelVerboseName}}</a></li>
-  </ul>
+  {{template "change-list-object-tools" .}}
   <div class="module{{if .ListFilters}} filtered{{end}}" id="changelist">
     <div class="changelist-form-container">
     {{if .ListFilters}}
@@ -30,16 +28,7 @@
       </div>
       <form id="changelist-form" method="post" novalidate>
         <input type="hidden" name="csrfmiddlewaretoken" value="{{.CSRFToken}}">
-        <div class="actions">
-          <label>Action:
-            <select name="action">
-              <option value="" selected>---------</option>
-              <option value="delete_selected">Delete selected {{.ModelVerboseNamePlural}}</option>
-            </select>
-          </label>
-          <button type="submit" class="button" name="index" value="0">Run</button>
-          <span class="action-counter" data-actions-icnt="{{.ChangeList.Total}}">0 of {{.ChangeList.Total}} selected</span>
-        </div>
+        {{template "actions" .}}
         <div class="results">
           <table id="result_list">
             <thead>
