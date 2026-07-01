@@ -87,6 +87,9 @@ func (c queueWorkerCommand) runWithIO(ctx context.Context, args []string, stdout
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrCommandFailed, err)
 	}
+	if err := configureQueueRuntime(runtime, q.RuntimeConfig{BrokerURL: options.brokerURL, ResultBackend: options.resultBackend}); err != nil {
+		return fmt.Errorf("%w: %w", ErrCommandFailed, err)
+	}
 	if err := options.applyTaskTimeLimits(runtime.App); err != nil {
 		return err
 	}
@@ -216,6 +219,39 @@ func (o workerCLIOptions) applyTaskTimeLimits(app *q.App) error {
 	return nil
 }
 
+func configureQueueRuntime(runtime *QueueRuntime, config q.RuntimeConfig) error {
+	if runtime == nil {
+		return nil
+	}
+	if !isMemoryRuntimeURL(config.BrokerURL) {
+		broker, err := q.NewBrokerFromURL(config)
+		if err != nil {
+			return err
+		}
+		runtime.Broker = broker
+	}
+	if !isMemoryRuntimeURL(config.ResultBackend) {
+		backend, err := q.NewResultBackendFromURL(config)
+		if err != nil {
+			return err
+		}
+		runtime.Backend = backend
+	}
+	if !isMemoryRuntimeURL(config.ScheduleStore) {
+		store, err := q.NewScheduleStoreFromURL(config)
+		if err != nil {
+			return err
+		}
+		runtime.Store = store
+	}
+	return nil
+}
+
+func isMemoryRuntimeURL(value string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	return normalized == "" || normalized == "memory" || strings.HasPrefix(normalized, "memory://")
+}
+
 type queueBeatCommand struct {
 	runtime *QueueRuntime
 }
@@ -241,9 +277,10 @@ func (c queueBeatCommand) runWithIO(ctx context.Context, args []string, stdout, 
 	if err := flags.Parse(args); err != nil {
 		return fmt.Errorf("%w: %w", ErrCommandFailed, err)
 	}
-	_ = schedulePath
-	_ = brokerURL
 	_ = appSettings
+	if err := configureQueueRuntime(runtime, q.RuntimeConfig{BrokerURL: *brokerURL, ScheduleStore: *schedulePath}); err != nil {
+		return fmt.Errorf("%w: %w", ErrCommandFailed, err)
+	}
 	beat := q.NewBeat(runtime.App, runtime.Broker, runtime.Store, q.BeatOptions{Now: runtime.Now})
 	if *once {
 		enqueued, err := beat.Tick(ctx)

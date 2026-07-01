@@ -44,8 +44,11 @@ idempotency expectations explicitly for production tasks.
 
 ## Brokers and backends
 
-Broker packages include in-memory queues, Redis, and RabbitMQ. Result backend
-packages include in-memory, Redis, and SQL-backed storage.
+`memory` and `memory://` broker, backend, and schedule-store URLs are local
+development and test runtimes. Production URLs must resolve through registered
+real runtime factories. If a URL such as `redis://` or `amqp://` is configured
+without a registered implementation, worker and beat startup fail instead of
+silently using memory.
 
 Canvas workflows live under `queue/canvas` and include chains, groups, chords,
 chunks, maps, and serialized workflow types.

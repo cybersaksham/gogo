@@ -32,6 +32,12 @@ type MemoryOptions struct {
 	VisibilityTimeout time.Duration
 }
 
+func init() {
+	queue.RegisterBrokerFactory("memory", func(queue.RuntimeConfig) (queue.Broker, error) {
+		return NewMemoryBroker(MemoryOptions{}), nil
+	})
+}
+
 // MemoryBroker is a deterministic in-memory broker useful for tests and local development.
 type MemoryBroker struct {
 	mu                sync.Mutex

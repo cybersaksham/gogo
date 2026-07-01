@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -48,6 +49,26 @@ func TestQueueWorkerCommandParsesFlagsAndRunsOnce(t *testing.T) {
 	result, err := runtime.Backend.GetResult(ctx, "task-1")
 	if err != nil || result.State != q.StateSuccess {
 		t.Fatalf("result = %#v, %v", result, err)
+	}
+}
+
+func TestQueueWorkerCheckRejectsUnsupportedProductionBrokerURL(t *testing.T) {
+	var stdout bytes.Buffer
+	err := NewWorkerCommand(NewQueueRuntime()).(interface {
+		runWithIO(context.Context, []string, io.Writer, io.Writer) error
+	}).runWithIO(context.Background(), []string{
+		"--check",
+		"--broker-url", "redis://localhost:6379/0",
+		"--result-backend", "memory",
+	}, &stdout, io.Discard)
+	if !errors.Is(err, ErrCommandFailed) {
+		t.Fatalf("worker --check error = %v, want ErrCommandFailed", err)
+	}
+	if !strings.Contains(err.Error(), "redis") {
+		t.Fatalf("worker --check error = %v, want redis URL context", err)
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("worker --check stdout = %q, want empty on invalid runtime", stdout.String())
 	}
 }
 

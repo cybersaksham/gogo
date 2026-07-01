@@ -60,13 +60,13 @@ Run `go doc <import-path>` inside a client project for symbol-level details.
 
 | Import path | Use for |
 | --- | --- |
-| `github.com/cybersaksham/gogo/queue` | queue app, task registration, signatures, envelopes, workers, beat, schedules, retries, rate limits, routing, pools, results, serialization, security, inspection, events, and admin metadata |
+| `github.com/cybersaksham/gogo/queue` | queue app, task registration, URL runtime factories, signatures, envelopes, workers, beat, schedules, retries, rate limits, routing, pools, results, serialization, security, inspection, events, and admin metadata |
 | `github.com/cybersaksham/gogo/queue/brokers` | broker interfaces and shared broker types |
-| `github.com/cybersaksham/gogo/queue/brokers/redis` | Redis broker integration |
-| `github.com/cybersaksham/gogo/queue/brokers/rabbitmq` | RabbitMQ broker integration |
+| `github.com/cybersaksham/gogo/queue/brokers/redis` | Redis broker key planning and serialization helpers; production URL factory support must be registered before use |
+| `github.com/cybersaksham/gogo/queue/brokers/rabbitmq` | RabbitMQ route planning helpers; production URL factory support must be registered before use |
 | `github.com/cybersaksham/gogo/queue/backends` | result backend interfaces |
-| `github.com/cybersaksham/gogo/queue/backends/redis` | Redis result backend integration |
-| `github.com/cybersaksham/gogo/queue/backends/sql` | SQL result backend integration |
+| `github.com/cybersaksham/gogo/queue/backends/redis` | Redis result key planning helpers; production URL factory support must be registered before use |
+| `github.com/cybersaksham/gogo/queue/backends/sql` | SQL result backend implementation; URL factory support must be registered before use |
 | `github.com/cybersaksham/gogo/queue/canvas` | chains, groups, chords, chunks, maps, and workflow serialization |
 
 ## Cross-cutting packages

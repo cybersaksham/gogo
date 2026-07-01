@@ -30,6 +30,12 @@ type MemoryOptions struct {
 	Now func() time.Time
 }
 
+func init() {
+	queue.RegisterResultBackendFactory("memory", func(queue.RuntimeConfig) (queue.ResultBackend, error) {
+		return NewMemoryBackend(MemoryOptions{}), nil
+	})
+}
+
 // MemoryBackend stores result data in process memory.
 type MemoryBackend struct {
 	mu       sync.RWMutex

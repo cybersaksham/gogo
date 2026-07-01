@@ -50,13 +50,13 @@ go doc github.com/cybersaksham/gogo/<package>
 | `github.com/cybersaksham/gogo/messages` | request messages, storage, and message middleware |
 | `github.com/cybersaksham/gogo/i18n` | language and timezone helpers |
 | `github.com/cybersaksham/gogo/signals` | signal declaration, dispatch, and receivers |
-| `github.com/cybersaksham/gogo/queue` | queue app, task registration, signatures, envelopes, workers, beat, schedules, retries, rate limits, routing, pools, results, serialization, security, inspection, events, and admin metadata |
+| `github.com/cybersaksham/gogo/queue` | queue app, task registration, URL runtime factories, signatures, envelopes, workers, beat, schedules, retries, rate limits, routing, pools, results, serialization, security, inspection, events, and admin metadata |
 | `github.com/cybersaksham/gogo/queue/brokers` | broker interfaces and shared broker types |
-| `github.com/cybersaksham/gogo/queue/brokers/redis` | Redis broker integration |
-| `github.com/cybersaksham/gogo/queue/brokers/rabbitmq` | RabbitMQ broker integration |
+| `github.com/cybersaksham/gogo/queue/brokers/redis` | Redis broker key planning and serialization helpers; production URL factory support must be registered before use |
+| `github.com/cybersaksham/gogo/queue/brokers/rabbitmq` | RabbitMQ route planning helpers; production URL factory support must be registered before use |
 | `github.com/cybersaksham/gogo/queue/backends` | result backend interfaces |
-| `github.com/cybersaksham/gogo/queue/backends/redis` | Redis result backend integration |
-| `github.com/cybersaksham/gogo/queue/backends/sql` | SQL result backend integration |
+| `github.com/cybersaksham/gogo/queue/backends/redis` | Redis result key planning helpers; production URL factory support must be registered before use |
+| `github.com/cybersaksham/gogo/queue/backends/sql` | SQL result backend implementation; URL factory support must be registered before use |
 | `github.com/cybersaksham/gogo/queue/canvas` | chains, groups, chords, chunks, maps, and workflow serialization |
 | `github.com/cybersaksham/gogo/cache` | local, dummy, file, database, Redis, and memcached-style cache APIs |
 | `github.com/cybersaksham/gogo/email` | message construction, MIME rendering, alternatives, attachments, console, dummy, file, memory, and SMTP backends |

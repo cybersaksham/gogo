@@ -21,12 +21,14 @@ Framework module: `github.com/cybersaksham/gogo`.
 - Configure brokers with `GOGO_BROKER_URL`.
 - Configure result backends with `GOGO_RESULT_BACKEND` only when task results
   are required.
-- Supported queue integrations include in-memory/local behavior for tests and
-  Redis/RabbitMQ/SQL-backed integrations where configured.
-- Broker packages include shared broker interfaces, Redis broker integration,
-  and RabbitMQ broker integration. Result backend packages include shared
-  backend interfaces, Redis results, SQL results, and memory/local test
-  behavior.
+- `memory` and `memory://` runtimes are for local development and tests.
+- Production URLs such as `redis://` or `amqp://` must resolve through
+  registered real runtime factories. If no factory is registered, worker and
+  beat startup must fail clearly instead of silently using memory.
+- Broker packages include shared broker interfaces and local memory behavior;
+  Redis/RabbitMQ/SQL package helpers should not be treated as production-ready
+  URL factories unless the installed framework version explicitly registers
+  real implementations.
 
 ## Reliability
 

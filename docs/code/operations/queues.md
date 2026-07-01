@@ -6,21 +6,25 @@ groups, chunks, maps, and chords.
 
 ## Configuration
 
-Set queue environment variables only when queues are enabled:
+Set queue environment variables only when queues are enabled. `memory://` is
+for local development and tests. Production URLs must be backed by registered
+runtime factories; if a URL such as `redis://` is configured without a real
+registered implementation, worker and beat startup fail instead of falling back
+to memory.
 
 ```bash
 GOGO_BROKER_URL=redis://redis:6379/0
 GOGO_RESULT_BACKEND=redis://redis:6379/1
 ```
 
-Supported production integrations:
+Runtime support:
 
-| Integration | Minimum version |
+| Integration | Status |
 | --- | --- |
-| Redis broker | Redis 8 |
-| RabbitMQ broker | RabbitMQ 4 |
-| Redis result backend | Redis 8 |
-| SQL result backend | Supported database version |
+| Memory broker/backend/schedule store | Local development and tests |
+| Redis broker/backend URLs | Fail fast unless a real Redis factory is registered |
+| RabbitMQ broker URLs | Fail fast unless a real RabbitMQ factory is registered |
+| SQL result backend URLs | Fail fast unless a SQL backend factory is registered |
 
 Use separate Redis databases, prefixes, or clusters for broker, result backend,
 and cache when operational isolation matters.

@@ -20,6 +20,7 @@ The queue package provides Celery-style task registration, signatures, envelopes
 | Events/inspect | `Event`, `EventSink`, `EventRecorder`, `ActiveTask`, `Inspector`, `InspectOptions`, `InspectReport`, `PingResponse` |
 | Serialization/security | `Payload`, `Serializer`, `SerializationRegistry`, `SerializationOptions`, `MessageSigner`, `MessageSignerOptions`, `ContentTypeAllowlist`, `BrokerTLSConfig`, `SensitiveValue`, `Redactor`, `RedactorOptions` |
 | Admin | `QueueAdminOptions`, `QueueAdminModel`, `QueueAdminView` |
+| Runtime factories | `RuntimeConfig`, `NewBrokerFromURL`, `NewResultBackendFromURL`, `NewScheduleStoreFromURL`, `ErrUnsupportedRuntimeURL` |
 
 ## Task Options
 
@@ -36,6 +37,12 @@ Ack policies:
 `WorkerOptions` covers hostname, queues, concurrency, prefetch multiplier, visibility timeout, poll interval, shutdown timeout, ack policy, reject-on-worker-lost, track started, max tasks per child, max memory per child, autoscale, pool, logger, event sink, memory usage hook, revocations, and rate limiter.
 
 ## Broker And Backend Implementations
+
+Runtime factories are URL-driven and fail clearly when a configured production
+URL has no registered real implementation. `memory` and `memory://` are local
+development and test runtimes. A URL such as `redis://` or `amqp://` must be
+backed by a registered production factory; otherwise worker and beat startup
+returns `ErrUnsupportedRuntimeURL` instead of silently using memory.
 
 Broker packages:
 
