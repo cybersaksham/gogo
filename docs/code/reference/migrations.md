@@ -21,7 +21,7 @@ Operations live in `migrations/operations`.
 
 | Operation | Purpose |
 | --- | --- |
-| `CreateModel` | Create a model table and state. |
+| `CreateModel` | Create a model table, then model constraints and indexes, and update state. |
 | `DeleteModel` | Delete a model table and state. |
 | `RenameModel` | Rename a model in state and database. |
 | `AlterModelTable` | Rename a model table. |
@@ -32,7 +32,7 @@ Operations live in `migrations/operations`.
 | `AlterTogether` | Change unique/index together metadata. |
 | `AddField` | Add a field. |
 | `RemoveField` | Remove a field. |
-| `AlterField` | Alter field metadata or column type. |
+| `AlterField` | Alter column type, database default, nullability, and collation in deterministic order. |
 | `RenameField` | Rename a field or column. |
 | `AddIndex` | Add an index. |
 | `RemoveIndex` | Remove an index. |
@@ -79,13 +79,18 @@ execution does not take the lock.
 
 `migrate --fake-initial` records an initial migration without running its
 database operations only when every table declared by its initial table
-operations exists and the live columns match the expected initial schema. If any
-declared table or column is missing or mismatched, the migration runs normally
-or fails through the schema check instead of silently baselining drift.
+operations exists and the live columns match the expected initial schema,
+including primary keys, nullability, type, database defaults, and collation
+where the dialect can inspect them. If any declared table or column is missing
+or mismatched, the migration runs normally or fails through the schema check
+instead of silently baselining drift.
 
 ## Safety Checks
 
-Safety checks detect destructive drops, non-null additions without defaults, irreversible operations, unsafe SQL, and backend-specific hazards where operation metadata exposes the required details.
+Safety checks detect destructive drops, non-null additions or tightenings
+without defaults or acknowledgement, unique-constraint removals, irreversible
+operations, unsafe SQL, and backend-specific hazards where operation metadata
+exposes the required details.
 
 ## Error Types
 
@@ -104,3 +109,16 @@ migration := migrations.Migration{
 err := migration.Validate()
 _ = err
 ```
+
+## Defaults, Indexes, And Constraints
+
+Use `models.DefaultValue(value)` for literal database defaults and
+`models.DefaultSQL("trusted_expression()")` for static SQL expressions. Gogo
+normalizes these defaults into migration state and renders them for
+`CreateModel`, `AddField`, and `AlterField`.
+
+Field-level `Unique` and `DBIndex` are expanded into deterministic constraint
+and index state. Explicit `models.Index` and `models.Constraint` metadata can
+represent expressions, PostgreSQL methods, operator classes, include columns,
+partial predicates, and foreign-key details where supported. `sqlmigrate`
+renders this metadata from operation specs rather than guessing from filenames.

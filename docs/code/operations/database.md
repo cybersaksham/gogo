@@ -44,7 +44,8 @@ Operational rules:
 
 - `makemigrations` compares registered model metadata with historical migration
   state and writes operation specs for the actual model, table, field, index,
-  and constraint changes.
+  and constraint changes. Database defaults, field-level `Unique`, and
+  field-level `DBIndex` are represented as first-class migration state.
 - Run migrations once per release.
 - `go run manage.go migrate` takes a database-backed lock before applying
   schema or migration-history changes; a concurrent migration process fails
@@ -58,8 +59,8 @@ Operational rules:
 - Use `--fake` or `--fake-initial` only after manual inspection confirms the
   database already matches the migration state. `--fake-initial` records an
   initial migration only when declared initial tables, columns, primary keys,
-  and nullability match the live database; dialects that cannot inspect table
-  shape fail closed.
+  nullability, types, defaults, and collations match the live database;
+  dialects that cannot inspect table shape fail closed.
 - Use `--prune` only when stale migration records are understood and backed up.
 
 ## Existing Schema Adoption
@@ -76,14 +77,16 @@ go run manage.go migrate --app legacy --fake-initial
 
 Adoption rules:
 
-- Define exact app labels, table names, column names, primary keys, indexes,
-  constraints, and relationship targets in project model metadata.
+- Define exact app labels, table names, column names, primary keys, column
+  types, database defaults, indexes, constraints, and relationship targets in
+  project model metadata.
 - Keep existing tables unmanaged until the team has reviewed the generated SQL
   and is ready for Gogo migrations to own future changes.
 - Run `diffschema` against the live database and resolve any blocking drift
   before baselining.
 - Baseline initial migrations with `--fake-initial`; it validates live table
-  shape before recording migration history.
+  shape with the same comparator used by `diffschema` before recording
+  migration history.
 - After the baseline is recorded, use normal `makemigrations`, `sqlmigrate`,
   `migrate --plan`, and `migrate` for new schema changes.
 

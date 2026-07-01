@@ -55,8 +55,10 @@ Framework module: `github.com/cybersaksham/gogo`.
   behavior.
 - `makemigrations` compares registered project model metadata with historical
   migration state. Keep custom `DBTable`/`TableName`, field `Column`, field
-  `Kind`, nullability, indexes, and constraints explicit when adopting an
-  existing schema.
+  `Kind`, nullability, database defaults, indexes, and constraints explicit
+  when adopting an existing schema. Field-level `Unique` and `DBIndex` become
+  deterministic constraint and index operations rather than catch-all field
+  alterations.
 - Review generated operations for destructive changes before applying them.
 - Keep data migrations idempotent and reversible when possible.
 - `go run manage.go migrate` takes a database-backed migration lock before
@@ -64,8 +66,9 @@ Framework module: `github.com/cybersaksham/gogo`.
   operations execute.
 - Use `inspectdb` and `diffschema` before adopting existing tables. Baseline
   with `--fake-initial` only when the live table shape matches the initial
-  migration state; missing or mismatched columns, primary keys, or nullability
-  must stop the baseline, and unverifiable dialects fail closed.
+  migration state; missing or mismatched columns, primary keys, nullability,
+  types, defaults, or collations must stop the baseline, and unverifiable
+  dialects fail closed.
 - Use migration commands for normal workflow:
 
 ```bash

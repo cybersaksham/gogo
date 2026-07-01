@@ -49,4 +49,6 @@ Use `go run manage.go inspectdb`, `go run manage.go diffschema`, and
 `go run manage.go migrate --fake-initial` when adopting a database that already
 has tables. `makemigrations` compares project model metadata with existing
 migration state, so keep model `TableName`, field `Column`, field `Kind`,
-indexes, and constraints explicit for legacy tables.
+database defaults, indexes, and constraints explicit for legacy tables.
+`--fake-initial` validates live table shape with the same checks used by
+`diffschema`, including column types, defaults, primary keys, and nullability.

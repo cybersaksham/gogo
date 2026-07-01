@@ -54,9 +54,17 @@ Model metadata is the source of truth for fields, validation, migrations, conten
 
 Supported delete behaviors include cascade, protect, restrict, set null, set default, set value, do nothing, and no constraint where implemented by the relation metadata.
 
-## Indexes And Constraints
+## Database Defaults, Indexes, And Constraints
+
+Use `models.DefaultValue(value)` for a quoted literal database default and
+`models.DefaultSQL("trusted_expression()")` for a static SQL default
+expression. Defaults are preserved in migration state and rendered by generated
+schema SQL.
 
 `models.Index`, `models.IndexField`, `models.Constraint`, and `models.Permission` appear on `models.Metadata`.
+
+Field metadata with `Unique` or `DBIndex` expands into deterministic database
+constraint and index state during migration generation.
 
 `models/constraints` adds validated metadata for:
 

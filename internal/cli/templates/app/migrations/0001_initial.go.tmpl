@@ -3,6 +3,7 @@ package {{.AppName}}migrations
 import (
 	gogomigrations "github.com/cybersaksham/gogo/migrations"
 	"github.com/cybersaksham/gogo/migrations/operations"
+	gogomodels "github.com/cybersaksham/gogo/models"
 )
 
 func Migrations() []gogomigrations.Migration {
@@ -10,6 +11,7 @@ func Migrations() []gogomigrations.Migration {
 }
 
 func Initial() gogomigrations.Migration {
+	statusDefault := gogomodels.DefaultValue("draft")
 	return gogomigrations.Migration{
 		AppLabel: "{{.AppLabel}}",
 		Name:     gogomigrations.InitialMigrationName(),
@@ -23,11 +25,15 @@ func Initial() gogomigrations.Migration {
 					{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true},
 					{Name: "name", Column: "name", Kind: "text"},
 					{Name: "slug", Column: "slug", Kind: "text"},
+					{Name: "status", Column: "status", Kind: "text", DBDefault: &statusDefault},
 					{Name: "created_at", Column: "created_at", Kind: "timestamp", Null: true},
 					{Name: "updated_at", Column: "updated_at", Kind: "timestamp", Null: true},
 				},
+				Indexes: []gogomigrations.IndexState{
+					{Name: "{{.AppLabel}}_item_status_idx", Fields: []string{"status"}, Source: "model"},
+				},
 				Constraints: []gogomigrations.ConstraintState{
-					{Name: "{{.AppLabel}}_item_slug_uniq", Type: "unique", Fields: []string{"slug"}},
+					{Name: "{{.AppLabel}}_item_slug_uniq", Type: "unique", Fields: []string{"slug"}, Source: "model"},
 				},
 				Options: map[string]any{"verbose_name": "item"},
 			}},

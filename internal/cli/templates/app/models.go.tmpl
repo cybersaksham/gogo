@@ -4,8 +4,9 @@ import "github.com/cybersaksham/gogo/models"
 
 type Item struct {
 	models.BaseModel
-	Name string
-	Slug string
+	Name   string
+	Slug   string
+	Status string
 }
 
 func (Item) ModelMeta() models.Metadata {
@@ -21,8 +22,12 @@ func (Item) ModelMeta() models.Metadata {
 			{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true},
 			{Name: "name", Column: "name", Kind: "text"},
 			{Name: "slug", Column: "slug", Kind: "text"},
+			{Name: "status", Column: "status", Kind: "text", DBDefault: models.DefaultValue("draft")},
 			{Name: "created_at", Column: "created_at", Kind: "timestamp", Null: true},
 			{Name: "updated_at", Column: "updated_at", Kind: "timestamp", Null: true},
+		},
+		Indexes: []models.Index{
+			{Name: AppLabel + "_item_status_idx", Fields: []models.IndexField{models.Asc("status")}},
 		},
 		Constraints: []models.Constraint{
 			{Name: AppLabel + "_item_slug_uniq", Type: models.ConstraintUnique, Fields: []models.IndexField{models.Asc("slug")}},
