@@ -79,6 +79,23 @@ func TestWriterWritesDeterministicGoMigration(t *testing.T) {
 	runTestCommand(t, root, "go", "test", "./blog/migrations")
 }
 
+func TestWriterReusesExistingMigrationPackageName(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "apps", "blog", "migrations")
+	writeTextFile(t, filepath.Join(dir, "0001_initial.go"), "package blogmigrations\n")
+
+	path, err := NewWriter(dir).Write(testMigration("blog", "0002_add_status"))
+	if err != nil {
+		t.Fatalf("Write() error = %v", err)
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	if !strings.Contains(string(content), "package blogmigrations") {
+		t.Fatalf("writer did not reuse package name:\n%s", content)
+	}
+}
+
 func writeTextFile(t *testing.T, path string, contents string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

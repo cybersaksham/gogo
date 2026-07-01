@@ -3,8 +3,11 @@ package migrations
 import (
 	"fmt"
 	"go/format"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -21,7 +24,8 @@ func NewWriter(dir string) Writer {
 // Write writes a Go migration file and returns its path.
 func (w Writer) Write(migration Migration) (string, error) {
 	var builder strings.Builder
-	builder.WriteString("package migrations\n\n")
+	packageName := w.packageName()
+	builder.WriteString("package " + packageName + "\n\n")
 	builder.WriteString("import gogomigrations \"github.com/cybersaksham/gogo/migrations\"\n\n")
 	variableName := generatedMigrationVariableName(migration.Name)
 	builder.WriteString("// " + variableName + " describes this generated migration.\n")
@@ -64,6 +68,29 @@ func (w Writer) Write(migration Migration) (string, error) {
 	}
 	path := filepath.Join(w.Dir, migration.Name+".go")
 	return path, os.WriteFile(path, formatted, 0o644)
+}
+
+func (w Writer) packageName() string {
+	entries, err := os.ReadDir(w.Dir)
+	if err != nil {
+		return "migrations"
+	}
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".go" {
+			continue
+		}
+		names = append(names, filepath.Join(w.Dir, entry.Name()))
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		file, err := parser.ParseFile(token.NewFileSet(), name, nil, parser.PackageClauseOnly)
+		if err != nil || file == nil || file.Name == nil || file.Name.Name == "" {
+			continue
+		}
+		return file.Name.Name
+	}
+	return "migrations"
 }
 
 func generatedMigrationVariableName(name string) string {
