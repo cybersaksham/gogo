@@ -7,6 +7,7 @@ type OperationSpec struct {
 	Type               string           `json:"type"`
 	AppLabel           string           `json:"app_label,omitempty"`
 	ModelName          string           `json:"model_name,omitempty"`
+	TableName          string           `json:"table_name,omitempty"`
 	Model              *ModelState      `json:"model,omitempty"`
 	Field              *FieldState      `json:"field,omitempty"`
 	OldField           *FieldState      `json:"old_field,omitempty"`

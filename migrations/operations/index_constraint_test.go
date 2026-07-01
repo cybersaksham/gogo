@@ -52,3 +52,36 @@ func TestIndexAndConstraintOperations(t *testing.T) {
 		t.Fatalf("remove state = %#v", state.Models["blog.Post"])
 	}
 }
+
+func TestIndexAndConstraintOperationsUseExplicitTableNameInSQLAndSpecs(t *testing.T) {
+	editor := &fakeEditor{}
+	addIndex := AddIndex{AppLabel: "sales", ModelName: "Order", TableName: "orders", Index: migrations.IndexState{Name: "idx_orders_status", Fields: []string{"status"}}}
+	if err := addIndex.DatabaseForwards(context.Background(), editor); err != nil {
+		t.Fatalf("AddIndex DatabaseForwards() error = %v", err)
+	}
+	addConstraint := AddConstraint{AppLabel: "sales", ModelName: "Order", TableName: "orders", Constraint: migrations.ConstraintState{Name: "uniq_orders_status", Type: "unique", Fields: []string{"status"}}}
+	if err := addConstraint.DatabaseForwards(context.Background(), editor); err != nil {
+		t.Fatalf("AddConstraint DatabaseForwards() error = %v", err)
+	}
+	removeConstraint := RemoveConstraint{AppLabel: "sales", ModelName: "Order", TableName: "orders", ConstraintName: "uniq_orders_status"}
+	if err := removeConstraint.DatabaseForwards(context.Background(), editor); err != nil {
+		t.Fatalf("RemoveConstraint DatabaseForwards() error = %v", err)
+	}
+
+	want := []string{
+		`CREATE INDEX idx_orders_status ON orders (status)`,
+		`ALTER TABLE orders ADD CONSTRAINT uniq_orders_status UNIQUE (status)`,
+		`ALTER TABLE orders DROP CONSTRAINT uniq_orders_status`,
+	}
+	for i, sql := range want {
+		if editor.SQL[i] != sql {
+			t.Fatalf("SQL[%d] = %q, want %q; all SQL %#v", i, editor.SQL[i], sql, editor.SQL)
+		}
+	}
+	if spec := migrations.OperationSpecFor(addIndex); spec.TableName != "orders" {
+		t.Fatalf("AddIndex spec TableName = %q", spec.TableName)
+	}
+	if spec := migrations.OperationSpecFor(addConstraint); spec.TableName != "orders" {
+		t.Fatalf("AddConstraint spec TableName = %q", spec.TableName)
+	}
+}

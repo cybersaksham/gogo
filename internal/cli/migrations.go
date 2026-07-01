@@ -18,6 +18,7 @@ import (
 
 	authmigrations "github.com/cybersaksham/gogo/auth/migrations"
 	"github.com/cybersaksham/gogo/conf"
+	"github.com/cybersaksham/gogo/internal/schema"
 	"github.com/cybersaksham/gogo/migrations"
 	"github.com/cybersaksham/gogo/migrations/operations"
 	"github.com/cybersaksham/gogo/orm"
@@ -424,7 +425,7 @@ func migrationFromName(appLabel, name string) migrations.Migration {
 }
 
 func migrationOperations(appLabel, name string) []migrations.Operation {
-	statements := migrationSQLStatements(appLabel, name)
+	statements := migrationSQLStatements(appLabel, name, sqlitedialect.New())
 	if len(statements) == 0 {
 		return []migrations.Operation{migrations.ManifestOperation{NameValue: "NoopMigration"}}
 	}
@@ -510,35 +511,35 @@ func migrationOperationFromSpec(defaultAppLabel string, spec migrations.Operatio
 		if spec.Field == nil {
 			return nil, false
 		}
-		return operations.AddField{AppLabel: appLabel, ModelName: spec.ModelName, Field: *spec.Field, HasDefault: spec.HasDefault, UnsafeAcknowledged: spec.UnsafeAcknowledged}, true
+		return operations.AddField{AppLabel: appLabel, ModelName: spec.ModelName, TableName: spec.TableName, Field: *spec.Field, HasDefault: spec.HasDefault, UnsafeAcknowledged: spec.UnsafeAcknowledged}, true
 	case "RemoveField":
 		if spec.Field == nil {
 			return nil, false
 		}
-		return operations.RemoveField{AppLabel: appLabel, ModelName: spec.ModelName, Field: *spec.Field}, true
+		return operations.RemoveField{AppLabel: appLabel, ModelName: spec.ModelName, TableName: spec.TableName, Field: *spec.Field}, true
 	case "AlterField":
 		if spec.OldField == nil || spec.NewField == nil {
 			return nil, false
 		}
-		return operations.AlterField{AppLabel: appLabel, ModelName: spec.ModelName, OldField: *spec.OldField, NewField: *spec.NewField}, true
+		return operations.AlterField{AppLabel: appLabel, ModelName: spec.ModelName, TableName: spec.TableName, OldField: *spec.OldField, NewField: *spec.NewField}, true
 	case "RenameField":
-		return operations.RenameField{AppLabel: appLabel, ModelName: spec.ModelName, OldName: spec.OldName, NewName: spec.NewName}, true
+		return operations.RenameField{AppLabel: appLabel, ModelName: spec.ModelName, TableName: spec.TableName, OldName: spec.OldName, NewName: spec.NewName}, true
 	case "AddIndex":
 		if spec.Index == nil {
 			return nil, false
 		}
-		return operations.AddIndex{AppLabel: appLabel, ModelName: spec.ModelName, Index: *spec.Index}, true
+		return operations.AddIndex{AppLabel: appLabel, ModelName: spec.ModelName, TableName: spec.TableName, Index: *spec.Index}, true
 	case "RemoveIndex":
-		return operations.RemoveIndex{AppLabel: appLabel, ModelName: spec.ModelName, IndexName: spec.IndexName}, true
+		return operations.RemoveIndex{AppLabel: appLabel, ModelName: spec.ModelName, TableName: spec.TableName, IndexName: spec.IndexName}, true
 	case "RenameIndex":
-		return operations.RenameIndex{AppLabel: appLabel, ModelName: spec.ModelName, OldName: spec.OldName, NewName: spec.NewName}, true
+		return operations.RenameIndex{AppLabel: appLabel, ModelName: spec.ModelName, TableName: spec.TableName, OldName: spec.OldName, NewName: spec.NewName}, true
 	case "AddConstraint":
 		if spec.Constraint == nil {
 			return nil, false
 		}
-		return operations.AddConstraint{AppLabel: appLabel, ModelName: spec.ModelName, Constraint: *spec.Constraint}, true
+		return operations.AddConstraint{AppLabel: appLabel, ModelName: spec.ModelName, TableName: spec.TableName, Constraint: *spec.Constraint}, true
 	case "RemoveConstraint":
-		return operations.RemoveConstraint{AppLabel: appLabel, ModelName: spec.ModelName, ConstraintName: spec.ConstraintName}, true
+		return operations.RemoveConstraint{AppLabel: appLabel, ModelName: spec.ModelName, TableName: spec.TableName, ConstraintName: spec.ConstraintName}, true
 	case "RunSQL":
 		return operations.RunSQL{SQL: spec.SQL, ReverseSQL: spec.ReverseSQL, ElidableOp: spec.Elidable}, true
 	case "SeparateDatabaseAndState":
@@ -920,6 +921,54 @@ func (e sqlSchemaEditor) Execute(ctx context.Context, statement string, args ...
 	return err
 }
 
+func (e sqlSchemaEditor) CreateTable(table string, fields []migrations.FieldState) string {
+	return schema.NewEditor(e.dialect).CreateTable(table, fields)
+}
+
+func (e sqlSchemaEditor) DropTable(table string) string {
+	return schema.NewEditor(e.dialect).DropTable(table)
+}
+
+func (e sqlSchemaEditor) RenameTable(oldName, newName string) string {
+	return schema.NewEditor(e.dialect).RenameTable(oldName, newName)
+}
+
+func (e sqlSchemaEditor) AddColumn(table string, field migrations.FieldState) string {
+	return schema.NewEditor(e.dialect).AddColumn(table, field)
+}
+
+func (e sqlSchemaEditor) DropColumn(table, column string) string {
+	return schema.NewEditor(e.dialect).DropColumn(table, column)
+}
+
+func (e sqlSchemaEditor) AlterColumnType(table, column, kind string) string {
+	return schema.NewEditor(e.dialect).AlterColumnType(table, column, kind)
+}
+
+func (e sqlSchemaEditor) RenameColumn(table, oldName, newName string) string {
+	return schema.NewEditor(e.dialect).RenameColumn(table, oldName, newName)
+}
+
+func (e sqlSchemaEditor) AddIndex(table string, index migrations.IndexState) string {
+	return schema.NewEditor(e.dialect).AddIndex(table, index)
+}
+
+func (e sqlSchemaEditor) DropIndex(name string) string {
+	return schema.NewEditor(e.dialect).DropIndex(name)
+}
+
+func (e sqlSchemaEditor) RenameIndex(oldName, newName string) string {
+	return schema.NewEditor(e.dialect).RenameIndex(oldName, newName)
+}
+
+func (e sqlSchemaEditor) AddConstraint(table string, constraint migrations.ConstraintState) string {
+	return schema.NewEditor(e.dialect).AddConstraint(table, constraint)
+}
+
+func (e sqlSchemaEditor) DropConstraint(table, name string) string {
+	return schema.NewEditor(e.dialect).DropConstraint(table, name)
+}
+
 func (e sqlSchemaEditor) TableExists(ctx context.Context, table string) (bool, error) {
 	if e.dialect == nil || e.dialect.SchemaIntrospection().TablesSQL == "" {
 		return false, errors.New("database dialect does not support table introspection")
@@ -1070,9 +1119,10 @@ func runSQLMigrate(options migrationOptions, positionals []string, stdout io.Wri
 	if err != nil {
 		return err
 	}
-	statements := migrationSQLStatements(appLabel, migrationName)
+	dialect := sqlMigrateDialect(options)
+	statements := migrationSQLStatements(appLabel, migrationName, dialect)
 	if ok {
-		statements = sqlStatementsForMigration(migration)
+		statements = sqlStatementsForMigration(migration, dialect)
 	}
 	if len(statements) == 0 {
 		_, err := fmt.Fprintln(stdout, "-- No SQL operations rendered for this manifest migration.")
@@ -1084,6 +1134,18 @@ func runSQLMigrate(options migrationOptions, positionals []string, stdout io.Wri
 		}
 	}
 	return nil
+}
+
+func sqlMigrateDialect(options migrationOptions) dialects.Dialect {
+	settings, err := conf.LoadFromEnv()
+	if err != nil {
+		return sqlitedialect.New()
+	}
+	config, err := migrationDatabaseConfig(options.database, settings.DatabaseURL)
+	if err != nil || config.Dialect == nil {
+		return sqlitedialect.New()
+	}
+	return config.Dialect
 }
 
 func knownMigration(appLabel, migrationName string, projectMigrations []migrations.Migration) (migrations.Migration, bool, error) {
@@ -1099,9 +1161,9 @@ func knownMigration(appLabel, migrationName string, projectMigrations []migratio
 	return migrations.Migration{}, false, nil
 }
 
-func migrationSQLStatements(appLabel, migrationName string) []string {
+func migrationSQLStatements(appLabel, migrationName string, dialect dialects.Dialect) []string {
 	if migration, ok := builtInMigration(appLabel, migrationName); ok {
-		return sqlStatementsForMigration(migration)
+		return sqlStatementsForMigration(migration, dialect)
 	}
 	if strings.HasPrefix(migrationName, "0001_") {
 		return []string{fmt.Sprintf("CREATE TABLE IF NOT EXISTS %q (id bigint PRIMARY KEY, name text NOT NULL, slug text NOT NULL, created_at timestamp, updated_at timestamp)", appLabel+"_item")}
@@ -1125,8 +1187,8 @@ func builtInMigration(appLabel, migrationName string) (migrations.Migration, boo
 	return migrations.Migration{}, false
 }
 
-func sqlStatementsForMigration(migration migrations.Migration) []string {
-	editor := &collectingSchemaEditor{}
+func sqlStatementsForMigration(migration migrations.Migration, dialect dialects.Dialect) []string {
+	editor := &collectingSchemaEditor{dialect: dialect}
 	for _, operation := range migration.Operations {
 		if err := operation.DatabaseForwards(context.Background(), editor); err != nil {
 			continue
@@ -1137,6 +1199,7 @@ func sqlStatementsForMigration(migration migrations.Migration) []string {
 
 type collectingSchemaEditor struct {
 	statements []string
+	dialect    dialects.Dialect
 }
 
 func (e *collectingSchemaEditor) Execute(_ context.Context, statement string, _ ...any) error {
@@ -1144,6 +1207,62 @@ func (e *collectingSchemaEditor) Execute(_ context.Context, statement string, _ 
 		e.statements = append(e.statements, statement)
 	}
 	return nil
+}
+
+func (e *collectingSchemaEditor) renderer() schema.Editor {
+	dialect := e.dialect
+	if dialect == nil {
+		dialect = sqlitedialect.New()
+	}
+	return schema.NewEditor(dialect)
+}
+
+func (e *collectingSchemaEditor) CreateTable(table string, fields []migrations.FieldState) string {
+	return e.renderer().CreateTable(table, fields)
+}
+
+func (e *collectingSchemaEditor) DropTable(table string) string {
+	return e.renderer().DropTable(table)
+}
+
+func (e *collectingSchemaEditor) RenameTable(oldName, newName string) string {
+	return e.renderer().RenameTable(oldName, newName)
+}
+
+func (e *collectingSchemaEditor) AddColumn(table string, field migrations.FieldState) string {
+	return e.renderer().AddColumn(table, field)
+}
+
+func (e *collectingSchemaEditor) DropColumn(table, column string) string {
+	return e.renderer().DropColumn(table, column)
+}
+
+func (e *collectingSchemaEditor) AlterColumnType(table, column, kind string) string {
+	return e.renderer().AlterColumnType(table, column, kind)
+}
+
+func (e *collectingSchemaEditor) RenameColumn(table, oldName, newName string) string {
+	return e.renderer().RenameColumn(table, oldName, newName)
+}
+
+func (e *collectingSchemaEditor) AddIndex(table string, index migrations.IndexState) string {
+	return e.renderer().AddIndex(table, index)
+}
+
+func (e *collectingSchemaEditor) DropIndex(name string) string {
+	return e.renderer().DropIndex(name)
+}
+
+func (e *collectingSchemaEditor) RenameIndex(oldName, newName string) string {
+	return e.renderer().RenameIndex(oldName, newName)
+}
+
+func (e *collectingSchemaEditor) AddConstraint(table string, constraint migrations.ConstraintState) string {
+	return e.renderer().AddConstraint(table, constraint)
+}
+
+func (e *collectingSchemaEditor) DropConstraint(table, name string) string {
+	return e.renderer().DropConstraint(table, name)
 }
 
 func runSquashMigrations(positionals []string, stdout io.Writer, projectMigrations []migrations.Migration) error {

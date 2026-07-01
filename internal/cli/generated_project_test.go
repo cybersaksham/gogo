@@ -39,7 +39,7 @@ func TestGeneratedProjectWithAppCompilesAsDownstreamModule(t *testing.T) {
 		t.Fatalf("migrate --plan output = %q", migrationPlan)
 	}
 	sqlmigrateOutput := runGeneratedCommandOutput(t, target, "go", "run", "manage.go", "sqlmigrate", "blog", "0001_initial")
-	if !strings.Contains(sqlmigrateOutput, "CREATE TABLE IF NOT EXISTS blog_item") {
+	if !strings.Contains(sqlmigrateOutput, `CREATE TABLE "blog_item"`) {
 		t.Fatalf("sqlmigrate output = %q", sqlmigrateOutput)
 	}
 	workerCheck := runGeneratedCommandOutput(t, target, "go", "run", "manage.go", "worker", "--check", "--broker-url", "memory://", "--result-backend", "memory")

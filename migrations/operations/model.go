@@ -34,9 +34,15 @@ func (o CreateModel) StateForwards(state *migrations.ProjectState) error {
 	return nil
 }
 func (o CreateModel) DatabaseForwards(ctx context.Context, editor migrations.SchemaEditor) error {
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return editor.Execute(ctx, renderer.CreateTable(modelTableName(o.Model), modelFields(o.Model)))
+	}
 	return editor.Execute(ctx, createTableSQL(o.Model))
 }
 func (o CreateModel) DatabaseBackwards(ctx context.Context, editor migrations.SchemaEditor) error {
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return editor.Execute(ctx, renderer.DropTable(modelTableName(o.Model)))
+	}
 	return editor.Execute(ctx, fmt.Sprintf("DROP TABLE %s", o.Model.TableName))
 }
 func (o CreateModel) Describe() string { return "Create model " + o.Model.Name }
@@ -78,9 +84,15 @@ func (o DeleteModel) StateForwards(state *migrations.ProjectState) error {
 	return nil
 }
 func (o DeleteModel) DatabaseForwards(ctx context.Context, editor migrations.SchemaEditor) error {
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return editor.Execute(ctx, renderer.DropTable(modelTableName(o.Model)))
+	}
 	return editor.Execute(ctx, fmt.Sprintf("DROP TABLE %s", o.Model.TableName))
 }
 func (o DeleteModel) DatabaseBackwards(ctx context.Context, editor migrations.SchemaEditor) error {
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return editor.Execute(ctx, renderer.CreateTable(modelTableName(o.Model), modelFields(o.Model)))
+	}
 	return editor.Execute(ctx, createTableSQL(o.Model))
 }
 func (o DeleteModel) Describe() string { return "Delete model " + o.Model.Name }
@@ -119,9 +131,15 @@ func (o AlterModelTable) StateForwards(state *migrations.ProjectState) error {
 	return nil
 }
 func (o AlterModelTable) DatabaseForwards(ctx context.Context, editor migrations.SchemaEditor) error {
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return editor.Execute(ctx, renderer.RenameTable(o.OldTable, o.NewTable))
+	}
 	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s RENAME TO %s", o.OldTable, o.NewTable))
 }
 func (o AlterModelTable) DatabaseBackwards(ctx context.Context, editor migrations.SchemaEditor) error {
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return editor.Execute(ctx, renderer.RenameTable(o.NewTable, o.OldTable))
+	}
 	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s RENAME TO %s", o.NewTable, o.OldTable))
 }
 func (o AlterModelTable) Describe() string { return "Alter model table " + o.ModelName }
@@ -240,14 +258,8 @@ func (o AlterTogether) ReferencesModel(appLabel, modelName string) bool {
 func (o AlterTogether) ReferencesField(string, string, string) bool { return false }
 
 func createTableSQL(model migrations.ModelState) string {
-	table := model.TableName
-	if table == "" {
-		table = tableName(model.AppLabel, model.Name)
-	}
-	fields := model.Fields
-	if len(fields) == 0 {
-		fields = []migrations.FieldState{{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true}}
-	}
+	table := modelTableName(model)
+	fields := modelFields(model)
 	columns := make([]string, 0, len(fields))
 	for _, field := range fields {
 		column := columnName(field)
@@ -267,6 +279,20 @@ func createTableSQL(model migrations.ModelState) string {
 		columns = append(columns, strings.Join(parts, " "))
 	}
 	return fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", table, strings.Join(columns, ", "))
+}
+
+func modelTableName(model migrations.ModelState) string {
+	if model.TableName != "" {
+		return model.TableName
+	}
+	return tableName(model.AppLabel, model.Name)
+}
+
+func modelFields(model migrations.ModelState) []migrations.FieldState {
+	if len(model.Fields) > 0 {
+		return model.Fields
+	}
+	return []migrations.FieldState{{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true}}
 }
 
 func ensureOptions(model *migrations.ModelState) {

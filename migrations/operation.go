@@ -10,6 +10,22 @@ type SchemaEditor interface {
 	Execute(context.Context, string, ...any) error
 }
 
+// SchemaRenderer optionally centralizes dialect-specific schema SQL rendering.
+type SchemaRenderer interface {
+	CreateTable(table string, fields []FieldState) string
+	DropTable(table string) string
+	RenameTable(oldName, newName string) string
+	AddColumn(table string, field FieldState) string
+	DropColumn(table, column string) string
+	AlterColumnType(table, column, kind string) string
+	RenameColumn(table, oldName, newName string) string
+	AddIndex(table string, index IndexState) string
+	DropIndex(name string) string
+	RenameIndex(oldName, newName string) string
+	AddConstraint(table string, constraint ConstraintState) string
+	DropConstraint(table, name string) string
+}
+
 // TableExistenceChecker is implemented by schema editors that can inspect existing tables.
 type TableExistenceChecker interface {
 	TableExists(context.Context, string) (bool, error)

@@ -14,6 +14,8 @@ import (
 
 	authmigrations "github.com/cybersaksham/gogo/auth/migrations"
 	"github.com/cybersaksham/gogo/migrations"
+	"github.com/cybersaksham/gogo/migrations/operations"
+	sqlitedialect "github.com/cybersaksham/gogo/orm/dialects/sqlite"
 
 	_ "modernc.org/sqlite"
 )
@@ -140,6 +142,41 @@ func TestSQLMigrateUsesGeneratedOperationContent(t *testing.T) {
 	}
 }
 
+func TestSQLMigrateRendersCustomTableNamesWithSharedRenderer(t *testing.T) {
+	dir := t.TempDir()
+	migrationsDir := filepath.Join(dir, "apps", "sales", "migrations")
+	writeGeneratedMigration(t, migrationsDir, migrations.Migration{
+		AppLabel: "sales",
+		Name:     "0001_initial",
+		Atomic:   true,
+		Operations: []migrations.Operation{
+			operations.CreateModel{Model: migrations.ModelState{
+				AppLabel:  "sales",
+				Name:      "Order",
+				TableName: "orders",
+				Fields: []migrations.FieldState{
+					{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true},
+					{Name: "status", Column: "status", Kind: "text", Null: true},
+				},
+			}},
+			operations.AddIndex{AppLabel: "sales", ModelName: "Order", TableName: "orders", Index: migrations.IndexState{Name: "idx_orders_status", Fields: []string{"status"}}},
+			operations.AddConstraint{AppLabel: "sales", ModelName: "Order", TableName: "orders", Constraint: migrations.ConstraintState{Name: "uniq_orders_status", Type: "unique", Fields: []string{"status"}}},
+		},
+	})
+	t.Chdir(dir)
+
+	var stdout bytes.Buffer
+	if err := NewRoot().Execute(context.Background(), []string{"sqlmigrate", "sales", "0001_initial"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("sqlmigrate error = %v", err)
+	}
+	output := stdout.String()
+	for _, want := range []string{`CREATE TABLE "orders"`, `CREATE INDEX "idx_orders_status" ON "orders" ("status")`, `ALTER TABLE "orders" ADD CONSTRAINT "uniq_orders_status" UNIQUE ("status")`} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("sqlmigrate output missing %q:\n%s", want, output)
+		}
+	}
+}
+
 func TestBuiltInAuthMigrationIsDiscoveredAndAppliedByDefault(t *testing.T) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "db.sqlite3")
@@ -185,7 +222,7 @@ func TestMigrateFakeInitialRecordsExistingBuiltInAuthSchema(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	for _, statement := range sqlStatementsForMigration(authmigrations.Initial()) {
+	for _, statement := range sqlStatementsForMigration(authmigrations.Initial(), sqlitedialect.New()) {
 		if _, err := db.Exec(statement); err != nil {
 			_ = db.Close()
 			t.Fatalf("prepare existing auth schema: %v", err)

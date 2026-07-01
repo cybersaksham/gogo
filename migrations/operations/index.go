@@ -10,14 +10,17 @@ import (
 
 type AddIndex struct {
 	AppLabel, ModelName string
+	TableName           string
 	Index               migrations.IndexState
 }
 type RemoveIndex struct {
 	AppLabel, ModelName string
+	TableName           string
 	IndexName           string
 }
 type RenameIndex struct {
 	AppLabel, ModelName string
+	TableName           string
 	OldName, NewName    string
 }
 
@@ -29,9 +32,16 @@ func (o AddIndex) StateForwards(state *migrations.ProjectState) error {
 	return nil
 }
 func (o AddIndex) DatabaseForwards(ctx context.Context, editor migrations.SchemaEditor) error {
-	return editor.Execute(ctx, fmt.Sprintf("CREATE INDEX %s ON %s (%s)", o.Index.Name, tableName(o.AppLabel, o.ModelName), strings.Join(o.Index.Fields, ", ")))
+	table := operationTableName(o.TableName, o.AppLabel, o.ModelName)
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return editor.Execute(ctx, renderer.AddIndex(table, o.Index))
+	}
+	return editor.Execute(ctx, fmt.Sprintf("CREATE INDEX %s ON %s (%s)", o.Index.Name, table, strings.Join(o.Index.Fields, ", ")))
 }
 func (o AddIndex) DatabaseBackwards(ctx context.Context, editor migrations.SchemaEditor) error {
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return editor.Execute(ctx, renderer.DropIndex(o.Index.Name))
+	}
 	return editor.Execute(ctx, fmt.Sprintf("DROP INDEX %s", o.Index.Name))
 }
 func (o AddIndex) Describe() string { return "Add index " + o.Index.Name }
@@ -57,6 +67,9 @@ func (o RemoveIndex) StateForwards(state *migrations.ProjectState) error {
 	return nil
 }
 func (o RemoveIndex) DatabaseForwards(ctx context.Context, editor migrations.SchemaEditor) error {
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return editor.Execute(ctx, renderer.DropIndex(o.IndexName))
+	}
 	return editor.Execute(ctx, fmt.Sprintf("DROP INDEX %s", o.IndexName))
 }
 func (o RemoveIndex) DatabaseBackwards(context.Context, migrations.SchemaEditor) error { return nil }
@@ -81,9 +94,15 @@ func (o RenameIndex) StateForwards(state *migrations.ProjectState) error {
 	return nil
 }
 func (o RenameIndex) DatabaseForwards(ctx context.Context, editor migrations.SchemaEditor) error {
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return editor.Execute(ctx, renderer.RenameIndex(o.OldName, o.NewName))
+	}
 	return editor.Execute(ctx, fmt.Sprintf("ALTER INDEX %s RENAME TO %s", o.OldName, o.NewName))
 }
 func (o RenameIndex) DatabaseBackwards(ctx context.Context, editor migrations.SchemaEditor) error {
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return editor.Execute(ctx, renderer.RenameIndex(o.NewName, o.OldName))
+	}
 	return editor.Execute(ctx, fmt.Sprintf("ALTER INDEX %s RENAME TO %s", o.NewName, o.OldName))
 }
 func (o RenameIndex) Describe() string { return "Rename index " + o.OldName }

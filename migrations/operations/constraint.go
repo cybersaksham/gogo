@@ -10,10 +10,12 @@ import (
 
 type AddConstraint struct {
 	AppLabel, ModelName string
+	TableName           string
 	Constraint          migrations.ConstraintState
 }
 type RemoveConstraint struct {
 	AppLabel, ModelName string
+	TableName           string
 	ConstraintName      string
 }
 
@@ -25,10 +27,18 @@ func (o AddConstraint) StateForwards(state *migrations.ProjectState) error {
 	return nil
 }
 func (o AddConstraint) DatabaseForwards(ctx context.Context, editor migrations.SchemaEditor) error {
-	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s %s", tableName(o.AppLabel, o.ModelName), o.Constraint.Name, constraintSQL(o.Constraint)))
+	table := operationTableName(o.TableName, o.AppLabel, o.ModelName)
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return editor.Execute(ctx, renderer.AddConstraint(table, o.Constraint))
+	}
+	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s %s", table, o.Constraint.Name, constraintSQL(o.Constraint)))
 }
 func (o AddConstraint) DatabaseBackwards(ctx context.Context, editor migrations.SchemaEditor) error {
-	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", tableName(o.AppLabel, o.ModelName), o.Constraint.Name))
+	table := operationTableName(o.TableName, o.AppLabel, o.ModelName)
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return editor.Execute(ctx, renderer.DropConstraint(table, o.Constraint.Name))
+	}
+	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", table, o.Constraint.Name))
 }
 func (o AddConstraint) Describe() string { return "Add constraint " + o.Constraint.Name }
 func (o AddConstraint) Reversible() bool { return true }
@@ -53,7 +63,11 @@ func (o RemoveConstraint) StateForwards(state *migrations.ProjectState) error {
 	return nil
 }
 func (o RemoveConstraint) DatabaseForwards(ctx context.Context, editor migrations.SchemaEditor) error {
-	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", tableName(o.AppLabel, o.ModelName), o.ConstraintName))
+	table := operationTableName(o.TableName, o.AppLabel, o.ModelName)
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return editor.Execute(ctx, renderer.DropConstraint(table, o.ConstraintName))
+	}
+	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", table, o.ConstraintName))
 }
 func (o RemoveConstraint) DatabaseBackwards(context.Context, migrations.SchemaEditor) error {
 	return nil

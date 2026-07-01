@@ -10,6 +10,7 @@ import (
 
 type AddField struct {
 	AppLabel, ModelName string
+	TableName           string
 	Field               migrations.FieldState
 	HasDefault          bool
 	UnsafeAcknowledged  bool
@@ -17,17 +18,20 @@ type AddField struct {
 
 type RemoveField struct {
 	AppLabel, ModelName string
+	TableName           string
 	Field               migrations.FieldState
 }
 
 type AlterField struct {
 	AppLabel, ModelName string
+	TableName           string
 	OldField            migrations.FieldState
 	NewField            migrations.FieldState
 }
 
 type RenameField struct {
 	AppLabel, ModelName string
+	TableName           string
 	OldName, NewName    string
 }
 
@@ -46,10 +50,18 @@ func (o AddField) StateForwards(state *migrations.ProjectState) error {
 	return nil
 }
 func (o AddField) DatabaseForwards(ctx context.Context, editor migrations.SchemaEditor) error {
-	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", tableName(o.AppLabel, o.ModelName), columnName(o.Field), fieldKind(o.Field)))
+	table := operationTableName(o.TableName, o.AppLabel, o.ModelName)
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return editor.Execute(ctx, renderer.AddColumn(table, o.Field))
+	}
+	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, columnName(o.Field), fieldKind(o.Field)))
 }
 func (o AddField) DatabaseBackwards(ctx context.Context, editor migrations.SchemaEditor) error {
-	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s", tableName(o.AppLabel, o.ModelName), columnName(o.Field)))
+	table := operationTableName(o.TableName, o.AppLabel, o.ModelName)
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return editor.Execute(ctx, renderer.DropColumn(table, columnName(o.Field)))
+	}
+	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s", table, columnName(o.Field)))
 }
 func (o AddField) Describe() string { return "Add field " + o.Field.Name }
 func (o AddField) Reversible() bool { return true }
@@ -74,10 +86,18 @@ func (o RemoveField) StateForwards(state *migrations.ProjectState) error {
 	return nil
 }
 func (o RemoveField) DatabaseForwards(ctx context.Context, editor migrations.SchemaEditor) error {
-	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s", tableName(o.AppLabel, o.ModelName), columnName(o.Field)))
+	table := operationTableName(o.TableName, o.AppLabel, o.ModelName)
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return editor.Execute(ctx, renderer.DropColumn(table, columnName(o.Field)))
+	}
+	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s", table, columnName(o.Field)))
 }
 func (o RemoveField) DatabaseBackwards(ctx context.Context, editor migrations.SchemaEditor) error {
-	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", tableName(o.AppLabel, o.ModelName), columnName(o.Field), fieldKind(o.Field)))
+	table := operationTableName(o.TableName, o.AppLabel, o.ModelName)
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return editor.Execute(ctx, renderer.AddColumn(table, o.Field))
+	}
+	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, columnName(o.Field), fieldKind(o.Field)))
 }
 func (o RemoveField) Describe() string { return "Remove field " + o.Field.Name }
 func (o RemoveField) Reversible() bool { return true }
@@ -104,10 +124,18 @@ func (o AlterField) StateForwards(state *migrations.ProjectState) error {
 	return nil
 }
 func (o AlterField) DatabaseForwards(ctx context.Context, editor migrations.SchemaEditor) error {
-	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s TYPE %s", tableName(o.AppLabel, o.ModelName), columnName(o.NewField), fieldKind(o.NewField)))
+	table := operationTableName(o.TableName, o.AppLabel, o.ModelName)
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return editor.Execute(ctx, renderer.AlterColumnType(table, columnName(o.NewField), fieldKind(o.NewField)))
+	}
+	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s TYPE %s", table, columnName(o.NewField), fieldKind(o.NewField)))
 }
 func (o AlterField) DatabaseBackwards(ctx context.Context, editor migrations.SchemaEditor) error {
-	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s TYPE %s", tableName(o.AppLabel, o.ModelName), columnName(o.OldField), fieldKind(o.OldField)))
+	table := operationTableName(o.TableName, o.AppLabel, o.ModelName)
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return editor.Execute(ctx, renderer.AlterColumnType(table, columnName(o.OldField), fieldKind(o.OldField)))
+	}
+	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s TYPE %s", table, columnName(o.OldField), fieldKind(o.OldField)))
 }
 func (o AlterField) Describe() string { return "Alter field " + o.NewField.Name }
 func (o AlterField) Reversible() bool { return true }
@@ -141,10 +169,18 @@ func (o RenameField) StateForwards(state *migrations.ProjectState) error {
 	return nil
 }
 func (o RenameField) DatabaseForwards(ctx context.Context, editor migrations.SchemaEditor) error {
-	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s", tableName(o.AppLabel, o.ModelName), o.OldName, o.NewName))
+	table := operationTableName(o.TableName, o.AppLabel, o.ModelName)
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return editor.Execute(ctx, renderer.RenameColumn(table, o.OldName, o.NewName))
+	}
+	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s", table, o.OldName, o.NewName))
 }
 func (o RenameField) DatabaseBackwards(ctx context.Context, editor migrations.SchemaEditor) error {
-	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s", tableName(o.AppLabel, o.ModelName), o.NewName, o.OldName))
+	table := operationTableName(o.TableName, o.AppLabel, o.ModelName)
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return editor.Execute(ctx, renderer.RenameColumn(table, o.NewName, o.OldName))
+	}
+	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s", table, o.NewName, o.OldName))
 }
 func (o RenameField) Describe() string { return "Rename field " + o.OldName + " to " + o.NewName }
 func (o RenameField) Reversible() bool { return true }
@@ -170,6 +206,13 @@ func removeField(fields []migrations.FieldState, name string) []migrations.Field
 
 func tableName(appLabel, modelName string) string {
 	return appLabel + "_" + strings.ToLower(modelName)
+}
+
+func operationTableName(explicit, appLabel, modelName string) string {
+	if explicit != "" {
+		return explicit
+	}
+	return tableName(appLabel, modelName)
 }
 
 func columnName(field migrations.FieldState) string {

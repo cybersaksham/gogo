@@ -48,44 +48,44 @@ func (o AlterTogether) MigrationOperationSpec() migrations.OperationSpec {
 
 func (o AddField) MigrationOperationSpec() migrations.OperationSpec {
 	field := cloneFieldState(o.Field)
-	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, Field: &field, HasDefault: o.HasDefault, UnsafeAcknowledged: o.UnsafeAcknowledged}
+	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, TableName: o.TableName, Field: &field, HasDefault: o.HasDefault, UnsafeAcknowledged: o.UnsafeAcknowledged}
 }
 
 func (o RemoveField) MigrationOperationSpec() migrations.OperationSpec {
 	field := cloneFieldState(o.Field)
-	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, Field: &field}
+	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, TableName: o.TableName, Field: &field}
 }
 
 func (o AlterField) MigrationOperationSpec() migrations.OperationSpec {
 	oldField := cloneFieldState(o.OldField)
 	newField := cloneFieldState(o.NewField)
-	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, OldField: &oldField, NewField: &newField}
+	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, TableName: o.TableName, OldField: &oldField, NewField: &newField}
 }
 
 func (o RenameField) MigrationOperationSpec() migrations.OperationSpec {
-	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, OldName: o.OldName, NewName: o.NewName}
+	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, TableName: o.TableName, OldName: o.OldName, NewName: o.NewName}
 }
 
 func (o AddIndex) MigrationOperationSpec() migrations.OperationSpec {
 	index := migrations.IndexState{Name: o.Index.Name, Fields: append([]string(nil), o.Index.Fields...)}
-	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, Index: &index}
+	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, TableName: o.TableName, Index: &index}
 }
 
 func (o RemoveIndex) MigrationOperationSpec() migrations.OperationSpec {
-	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, IndexName: o.IndexName}
+	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, TableName: o.TableName, IndexName: o.IndexName}
 }
 
 func (o RenameIndex) MigrationOperationSpec() migrations.OperationSpec {
-	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, OldName: o.OldName, NewName: o.NewName}
+	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, TableName: o.TableName, OldName: o.OldName, NewName: o.NewName}
 }
 
 func (o AddConstraint) MigrationOperationSpec() migrations.OperationSpec {
 	constraint := migrations.ConstraintState{Name: o.Constraint.Name, Type: o.Constraint.Type, Fields: append([]string(nil), o.Constraint.Fields...), Check: o.Constraint.Check}
-	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, Constraint: &constraint}
+	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, TableName: o.TableName, Constraint: &constraint}
 }
 
 func (o RemoveConstraint) MigrationOperationSpec() migrations.OperationSpec {
-	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, ConstraintName: o.ConstraintName}
+	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, TableName: o.TableName, ConstraintName: o.ConstraintName}
 }
 
 func (o RunSQL) MigrationOperationSpec() migrations.OperationSpec {
