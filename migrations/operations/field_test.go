@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/cybersaksham/gogo/migrations"
+	"github.com/cybersaksham/gogo/models"
 )
 
 func TestFieldOperationsMutateStateAndRenderSQL(t *testing.T) {
@@ -25,7 +26,7 @@ func TestFieldOperationsMutateStateAndRenderSQL(t *testing.T) {
 		t.Fatalf("add field state/sql = %#v / %#v", state.Models["blog.Post"].Fields, editor.SQL)
 	}
 
-	alter := AlterField{AppLabel: "blog", ModelName: "Post", OldField: migrations.FieldState{Name: "title", Column: "title", Kind: "text", Null: true}, NewField: migrations.FieldState{Name: "title", Column: "title", Kind: "varchar(255)", Null: false}}
+	alter := AlterField{AppLabel: "blog", ModelName: "Post", OldField: migrations.FieldState{Name: "title", Column: "title", Kind: "text", Null: true}, NewField: migrations.FieldState{Name: "title", Column: "title", Kind: "varchar(255)", Null: false}, UnsafeAcknowledged: true}
 	if err := alter.StateForwards(&state); err != nil {
 		t.Fatalf("AlterField StateForwards() error = %v", err)
 	}
@@ -58,6 +59,27 @@ func TestAddFieldRejectsUnsafeNonNullWithoutDefault(t *testing.T) {
 	op.HasDefault = true
 	if err := op.ValidateSafety(); err != nil {
 		t.Fatalf("ValidateSafety() with default error = %v", err)
+	}
+}
+
+func TestAlterFieldRejectsUnsafeNonNullWithoutDefault(t *testing.T) {
+	op := AlterField{
+		AppLabel:  "blog",
+		ModelName: "Post",
+		OldField:  migrations.FieldState{Name: "slug", Kind: "text", Null: true},
+		NewField:  migrations.FieldState{Name: "slug", Kind: "text", Null: false},
+	}
+	if err := op.ValidateSafety(); !errors.Is(err, migrations.ErrUnsafeMigration) {
+		t.Fatalf("ValidateSafety() error = %v, want ErrUnsafeMigration", err)
+	}
+	op.NewField.DBDefault = databaseDefaultPtr(models.DefaultValue("draft"))
+	if err := op.ValidateSafety(); err != nil {
+		t.Fatalf("ValidateSafety() with default error = %v", err)
+	}
+	op.NewField.DBDefault = nil
+	op.UnsafeAcknowledged = true
+	if err := op.ValidateSafety(); err != nil {
+		t.Fatalf("ValidateSafety() with acknowledgement error = %v", err)
 	}
 }
 
@@ -113,6 +135,45 @@ func TestFieldOperationsUseSchemaRendererWhenAvailable(t *testing.T) {
 	}
 }
 
+func TestAlterFieldRendersChangedAttributesInDeterministicOrder(t *testing.T) {
+	editor := &renderingEditor{}
+	oldDefault := models.DefaultValue("draft")
+	newDefault := models.DefaultValue("published")
+	op := AlterField{
+		AppLabel:  "sales",
+		ModelName: "Order",
+		TableName: "orders",
+		OldField:  migrations.FieldState{Name: "status", Column: "status", Kind: "text", Null: true, DBDefault: &oldDefault, DBCollation: "C"},
+		NewField:  migrations.FieldState{Name: "status", Column: "status", Kind: "varchar(32)", Null: false, DBDefault: &newDefault, DBCollation: "en_US"},
+	}
+	if err := op.DatabaseForwards(context.Background(), editor); err != nil {
+		t.Fatalf("AlterField DatabaseForwards() error = %v", err)
+	}
+	wantForwards := []string{
+		`ALTER TABLE "orders" ALTER COLUMN "status" TYPE varchar(32)`,
+		`ALTER TABLE "orders" ALTER COLUMN "status" SET DEFAULT 'published'`,
+		`ALTER TABLE "orders" ALTER COLUMN "status" SET NOT NULL`,
+		`ALTER TABLE "orders" ALTER COLUMN "status" TYPE varchar(32) COLLATE "en_US"`,
+	}
+	if strings.Join(editor.SQL, "\n") != strings.Join(wantForwards, "\n") {
+		t.Fatalf("forwards SQL = %#v", editor.SQL)
+	}
+
+	editor.SQL = nil
+	if err := op.DatabaseBackwards(context.Background(), editor); err != nil {
+		t.Fatalf("AlterField DatabaseBackwards() error = %v", err)
+	}
+	wantBackwards := []string{
+		`ALTER TABLE "orders" ALTER COLUMN "status" TYPE text COLLATE "C"`,
+		`ALTER TABLE "orders" ALTER COLUMN "status" DROP NOT NULL`,
+		`ALTER TABLE "orders" ALTER COLUMN "status" SET DEFAULT 'draft'`,
+		`ALTER TABLE "orders" ALTER COLUMN "status" TYPE text`,
+	}
+	if strings.Join(editor.SQL, "\n") != strings.Join(wantBackwards, "\n") {
+		t.Fatalf("backwards SQL = %#v", editor.SQL)
+	}
+}
+
 type renderingEditor struct {
 	fakeEditor
 }
@@ -136,6 +197,30 @@ func (e *renderingEditor) DropColumn(table, column string) string {
 }
 func (e *renderingEditor) AlterColumnType(table, column, kind string) string {
 	return "ALTER TABLE " + quote(table) + " ALTER COLUMN " + quote(column) + " TYPE " + kind
+}
+func (e *renderingEditor) AlterNull(table, column string, nullable bool) string {
+	action := "SET NOT NULL"
+	if nullable {
+		action = "DROP NOT NULL"
+	}
+	return "ALTER TABLE " + quote(table) + " ALTER COLUMN " + quote(column) + " " + action
+}
+func (e *renderingEditor) AlterDefault(table, column string, value any) string {
+	if value == nil {
+		return "ALTER TABLE " + quote(table) + " ALTER COLUMN " + quote(column) + " DROP DEFAULT"
+	}
+	defaultValue, _ := models.NormalizeDatabaseDefault(value)
+	if defaultValue.Kind == models.DefaultLiteral {
+		return "ALTER TABLE " + quote(table) + " ALTER COLUMN " + quote(column) + " SET DEFAULT '" + defaultValue.Value.(string) + "'"
+	}
+	return "ALTER TABLE " + quote(table) + " ALTER COLUMN " + quote(column) + " SET DEFAULT " + defaultValue.SQL
+}
+func (e *renderingEditor) AlterColumnCollation(table, column, kind, collation string) string {
+	statement := "ALTER TABLE " + quote(table) + " ALTER COLUMN " + quote(column) + " TYPE " + kind
+	if collation != "" {
+		statement += " COLLATE " + quote(collation)
+	}
+	return statement
 }
 func (e *renderingEditor) RenameColumn(table, oldName, newName string) string {
 	return "ALTER TABLE " + quote(table) + " RENAME COLUMN " + quote(oldName) + " TO " + quote(newName)
@@ -167,4 +252,8 @@ func quoteAll(values []string) []string {
 		quoted[i] = quote(value)
 	}
 	return quoted
+}
+
+func databaseDefaultPtr(defaultValue models.DatabaseDefault) *models.DatabaseDefault {
+	return &defaultValue
 }

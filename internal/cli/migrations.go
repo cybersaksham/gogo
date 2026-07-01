@@ -836,7 +836,7 @@ func migrationOperationFromSpec(defaultAppLabel string, spec migrations.Operatio
 		if spec.OldField == nil || spec.NewField == nil {
 			return nil, false
 		}
-		return operations.AlterField{AppLabel: appLabel, ModelName: spec.ModelName, TableName: spec.TableName, OldField: *spec.OldField, NewField: *spec.NewField}, true
+		return operations.AlterField{AppLabel: appLabel, ModelName: spec.ModelName, TableName: spec.TableName, OldField: *spec.OldField, NewField: *spec.NewField, UnsafeAcknowledged: spec.UnsafeAcknowledged}, true
 	case "RenameField":
 		return operations.RenameField{AppLabel: appLabel, ModelName: spec.ModelName, TableName: spec.TableName, OldName: spec.OldName, NewName: spec.NewName}, true
 	case "AddIndex":
@@ -1260,6 +1260,18 @@ func (e sqlSchemaEditor) AlterColumnType(table, column, kind string) string {
 	return schema.NewEditor(e.dialect).AlterColumnType(table, column, kind)
 }
 
+func (e sqlSchemaEditor) AlterNull(table, column string, nullable bool) string {
+	return schema.NewEditor(e.dialect).AlterNull(table, column, nullable)
+}
+
+func (e sqlSchemaEditor) AlterDefault(table, column string, value any) string {
+	return schema.NewEditor(e.dialect).AlterDefault(table, column, value)
+}
+
+func (e sqlSchemaEditor) AlterColumnCollation(table, column, kind, collation string) string {
+	return schema.NewEditor(e.dialect).AlterColumnCollation(table, column, kind, collation)
+}
+
 func (e sqlSchemaEditor) RenameColumn(table, oldName, newName string) string {
 	return schema.NewEditor(e.dialect).RenameColumn(table, oldName, newName)
 }
@@ -1554,6 +1566,18 @@ func (e *collectingSchemaEditor) DropColumn(table, column string) string {
 
 func (e *collectingSchemaEditor) AlterColumnType(table, column, kind string) string {
 	return e.renderer().AlterColumnType(table, column, kind)
+}
+
+func (e *collectingSchemaEditor) AlterNull(table, column string, nullable bool) string {
+	return e.renderer().AlterNull(table, column, nullable)
+}
+
+func (e *collectingSchemaEditor) AlterDefault(table, column string, value any) string {
+	return e.renderer().AlterDefault(table, column, value)
+}
+
+func (e *collectingSchemaEditor) AlterColumnCollation(table, column, kind, collation string) string {
+	return e.renderer().AlterColumnCollation(table, column, kind, collation)
 }
 
 func (e *collectingSchemaEditor) RenameColumn(table, oldName, newName string) string {

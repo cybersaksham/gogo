@@ -3,9 +3,12 @@ package operations
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/cybersaksham/gogo/migrations"
+	"github.com/cybersaksham/gogo/models"
 )
 
 type AddField struct {
@@ -27,6 +30,7 @@ type AlterField struct {
 	TableName           string
 	OldField            migrations.FieldState
 	NewField            migrations.FieldState
+	UnsafeAcknowledged  bool
 }
 
 type RenameField struct {
@@ -112,7 +116,16 @@ func (o RemoveField) SafetyChecks() []migrations.SafetyCheck {
 }
 
 func (o AlterField) Name() string { return "AlterField" }
+func (o AlterField) ValidateSafety() error {
+	if o.OldField.Null && !o.NewField.Null && o.NewField.DBDefault == nil && !o.UnsafeAcknowledged {
+		return fmt.Errorf("%w: making field %s non-null requires a default or acknowledgement", migrations.ErrUnsafeMigration, o.NewField.Name)
+	}
+	return nil
+}
 func (o AlterField) StateForwards(state *migrations.ProjectState) error {
+	if err := o.ValidateSafety(); err != nil {
+		return err
+	}
 	model := state.Models[key(o.AppLabel, o.ModelName)]
 	for i, field := range model.Fields {
 		if field.Name == o.OldField.Name {
@@ -124,18 +137,15 @@ func (o AlterField) StateForwards(state *migrations.ProjectState) error {
 	return nil
 }
 func (o AlterField) DatabaseForwards(ctx context.Context, editor migrations.SchemaEditor) error {
-	table := operationTableName(o.TableName, o.AppLabel, o.ModelName)
-	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
-		return editor.Execute(ctx, renderer.AlterColumnType(table, columnName(o.NewField), fieldKind(o.NewField)))
+	if err := o.ValidateSafety(); err != nil {
+		return err
 	}
-	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s TYPE %s", table, columnName(o.NewField), fieldKind(o.NewField)))
+	table := operationTableName(o.TableName, o.AppLabel, o.ModelName)
+	return executeSchemaStatements(ctx, editor, alterFieldStatements(editor, table, o.OldField, o.NewField, false))
 }
 func (o AlterField) DatabaseBackwards(ctx context.Context, editor migrations.SchemaEditor) error {
 	table := operationTableName(o.TableName, o.AppLabel, o.ModelName)
-	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
-		return editor.Execute(ctx, renderer.AlterColumnType(table, columnName(o.OldField), fieldKind(o.OldField)))
-	}
-	return editor.Execute(ctx, fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s TYPE %s", table, columnName(o.OldField), fieldKind(o.OldField)))
+	return executeSchemaStatements(ctx, editor, alterFieldStatements(editor, table, o.OldField, o.NewField, true))
 }
 func (o AlterField) Describe() string { return "Alter field " + o.NewField.Name }
 func (o AlterField) Reversible() bool { return true }
@@ -146,10 +156,14 @@ func (o AlterField) ReferencesField(appLabel, modelName, fieldName string) bool 
 	return o.ReferencesModel(appLabel, modelName) && (o.OldField.Name == fieldName || o.NewField.Name == fieldName)
 }
 func (o AlterField) SafetyChecks() []migrations.SafetyCheck {
+	var checks []migrations.SafetyCheck
 	if isNarrowingType(o.OldField.Kind, o.NewField.Kind) {
-		return []migrations.SafetyCheck{{Operation: o.Name(), Message: "narrows field type " + o.NewField.Name}}
+		checks = append(checks, migrations.SafetyCheck{Operation: o.Name(), Message: "narrows field type " + o.NewField.Name})
 	}
-	return nil
+	if o.OldField.Null && !o.NewField.Null && o.NewField.DBDefault == nil && !o.UnsafeAcknowledged {
+		checks = append(checks, migrations.SafetyCheck{Operation: o.Name(), Message: "makes field non-null without default"})
+	}
+	return checks
 }
 
 func (o RenameField) Name() string { return "RenameField" }
@@ -227,6 +241,167 @@ func fieldKind(field migrations.FieldState) string {
 		return "text"
 	}
 	return field.Kind
+}
+
+func executeSchemaStatements(ctx context.Context, editor migrations.SchemaEditor, statements []string) error {
+	for _, statement := range statements {
+		if strings.TrimSpace(statement) == "" {
+			continue
+		}
+		if err := editor.Execute(ctx, statement); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func alterFieldStatements(editor migrations.SchemaEditor, table string, oldField, newField migrations.FieldState, backwards bool) []string {
+	changes := []string{"type", "default", "null", "collation"}
+	if backwards {
+		for left, right := 0, len(changes)-1; left < right; left, right = left+1, right-1 {
+			changes[left], changes[right] = changes[right], changes[left]
+		}
+	}
+	statements := make([]string, 0, len(changes))
+	for _, change := range changes {
+		switch change {
+		case "type":
+			if fieldKind(oldField) != fieldKind(newField) {
+				target := newField
+				if backwards {
+					target = oldField
+				}
+				statements = append(statements, alterColumnTypeSQL(editor, table, columnName(target), fieldKind(target)))
+			}
+		case "default":
+			if !reflect.DeepEqual(oldField.DBDefault, newField.DBDefault) {
+				target := newField.DBDefault
+				column := columnName(newField)
+				if backwards {
+					target = oldField.DBDefault
+					column = columnName(oldField)
+				}
+				statements = append(statements, alterDefaultSQL(editor, table, column, target))
+			}
+		case "null":
+			if oldField.Null != newField.Null {
+				target := newField
+				if backwards {
+					target = oldField
+				}
+				statements = append(statements, alterNullSQL(editor, table, columnName(target), target.Null))
+			}
+		case "collation":
+			if oldField.DBCollation != newField.DBCollation {
+				target := newField
+				if backwards {
+					target = oldField
+				}
+				statements = append(statements, alterColumnCollationSQL(editor, table, columnName(target), fieldKind(target), target.DBCollation))
+			}
+		}
+	}
+	return statements
+}
+
+func alterColumnTypeSQL(editor migrations.SchemaEditor, table, column, kind string) string {
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return renderer.AlterColumnType(table, column, kind)
+	}
+	return fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s TYPE %s", table, column, kind)
+}
+
+func alterNullSQL(editor migrations.SchemaEditor, table, column string, nullable bool) string {
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return renderer.AlterNull(table, column, nullable)
+	}
+	action := "SET NOT NULL"
+	if nullable {
+		action = "DROP NOT NULL"
+	}
+	return fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s %s", table, column, action)
+}
+
+func alterDefaultSQL(editor migrations.SchemaEditor, table, column string, value *models.DatabaseDefault) string {
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return renderer.AlterDefault(table, column, value)
+	}
+	if value == nil {
+		return fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s DROP DEFAULT", table, column)
+	}
+	sql, err := fallbackDatabaseDefaultSQL(value)
+	if err != nil || sql == "" {
+		return fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s DROP DEFAULT", table, column)
+	}
+	return fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s SET DEFAULT %s", table, column, sql)
+}
+
+func alterColumnCollationSQL(editor migrations.SchemaEditor, table, column, kind, collation string) string {
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		return renderer.AlterColumnCollation(table, column, kind, collation)
+	}
+	statement := fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s TYPE %s", table, column, kind)
+	if collation != "" {
+		statement += " COLLATE " + collation
+	}
+	return statement
+}
+
+func fallbackDatabaseDefaultSQL(value *models.DatabaseDefault) (string, error) {
+	defaultValue, err := models.NormalizeDatabaseDefault(value)
+	if err != nil {
+		return "", err
+	}
+	switch defaultValue.Kind {
+	case models.DefaultNone:
+		return "", nil
+	case models.DefaultExpression:
+		return defaultValue.SQL, nil
+	case models.DefaultLiteral:
+		return fallbackLiteralDefaultSQL(defaultValue.Value)
+	default:
+		return "", fmt.Errorf("%w: unknown database default kind %q", models.ErrInvalidMetadata, defaultValue.Kind)
+	}
+}
+
+func fallbackLiteralDefaultSQL(value any) (string, error) {
+	switch typed := value.(type) {
+	case nil:
+		return "NULL", nil
+	case string:
+		return "'" + strings.ReplaceAll(typed, "'", "''") + "'", nil
+	case bool:
+		if typed {
+			return "true", nil
+		}
+		return "false", nil
+	case int:
+		return strconv.FormatInt(int64(typed), 10), nil
+	case int8:
+		return strconv.FormatInt(int64(typed), 10), nil
+	case int16:
+		return strconv.FormatInt(int64(typed), 10), nil
+	case int32:
+		return strconv.FormatInt(int64(typed), 10), nil
+	case int64:
+		return strconv.FormatInt(typed, 10), nil
+	case uint:
+		return strconv.FormatUint(uint64(typed), 10), nil
+	case uint8:
+		return strconv.FormatUint(uint64(typed), 10), nil
+	case uint16:
+		return strconv.FormatUint(uint64(typed), 10), nil
+	case uint32:
+		return strconv.FormatUint(uint64(typed), 10), nil
+	case uint64:
+		return strconv.FormatUint(typed, 10), nil
+	case float32:
+		return strconv.FormatFloat(float64(typed), 'f', -1, 32), nil
+	case float64:
+		return strconv.FormatFloat(typed, 'f', -1, 64), nil
+	default:
+		return "", fmt.Errorf("%w: unsupported database default literal %T", models.ErrInvalidMetadata, value)
+	}
 }
 
 func isNarrowingType(oldKind, newKind string) bool {

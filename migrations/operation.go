@@ -18,6 +18,9 @@ type SchemaRenderer interface {
 	AddColumn(table string, field FieldState) string
 	DropColumn(table, column string) string
 	AlterColumnType(table, column, kind string) string
+	AlterNull(table, column string, nullable bool) string
+	AlterDefault(table, column string, value any) string
+	AlterColumnCollation(table, column, kind, collation string) string
 	RenameColumn(table, oldName, newName string) string
 	AddIndex(table string, index IndexState) string
 	DropIndex(name string) string

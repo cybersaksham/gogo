@@ -520,6 +520,66 @@ func TestMakeMigrationsRendersDatabaseDefaultsInSQL(t *testing.T) {
 	}
 }
 
+func TestMakeMigrationsRendersAlterFieldAttributeChangesInSQL(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	oldDefault := models.DefaultValue("draft")
+	newDefault := models.DefaultValue("published")
+	initial := migrations.Migration{
+		AppLabel: "sales",
+		Name:     migrations.InitialMigrationName(),
+		Atomic:   true,
+		Operations: []migrations.Operation{
+			operations.CreateModel{Model: migrations.ModelState{
+				AppLabel:  "sales",
+				Name:      "Order",
+				TableName: "orders",
+				Fields: []migrations.FieldState{
+					{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true},
+					{Name: "status", Column: "status", Kind: "text", Null: true, DBDefault: &oldDefault, DBCollation: "C"},
+				},
+			}},
+		},
+	}
+	meta := models.Metadata{
+		AppLabel:  "sales",
+		ModelName: "Order",
+		TableName: "orders",
+		Fields: []models.FieldMeta{
+			{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true},
+			{Name: "status", Column: "status", Kind: "varchar(32)", DBDefault: newDefault, DBCollation: "en_US"},
+		},
+	}
+	root := NewRootWithOptions(RootOptions{ProjectModels: []models.Metadata{meta}, ProjectMigrations: []migrations.Migration{initial}})
+
+	var stdout bytes.Buffer
+	if err := root.Execute(context.Background(), []string{"makemigrations", "--app", "sales", "--name", "alter_status"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("makemigrations error = %v", err)
+	}
+	contents, err := os.ReadFile(filepath.Join(dir, "sales", "migrations", "0002_alter_status.go"))
+	if err != nil {
+		t.Fatalf("read migration: %v", err)
+	}
+	if !strings.Contains(string(contents), `\"type\":\"AlterField\"`) {
+		t.Fatalf("migration missing AlterField:\n%s", contents)
+	}
+
+	stdout.Reset()
+	if err := root.Execute(context.Background(), []string{"sqlmigrate", "sales", "0002_alter_status"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("sqlmigrate error = %v", err)
+	}
+	for _, want := range []string{
+		`ALTER TABLE "orders" ALTER COLUMN "status" TYPE varchar(32);`,
+		`ALTER TABLE "orders" ALTER COLUMN "status" SET DEFAULT 'published';`,
+		`ALTER TABLE "orders" ALTER COLUMN "status" SET NOT NULL;`,
+		`ALTER TABLE "orders" ALTER COLUMN "status" TYPE varchar(32) COLLATE "en_US";`,
+	} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("sqlmigrate missing %q:\n%s", want, stdout.String())
+		}
+	}
+}
+
 func TestMakeMigrationsRejectsUnsafeNonNullAddField(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)

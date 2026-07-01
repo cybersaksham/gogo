@@ -59,7 +59,7 @@ func (o RemoveField) MigrationOperationSpec() migrations.OperationSpec {
 func (o AlterField) MigrationOperationSpec() migrations.OperationSpec {
 	oldField := cloneFieldState(o.OldField)
 	newField := cloneFieldState(o.NewField)
-	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, TableName: o.TableName, OldField: &oldField, NewField: &newField}
+	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, TableName: o.TableName, OldField: &oldField, NewField: &newField, UnsafeAcknowledged: o.UnsafeAcknowledged}
 }
 
 func (o RenameField) MigrationOperationSpec() migrations.OperationSpec {

@@ -67,6 +67,14 @@ func (e Editor) AlterDefault(table, column string, value any) string {
 	return "ALTER TABLE " + e.q(table) + " ALTER COLUMN " + e.q(column) + " SET DEFAULT " + defaultSQL
 }
 
+func (e Editor) AlterColumnCollation(table, column, kind, collation string) string {
+	statement := "ALTER TABLE " + e.q(table) + " ALTER COLUMN " + e.q(column) + " TYPE " + kind
+	if collation != "" {
+		statement += " COLLATE " + e.q(collation)
+	}
+	return statement
+}
+
 func (e Editor) RenameColumn(table, oldName, newName string) string {
 	return "ALTER TABLE " + e.q(table) + " RENAME COLUMN " + e.q(oldName) + " TO " + e.q(newName)
 }
