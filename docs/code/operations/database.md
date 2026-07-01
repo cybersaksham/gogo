@@ -42,6 +42,9 @@ go run manage.go showmigrations
 
 Operational rules:
 
+- `makemigrations` compares registered model metadata with historical migration
+  state and writes operation specs for the actual model, table, field, index,
+  and constraint changes.
 - Run migrations once per release.
 - `go run manage.go migrate` takes a database-backed lock before applying
   schema or migration-history changes; a concurrent migration process fails
@@ -54,8 +57,9 @@ Operational rules:
 - Keep raw SQL reversible when rollback is required.
 - Use `--fake` or `--fake-initial` only after manual inspection confirms the
   database already matches the migration state. `--fake-initial` records an
-  initial migration only when declared initial tables and columns match the live
-  database.
+  initial migration only when declared initial tables, columns, primary keys,
+  and nullability match the live database; dialects that cannot inspect table
+  shape fail closed.
 - Use `--prune` only when stale migration records are understood and backed up.
 
 ## Existing Schema Adoption

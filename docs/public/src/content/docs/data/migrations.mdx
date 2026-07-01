@@ -4,7 +4,9 @@ description: Generate, inspect, apply, squash, and optimize database schema chan
 ---
 
 Migrations live in each app's `migrations/` directory and describe schema
-changes with explicit operations.
+changes with explicit operations. `makemigrations` compares registered project
+model metadata with the historical state produced by existing migrations; it
+does not infer schema changes from filenames.
 
 ## Main workflow
 
@@ -48,6 +50,7 @@ migration run fails before operations execute; `migrate --plan` remains
 read-only and does not take the lock.
 
 `migrate --fake-initial` is for baselining an existing schema. It records an
-initial migration without running SQL only when the tables and columns declared
-by that initial migration match the live database; otherwise the migration is
-applied normally or fails through schema validation.
+initial migration without running SQL only when the tables, columns, primary
+keys, and nullability declared by that initial migration match the live
+database. If the database dialect cannot inspect table shape, fake-initial
+fails closed instead of recording an unverifiable baseline.

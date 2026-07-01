@@ -215,7 +215,7 @@ func TestExistingProductSchemaAdoptionManagementCommands(t *testing.T) {
 	if err := management.ExecuteProject(context.Background(), []string{"sqlmigrate", "legacy", "0001_initial"}, &sqlOut, &bytes.Buffer{}, project); err != nil {
 		t.Fatalf("sqlmigrate error = %v", err)
 	}
-	if !strings.Contains(sqlOut.String(), "CREATE TABLE IF NOT EXISTS legacy_order") {
+	if !strings.Contains(sqlOut.String(), `CREATE TABLE "legacy_order"`) {
 		t.Fatalf("sqlmigrate output = %q", sqlOut.String())
 	}
 
@@ -231,6 +231,66 @@ func TestExistingProductSchemaAdoptionManagementCommands(t *testing.T) {
 		var stdout bytes.Buffer
 		if err := management.ExecuteProject(context.Background(), args, &stdout, &bytes.Buffer{}, project); err != nil {
 			t.Fatalf("%v error = %v\n%s", args, err, stdout.String())
+		}
+	}
+}
+
+func TestExistingProductCustomTableMakemigrationsCompatibility(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "db.sqlite3")
+	writeFile(t, filepath.Join(dir, ".env"), "GOGO_SECRET_KEY=compat-secret\nDATABASE_URL=sqlite://"+filepath.ToSlash(dbPath)+"\n")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if _, err := db.Exec(`CREATE TABLE orders (id integer PRIMARY KEY, number text NOT NULL, created_at timestamp)`); err != nil {
+		_ = db.Close()
+		t.Fatalf("create orders table: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close sqlite: %v", err)
+	}
+	t.Chdir(dir)
+
+	project := management.Project{
+		ModelMetadata: func() []models.Metadata {
+			return []models.Metadata{salesOrderMetadata(true)}
+		},
+		Migrations: func() []migrations.Migration {
+			return []migrations.Migration{salesInitialMigration()}
+		},
+	}
+
+	var diffOut bytes.Buffer
+	err = management.ExecuteProject(context.Background(), []string{"diffschema", "--app", "sales"}, &diffOut, &bytes.Buffer{}, project)
+	if err == nil {
+		t.Fatal("diffschema succeeded with missing orders.status")
+	}
+	if !strings.Contains(diffOut.String(), "MISSING column orders.status") {
+		t.Fatalf("diffschema output = %q", diffOut.String())
+	}
+
+	var makeOut bytes.Buffer
+	if err := management.ExecuteProject(context.Background(), []string{"makemigrations", "--app", "sales", "--name", "add_status"}, &makeOut, &bytes.Buffer{}, project); err != nil {
+		t.Fatalf("makemigrations error = %v\n%s", err, makeOut.String())
+	}
+	contents, err := os.ReadFile(filepath.Join(dir, "sales", "migrations", "0002_add_status.go"))
+	if err != nil {
+		t.Fatalf("read generated migration: %v", err)
+	}
+	for _, want := range []string{`\"type\":\"AddField\"`, `\"table_name\":\"orders\"`, `\"type\":\"AddIndex\"`, `\"type\":\"AddConstraint\"`} {
+		if !strings.Contains(string(contents), want) {
+			t.Fatalf("generated migration missing %q:\n%s", want, contents)
+		}
+	}
+
+	var sqlOut bytes.Buffer
+	if err := management.ExecuteProject(context.Background(), []string{"sqlmigrate", "sales", "0002_add_status"}, &sqlOut, &bytes.Buffer{}, project); err != nil {
+		t.Fatalf("sqlmigrate generated migration error = %v", err)
+	}
+	for _, want := range []string{`ALTER TABLE "orders" ADD COLUMN "status" text`, `CREATE INDEX "idx_orders_status" ON "orders" ("status")`, `ALTER TABLE "orders" ADD CONSTRAINT "uniq_orders_status" UNIQUE ("status")`} {
+		if !strings.Contains(sqlOut.String(), want) {
+			t.Fatalf("sqlmigrate output missing %q:\n%s", want, sqlOut.String())
 		}
 	}
 }
@@ -260,6 +320,50 @@ func legacyInitialMigration() migrations.Migration {
 				AppLabel:  "legacy",
 				Name:      "Order",
 				TableName: "legacy_order",
+				Fields: []migrations.FieldState{
+					{Name: "id", Column: "id", Kind: "integer", PrimaryKey: true},
+					{Name: "number", Column: "number", Kind: "text"},
+					{Name: "created_at", Column: "created_at", Kind: "timestamp", Null: true},
+				},
+			}},
+		},
+	}
+}
+
+func salesOrderMetadata(includeStatus bool) models.Metadata {
+	fields := []models.FieldMeta{
+		{Name: "id", Column: "id", Kind: "integer", PrimaryKey: true},
+		{Name: "number", Column: "number", Kind: "text"},
+		{Name: "created_at", Column: "created_at", Kind: "timestamp", Null: true},
+	}
+	indexes := []models.Index(nil)
+	constraints := []models.Constraint(nil)
+	if includeStatus {
+		fields = append(fields, models.FieldMeta{Name: "status", Column: "status", Kind: "text", Null: true})
+		indexes = append(indexes, models.Index{Name: "idx_orders_status", Fields: []models.IndexField{models.Asc("status")}})
+		constraints = append(constraints, models.Constraint{Name: "uniq_orders_status", Type: models.ConstraintUnique, Fields: []models.IndexField{models.Asc("status")}})
+	}
+	return models.Metadata{
+		AppLabel:    "sales",
+		ModelName:   "Order",
+		TableName:   "orders",
+		DBTable:     "orders",
+		Fields:      fields,
+		Indexes:     indexes,
+		Constraints: constraints,
+	}
+}
+
+func salesInitialMigration() migrations.Migration {
+	return migrations.Migration{
+		AppLabel: "sales",
+		Name:     migrations.InitialMigrationName(),
+		Atomic:   true,
+		Operations: []migrations.Operation{
+			operations.CreateModel{Model: migrations.ModelState{
+				AppLabel:  "sales",
+				Name:      "Order",
+				TableName: "orders",
 				Fields: []migrations.FieldState{
 					{Name: "id", Column: "id", Kind: "integer", PrimaryKey: true},
 					{Name: "number", Column: "number", Kind: "text"},
