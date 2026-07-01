@@ -2,9 +2,11 @@ package migrations
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/cybersaksham/gogo/orm"
+	postgresdialect "github.com/cybersaksham/gogo/orm/dialects/postgres"
 	sqlitedialect "github.com/cybersaksham/gogo/orm/dialects/sqlite"
 	_ "modernc.org/sqlite"
 )
@@ -42,6 +44,34 @@ func TestRecorderAppliedHistory(t *testing.T) {
 	}
 	if ok, _ := recorder.IsApplied(ctx, migration.Dependency()); ok {
 		t.Fatalf("migration still applied")
+	}
+}
+
+func TestRecorderStatementsUseDialectPlaceholdersAndUpsert(t *testing.T) {
+	postgresRecorder := NewRecorder(&orm.Database{Dialect: postgresdialect.New()}, "test-executor")
+	postgresSQL := postgresRecorder.statements()
+	for _, statement := range []string{postgresSQL.IsApplied, postgresSQL.RecordApplied, postgresSQL.RecordUnapplied} {
+		if strings.Contains(statement, "?") {
+			t.Fatalf("postgres recorder SQL contains SQLite placeholder: %s", statement)
+		}
+	}
+	if !strings.Contains(postgresSQL.IsApplied, "app = $1 AND name = $2") {
+		t.Fatalf("postgres IsApplied SQL = %q, want $ placeholders", postgresSQL.IsApplied)
+	}
+	if !strings.Contains(postgresSQL.RecordApplied, "VALUES ($1, $2, $3, $4, $5)") {
+		t.Fatalf("postgres RecordApplied SQL = %q, want $ placeholders", postgresSQL.RecordApplied)
+	}
+	if strings.Contains(postgresSQL.RecordApplied, "INSERT OR REPLACE") || !strings.Contains(postgresSQL.RecordApplied, "ON CONFLICT(app, name) DO UPDATE SET") {
+		t.Fatalf("postgres RecordApplied SQL = %q, want ON CONFLICT upsert", postgresSQL.RecordApplied)
+	}
+
+	sqliteRecorder := NewRecorder(&orm.Database{Dialect: sqlitedialect.New()}, "test-executor")
+	sqliteSQL := sqliteRecorder.statements()
+	if !strings.Contains(sqliteSQL.IsApplied, "app = ? AND name = ?") {
+		t.Fatalf("sqlite IsApplied SQL = %q, want ? placeholders", sqliteSQL.IsApplied)
+	}
+	if strings.Contains(sqliteSQL.RecordApplied, "INSERT OR REPLACE") || !strings.Contains(sqliteSQL.RecordApplied, "ON CONFLICT(app, name) DO UPDATE SET") {
+		t.Fatalf("sqlite RecordApplied SQL = %q, want ON CONFLICT upsert", sqliteSQL.RecordApplied)
 	}
 }
 

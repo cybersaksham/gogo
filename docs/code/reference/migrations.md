@@ -53,6 +53,15 @@ Operations live in `migrations/operations`.
 6. Store history in `Recorder`.
 7. Validate consistency and safety checks.
 
+## Migration History Recorder
+
+`Recorder` stores applied migration rows in `gogo_migrations` with app, name,
+applied timestamp, checksum, and executor version. Recorder SQL is rendered
+through the configured database dialect: PostgreSQL uses `$1` placeholders and
+SQLite uses `?` placeholders. Applied history writes use `INSERT ... ON
+CONFLICT(app, name) DO UPDATE`, not SQLite-only replacement syntax, so history
+recording behaves consistently across supported databases.
+
 ## Safety Checks
 
 Safety checks detect destructive drops, non-null additions without defaults, irreversible operations, unsafe SQL, and backend-specific hazards where operation metadata exposes the required details.

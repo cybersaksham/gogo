@@ -32,3 +32,8 @@ go run manage.go optimizemigration blog 0005
 
 Migration SQL rendering uses the configured dialect so teams can review the
 exact SQL before rollout.
+
+Applied migration history is recorded in `gogo_migrations` with dialect-aware
+SQL. PostgreSQL history queries use `$1` placeholders, SQLite uses `?`, and
+history upserts use `ON CONFLICT(app, name) DO UPDATE` for consistent behavior
+across supported databases.

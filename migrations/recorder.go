@@ -29,16 +29,24 @@ func NewRecorder(database *orm.Database, executorVersion string) Recorder {
 	return Recorder{Database: database, ExecutorVersion: executorVersion}
 }
 
+type recorderStatements struct {
+	EnsureSchema    string
+	IsApplied       string
+	RecordApplied   string
+	RecordUnapplied string
+	Applied         string
+}
+
 // EnsureSchema creates the migration history table.
 func (r Recorder) EnsureSchema(ctx context.Context) error {
-	_, err := r.db().ExecContext(ctx, `CREATE TABLE IF NOT EXISTS gogo_migrations (app TEXT NOT NULL, name TEXT NOT NULL, applied TIMESTAMP NOT NULL, checksum TEXT NOT NULL, executor_version TEXT NOT NULL, PRIMARY KEY(app, name))`)
+	_, err := r.db().ExecContext(ctx, r.statements().EnsureSchema)
 	return err
 }
 
 // IsApplied reports whether a migration is applied.
 func (r Recorder) IsApplied(ctx context.Context, dependency Dependency) (bool, error) {
 	var exists int
-	err := r.db().QueryRowContext(ctx, `SELECT 1 FROM gogo_migrations WHERE app = ? AND name = ?`, dependency.AppLabel, dependency.Name).Scan(&exists)
+	err := r.db().QueryRowContext(ctx, r.statements().IsApplied, dependency.AppLabel, dependency.Name).Scan(&exists)
 	if err == sql.ErrNoRows {
 		return false, nil
 	}
@@ -50,19 +58,19 @@ func (r Recorder) RecordApplied(ctx context.Context, migration Migration, checks
 	if err := r.EnsureSchema(ctx); err != nil {
 		return err
 	}
-	_, err := r.db().ExecContext(ctx, `INSERT OR REPLACE INTO gogo_migrations(app, name, applied, checksum, executor_version) VALUES (?, ?, ?, ?, ?)`, migration.AppLabel, migration.Name, time.Now().UTC(), checksum, r.ExecutorVersion)
+	_, err := r.db().ExecContext(ctx, r.statements().RecordApplied, migration.AppLabel, migration.Name, time.Now().UTC(), checksum, r.ExecutorVersion)
 	return err
 }
 
 // RecordUnapplied deletes an applied migration row.
 func (r Recorder) RecordUnapplied(ctx context.Context, dependency Dependency) error {
-	_, err := r.db().ExecContext(ctx, `DELETE FROM gogo_migrations WHERE app = ? AND name = ?`, dependency.AppLabel, dependency.Name)
+	_, err := r.db().ExecContext(ctx, r.statements().RecordUnapplied, dependency.AppLabel, dependency.Name)
 	return err
 }
 
 // Applied returns applied migration history.
 func (r Recorder) Applied(ctx context.Context) ([]AppliedMigration, error) {
-	rows, err := r.db().QueryContext(ctx, `SELECT app, name, applied, checksum, executor_version FROM gogo_migrations ORDER BY app, name`)
+	rows, err := r.db().QueryContext(ctx, r.statements().Applied)
 	if err != nil {
 		return nil, err
 	}
@@ -99,4 +107,29 @@ func (r Recorder) CheckConsistency(ctx context.Context, known []Migration) error
 
 func (r Recorder) db() *sql.DB {
 	return r.Database.SQLDB()
+}
+
+func (r Recorder) statements() recorderStatements {
+	placeholder := r.placeholder
+	return recorderStatements{
+		EnsureSchema: `CREATE TABLE IF NOT EXISTS gogo_migrations (app TEXT NOT NULL, name TEXT NOT NULL, applied TIMESTAMP NOT NULL, checksum TEXT NOT NULL, executor_version TEXT NOT NULL, PRIMARY KEY(app, name))`,
+		IsApplied:    fmt.Sprintf(`SELECT 1 FROM gogo_migrations WHERE app = %s AND name = %s`, placeholder(1), placeholder(2)),
+		RecordApplied: fmt.Sprintf(
+			`INSERT INTO gogo_migrations(app, name, applied, checksum, executor_version) VALUES (%s, %s, %s, %s, %s) ON CONFLICT(app, name) DO UPDATE SET applied = EXCLUDED.applied, checksum = EXCLUDED.checksum, executor_version = EXCLUDED.executor_version`,
+			placeholder(1),
+			placeholder(2),
+			placeholder(3),
+			placeholder(4),
+			placeholder(5),
+		),
+		RecordUnapplied: fmt.Sprintf(`DELETE FROM gogo_migrations WHERE app = %s AND name = %s`, placeholder(1), placeholder(2)),
+		Applied:         `SELECT app, name, applied, checksum, executor_version FROM gogo_migrations ORDER BY app, name`,
+	}
+}
+
+func (r Recorder) placeholder(position int) string {
+	if r.Database != nil && r.Database.Dialect != nil {
+		return r.Database.Dialect.Placeholder(position)
+	}
+	return "?"
 }
