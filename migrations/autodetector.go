@@ -112,7 +112,7 @@ func compareModel(oldModel, newModel ModelState) []DetectedChange {
 		old, exists := oldFields[name]
 		if !exists {
 			changes = append(changes, DetectedChange{Type: ChangeAddField, AppLabel: newModel.AppLabel, ModelName: newModel.Name, NewName: name})
-		} else if old != field {
+		} else if !reflect.DeepEqual(old, field) {
 			changes = append(changes, DetectedChange{Type: ChangeAlterField, AppLabel: newModel.AppLabel, ModelName: newModel.Name, NewName: name})
 		}
 	}

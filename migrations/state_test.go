@@ -36,7 +36,7 @@ func TestProjectStateFromRegistry(t *testing.T) {
 		TableName: "blog_post",
 		Fields: []models.FieldMeta{
 			{Name: "id", Column: "id", PrimaryKey: true},
-			{Name: "title", Column: "title"},
+			{Name: "title", Column: "title", Kind: "char", ColumnTypes: map[string]string{"postgres": "varchar(200)"}, Null: true, Unique: true, DBIndex: true, DBDefault: "untitled", DBCollation: "en_US"},
 		},
 		Indexes:     []models.Index{{Name: "idx_title", Fields: []models.IndexField{models.Asc("title")}}},
 		Constraints: []models.Constraint{{Name: "uniq_title", Type: models.ConstraintUnique, Fields: []models.IndexField{models.Asc("title")}}},
@@ -52,6 +52,15 @@ func TestProjectStateFromRegistry(t *testing.T) {
 	}
 	if model.Fields[0].Name != "id" || !model.Fields[0].PrimaryKey {
 		t.Fatalf("field state = %#v", model.Fields)
+	}
+	title := model.Fields[1]
+	if title.Kind != "char" || title.ColumnTypes["postgres"] != "varchar(200)" || !title.Null || !title.Unique || !title.DBIndex || title.DBDefault != "untitled" || title.DBCollation != "en_US" {
+		t.Fatalf("rich field state was not preserved: %#v", title)
+	}
+	title.ColumnTypes["postgres"] = "text"
+	again := StateFromRegistry(registry).Models["blog.Post"].Fields[1]
+	if again.ColumnTypes["postgres"] != "varchar(200)" {
+		t.Fatalf("field ColumnTypes state was not cloned: %#v", again.ColumnTypes)
 	}
 }
 

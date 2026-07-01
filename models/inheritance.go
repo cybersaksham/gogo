@@ -8,8 +8,15 @@ const parentLinkDeleteBehavior = "cascade"
 type FieldMeta struct {
 	Name           string
 	Column         string
+	Kind           string
+	ColumnTypes    map[string]string
 	SourceModel    string
 	PrimaryKey     bool
+	Null           bool
+	Unique         bool
+	DBIndex        bool
+	DBDefault      any
+	DBCollation    string
 	ParentLink     bool
 	RelationTarget string
 	DeleteBehavior string
@@ -246,5 +253,21 @@ func mergeInheritedFields(child []FieldMeta, parent []FieldMeta) []FieldMeta {
 }
 
 func cloneFieldMetaSlice(fields []FieldMeta) []FieldMeta {
-	return append([]FieldMeta(nil), fields...)
+	copied := make([]FieldMeta, len(fields))
+	for i, field := range fields {
+		copied[i] = field
+		copied[i].ColumnTypes = cloneStringMap(field.ColumnTypes)
+	}
+	return copied
+}
+
+func cloneStringMap(values map[string]string) map[string]string {
+	if values == nil {
+		return nil
+	}
+	copied := make(map[string]string, len(values))
+	for key, value := range values {
+		copied[key] = value
+	}
+	return copied
 }

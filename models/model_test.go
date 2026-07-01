@@ -103,3 +103,27 @@ func TestCompositePrimaryKeyMetadataIsCopied(t *testing.T) {
 		t.Fatalf("CompositePrimaryKey was mutated across resolutions: %#v", again.CompositePrimaryKey.Columns)
 	}
 }
+
+func TestMetadataCloneDeepCopiesFieldMetadata(t *testing.T) {
+	meta := Metadata{
+		AppLabel:  "blog",
+		ModelName: "Post",
+		TableName: "blog_post",
+		Fields: []FieldMeta{{
+			Name:        "title",
+			ColumnTypes: map[string]string{"postgres": "varchar(200)"},
+			DBDefault:   "untitled",
+		}},
+	}
+
+	cloned := meta.Clone()
+	cloned.Fields[0].ColumnTypes["postgres"] = "text"
+	cloned.Fields[0].DBDefault = "changed"
+
+	if meta.Fields[0].ColumnTypes["postgres"] != "varchar(200)" {
+		t.Fatalf("field ColumnTypes were not deep-copied: %#v", meta.Fields[0].ColumnTypes)
+	}
+	if meta.Fields[0].DBDefault != "untitled" {
+		t.Fatalf("field DBDefault was mutated: %#v", meta.Fields[0].DBDefault)
+	}
+}

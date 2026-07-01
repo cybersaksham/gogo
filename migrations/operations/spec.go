@@ -47,18 +47,18 @@ func (o AlterTogether) MigrationOperationSpec() migrations.OperationSpec {
 }
 
 func (o AddField) MigrationOperationSpec() migrations.OperationSpec {
-	field := o.Field
+	field := cloneFieldState(o.Field)
 	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, Field: &field, HasDefault: o.HasDefault, UnsafeAcknowledged: o.UnsafeAcknowledged}
 }
 
 func (o RemoveField) MigrationOperationSpec() migrations.OperationSpec {
-	field := o.Field
+	field := cloneFieldState(o.Field)
 	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, Field: &field}
 }
 
 func (o AlterField) MigrationOperationSpec() migrations.OperationSpec {
-	oldField := o.OldField
-	newField := o.NewField
+	oldField := cloneFieldState(o.OldField)
+	newField := cloneFieldState(o.NewField)
 	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, OldField: &oldField, NewField: &newField}
 }
 
@@ -104,7 +104,7 @@ func (o SeparateDatabaseAndState) MigrationOperationSpec() migrations.OperationS
 }
 
 func cloneModelState(model migrations.ModelState) migrations.ModelState {
-	model.Fields = append([]migrations.FieldState(nil), model.Fields...)
+	model.Fields = cloneFieldStates(model.Fields)
 	indexes := model.Indexes
 	model.Indexes = make([]migrations.IndexState, len(indexes))
 	for index, value := range indexes {
@@ -119,12 +119,36 @@ func cloneModelState(model migrations.ModelState) migrations.ModelState {
 	return model
 }
 
+func cloneFieldStates(fields []migrations.FieldState) []migrations.FieldState {
+	copied := make([]migrations.FieldState, len(fields))
+	for index, field := range fields {
+		copied[index] = cloneFieldState(field)
+	}
+	return copied
+}
+
+func cloneFieldState(field migrations.FieldState) migrations.FieldState {
+	field.ColumnTypes = cloneStringMap(field.ColumnTypes)
+	return field
+}
+
 func cloneOptions(options map[string]any) map[string]any {
 	if options == nil {
 		return nil
 	}
 	clone := make(map[string]any, len(options))
 	for key, value := range options {
+		clone[key] = value
+	}
+	return clone
+}
+
+func cloneStringMap(values map[string]string) map[string]string {
+	if values == nil {
+		return nil
+	}
+	clone := make(map[string]string, len(values))
+	for key, value := range values {
 		clone[key] = value
 	}
 	return clone

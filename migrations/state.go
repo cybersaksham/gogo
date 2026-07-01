@@ -20,12 +20,16 @@ type ModelState struct {
 
 // FieldState stores historical field state.
 type FieldState struct {
-	Name       string `json:"name"`
-	Column     string `json:"column,omitempty"`
-	Kind       string `json:"kind,omitempty"`
-	PrimaryKey bool   `json:"primary_key,omitempty"`
-	Null       bool   `json:"null,omitempty"`
-	Unique     bool   `json:"unique,omitempty"`
+	Name        string            `json:"name"`
+	Column      string            `json:"column,omitempty"`
+	Kind        string            `json:"kind,omitempty"`
+	ColumnTypes map[string]string `json:"column_types,omitempty"`
+	PrimaryKey  bool              `json:"primary_key,omitempty"`
+	Null        bool              `json:"null,omitempty"`
+	Unique      bool              `json:"unique,omitempty"`
+	DBIndex     bool              `json:"db_index,omitempty"`
+	DBDefault   any               `json:"db_default,omitempty"`
+	DBCollation string            `json:"db_collation,omitempty"`
 }
 
 // IndexState stores historical index state.
@@ -70,7 +74,7 @@ func (s ProjectState) RemoveModel(appLabel, modelName string) {
 func (s ProjectState) AddField(appLabel, modelName string, field FieldState) {
 	key := modelKey(appLabel, modelName)
 	model := s.Models[key].clone()
-	model.Fields = append(model.Fields, field)
+	model.Fields = append(model.Fields, cloneFieldState(field))
 	s.Models[key] = model
 }
 
@@ -98,9 +102,16 @@ func StateFromRegistry(registry *models.Registry) ProjectState {
 		}
 		for i, field := range meta.Fields {
 			model.Fields[i] = FieldState{
-				Name:       field.Name,
-				Column:     field.Column,
-				PrimaryKey: field.PrimaryKey,
+				Name:        field.Name,
+				Column:      field.Column,
+				Kind:        field.Kind,
+				ColumnTypes: cloneStringMap(field.ColumnTypes),
+				PrimaryKey:  field.PrimaryKey,
+				Null:        field.Null,
+				Unique:      field.Unique,
+				DBIndex:     field.DBIndex,
+				DBDefault:   field.DBDefault,
+				DBCollation: field.DBCollation,
 			}
 		}
 		for i, index := range meta.Indexes {
@@ -115,7 +126,7 @@ func StateFromRegistry(registry *models.Registry) ProjectState {
 }
 
 func (m ModelState) clone() ModelState {
-	m.Fields = append([]FieldState(nil), m.Fields...)
+	m.Fields = cloneFieldStates(m.Fields)
 	m.Indexes = cloneIndexStates(m.Indexes)
 	m.Constraints = cloneConstraintStates(m.Constraints)
 	if m.Options != nil {
@@ -126,6 +137,19 @@ func (m ModelState) clone() ModelState {
 		m.Options = options
 	}
 	return m
+}
+
+func cloneFieldStates(fields []FieldState) []FieldState {
+	copied := make([]FieldState, len(fields))
+	for i, field := range fields {
+		copied[i] = cloneFieldState(field)
+	}
+	return copied
+}
+
+func cloneFieldState(field FieldState) FieldState {
+	field.ColumnTypes = cloneStringMap(field.ColumnTypes)
+	return field
 }
 
 func cloneIndexStates(indexes []IndexState) []IndexState {
@@ -145,6 +169,17 @@ func cloneConstraintStates(constraints []ConstraintState) []ConstraintState {
 			Fields: append([]string(nil), constraint.Fields...),
 			Check:  constraint.Check,
 		}
+	}
+	return copied
+}
+
+func cloneStringMap(values map[string]string) map[string]string {
+	if values == nil {
+		return nil
+	}
+	copied := make(map[string]string, len(values))
+	for key, value := range values {
+		copied[key] = value
 	}
 	return copied
 }
