@@ -35,6 +35,8 @@ Framework module: `github.com/cybersaksham/gogo`.
   custom actions, search, filters, inlines, widgets, static assets, and admin
   templates.
 - Gate admin access through staff/superuser and permission checks.
+- Use `ModelAdmin.ReadOnly` for unmanaged or legacy tables that should be
+  visible in admin without add/change/delete access.
 - Generated projects already wire admin auth views to
   `.gogo/auth_users.json` through `auth.NewFileUserStore` and admin sessions
   to `.gogo/sessions` through `sessions.NewFileStore`; create staff users with
@@ -72,10 +74,9 @@ Framework module: `github.com/cybersaksham/gogo`.
   `add`, `change`, `delete`, and `view`; app-specific custom permissions
   should be declared near model metadata.
 - `AbstractBaseUser` and `AbstractUser` are the extension path for custom user
-  types. Do not replace the whole auth backend unless the framework version
-  explicitly supports configurable auth.
-- Extend/inherit from the built-in auth models rather than replacing the auth
-  system unless a future Gogo version explicitly supports configurable auth.
+  types. For SSO, API keys, or edge-provided identity, implement `auth.Backend`
+  and use `auth.BackendAuthenticationMiddleware` instead of weakening staff or
+  permission checks.
 - Store authorization rules in permission constants/helpers and reuse them in
   admin, API, HTTP views, and tasks.
 - Keep session and CSRF settings secure in production.

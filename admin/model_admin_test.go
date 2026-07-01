@@ -118,6 +118,18 @@ func TestModelAdminHooksAndCustomURLs(t *testing.T) {
 	}
 }
 
+func TestModelAdminReadOnlyAllowsViewAndBlocksMutations(t *testing.T) {
+	user := auth.User{AbstractUser: auth.AbstractUser{AbstractBaseUser: auth.AbstractBaseUser{ID: 1, IsActive: true, Authenticated: true}, IsStaff: true}}
+	request := httptest.NewRequest(http.MethodGet, "/admin/blog/post/", nil)
+	modelAdmin := ModelAdmin{ReadOnly: true}
+	if !modelAdmin.HasViewPermission(request, user) || !modelAdmin.HasModulePermission(request, user) {
+		t.Fatalf("read-only admin should allow staff view/module access")
+	}
+	if modelAdmin.HasAddPermission(request, user) || modelAdmin.HasChangePermission(request, user) || modelAdmin.HasDeletePermission(request, user) {
+		t.Fatalf("read-only admin allowed mutation")
+	}
+}
+
 func urlNames(urls []URLPattern) []string {
 	names := make([]string, len(urls))
 	for i, url := range urls {

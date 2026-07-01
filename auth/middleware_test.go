@@ -84,3 +84,46 @@ func TestAuthMiddlewareAttachesAnonymousForMissingInactiveOrExpiredSession(t *te
 		handler.ServeHTTP(httptest.NewRecorder(), request)
 	}
 }
+
+func TestBackendAuthenticationMiddlewareUsesCustomBackend(t *testing.T) {
+	backend := headerBackend{}
+	handler := BackendAuthenticationMiddleware(backend)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, ok := UserFromContext(r.Context())
+		if !ok || user.ID != 99 || user.Username != "external" || !user.IsAuthenticated() {
+			t.Fatalf("context user = %#v, %v", user, ok)
+		}
+	}))
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	request.Header.Set("X-External-User", "external")
+	handler.ServeHTTP(httptest.NewRecorder(), request)
+
+	anonymous := BackendAuthenticationMiddleware(backend)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, ok := UserFromContext(r.Context())
+		if !ok || !user.IsAnonymous() {
+			t.Fatalf("anonymous user = %#v, %v", user, ok)
+		}
+	}))
+	anonymous.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
+}
+
+type headerBackend struct{}
+
+func (headerBackend) Authenticate(_ context.Context, r *http.Request) (User, bool, error) {
+	if r.Header.Get("X-External-User") != "external" {
+		return User{}, false, nil
+	}
+	return User{AbstractUser: AbstractUser{
+		AbstractBaseUser: AbstractBaseUser{ID: 99, IsActive: true, Authenticated: true},
+		Username:         "external",
+	}}, true, nil
+}
+
+func (headerBackend) GetUser(_ context.Context, id string) (User, bool, error) {
+	if id != "99" {
+		return User{}, false, nil
+	}
+	return User{AbstractUser: AbstractUser{
+		AbstractBaseUser: AbstractBaseUser{ID: 99, IsActive: true, Authenticated: true},
+		Username:         "external",
+	}}, true, nil
+}

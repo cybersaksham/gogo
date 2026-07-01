@@ -8,7 +8,7 @@ The auth package provides Django-style users, groups, permissions, password hash
 | --- | --- |
 | Models | `Permission`, `Group`, `AbstractBaseUser`, `AbstractUser`, `User` |
 | Content types | `ContentType`, `ContentTypeRegistry` |
-| Authentication | `Credentials`, `UserStore`, `MemoryUserStore`, `FileUserStore`, `UserIDLoader` |
+| Authentication | `Credentials`, `UserStore`, `MemoryUserStore`, `FileUserStore`, `UserIDLoader`, `Backend` |
 | Passwords | `PasswordHasher`, `PBKDF2SHA256Hasher`, `Argon2IDHasher` |
 | Forms | `LoginForm`, `PasswordChangeForm`, `PasswordResetRequestForm`, `PasswordResetConfirmForm`, `SetPasswordForm`, `UserCreationForm`, `UserChangeForm` |
 | Tokens | `PasswordResetTokenSigner` |
@@ -47,6 +47,11 @@ and local examples. `FileUserStore` persists users as JSON and is compatible
 with the generated project admin store at `.gogo/auth_users.json`.
 
 `AuthenticationMiddleware` reads `user_id` from the request session and attaches either an authenticated user or `AnonymousUser` to the context.
+
+Projects with SSO, API keys, or edge-provided identity can implement `Backend`
+and use `BackendAuthenticationMiddleware`. `AuthenticateRequest` and
+`GetUserFromBackends` evaluate configured backends in order and return the first
+matching user.
 
 Context helpers:
 

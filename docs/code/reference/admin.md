@@ -23,7 +23,10 @@ The admin package provides model registration, sites, staff access policies, aut
 
 `ModelAdmin` supports:
 
-`Actions`, `ActionsOnTop`, `ActionsOnBottom`, `ActionsSelectionCounter`, `AutocompleteFields`, `DateHierarchy`, `EmptyValueDisplay`, `Exclude`, `Fields`, `Fieldsets`, `FilterHorizontal`, `FilterVertical`, `Form`, `FormfieldOverrides`, `Inlines`, `ListDisplay`, `ListDisplayLinks`, `ListEditable`, `ListFilter`, `ListMaxShowAll`, `ListPerPage`, `ListSelectRelated`, `Ordering`, `Paginator`, `PrepopulatedFields`, `PreserveFilters`, `RadioFields`, `RawIDFields`, `ReadonlyFields`, `SaveAs`, `SaveAsContinue`, `SaveOnTop`, `SearchFields`, `SearchHelpText`, `ShowFacets`, `SortableBy`, `ViewOnSite`, `CustomURLs`, `ComputedColumns`, `ActionDefinitions`, and `Hooks`.
+`Actions`, `ActionsOnTop`, `ActionsOnBottom`, `ActionsSelectionCounter`, `AutocompleteFields`, `DateHierarchy`, `EmptyValueDisplay`, `Exclude`, `Fields`, `Fieldsets`, `FilterHorizontal`, `FilterVertical`, `Form`, `FormfieldOverrides`, `Inlines`, `ListDisplay`, `ListDisplayLinks`, `ListEditable`, `ListFilter`, `ListMaxShowAll`, `ListPerPage`, `ListSelectRelated`, `Ordering`, `Paginator`, `PrepopulatedFields`, `PreserveFilters`, `RadioFields`, `RawIDFields`, `ReadonlyFields`, `ReadOnly`, `SaveAs`, `SaveAsContinue`, `SaveOnTop`, `SearchFields`, `SearchHelpText`, `ShowFacets`, `SortableBy`, `ViewOnSite`, `CustomURLs`, `ComputedColumns`, `ActionDefinitions`, and `Hooks`.
+
+Set `ReadOnly` to true for admin registrations that should allow staff users to
+view modules and objects while blocking add, change, and delete by default.
 
 ## Hooks
 

@@ -11,6 +11,9 @@ var ErrAdminPermissionDenied = errors.New("admin permission denied")
 
 // HasAddPermission checks whether a user may add objects.
 func (a ModelAdmin) HasAddPermission(r *http.Request, user auth.User) bool {
+	if a.ReadOnly {
+		return false
+	}
 	if a.Hooks.HasAddPermission != nil {
 		return a.Hooks.HasAddPermission(r, user)
 	}
@@ -19,6 +22,9 @@ func (a ModelAdmin) HasAddPermission(r *http.Request, user auth.User) bool {
 
 // HasChangePermission checks whether a user may change objects.
 func (a ModelAdmin) HasChangePermission(r *http.Request, user auth.User) bool {
+	if a.ReadOnly {
+		return false
+	}
 	if a.Hooks.HasChangePermission != nil {
 		return a.Hooks.HasChangePermission(r, user)
 	}
@@ -27,6 +33,9 @@ func (a ModelAdmin) HasChangePermission(r *http.Request, user auth.User) bool {
 
 // HasDeletePermission checks whether a user may delete objects.
 func (a ModelAdmin) HasDeletePermission(r *http.Request, user auth.User) bool {
+	if a.ReadOnly {
+		return false
+	}
 	if a.Hooks.HasDeletePermission != nil {
 		return a.Hooks.HasDeletePermission(r, user)
 	}

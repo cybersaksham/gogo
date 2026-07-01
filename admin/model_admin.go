@@ -114,6 +114,7 @@ type ModelAdmin struct {
 	RadioFields             map[string]string
 	RawIDFields             []string
 	ReadonlyFields          []string
+	ReadOnly                bool
 	SaveAs                  bool
 	SaveAsContinue          bool
 	SaveOnTop               bool
