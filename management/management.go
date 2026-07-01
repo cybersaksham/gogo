@@ -33,6 +33,10 @@ type Project struct {
 	QueueApp      func() *queue.App
 	Commands      func() []Command
 	Checks        func() []checks.Check
+	Middleware    func(conf.Settings) (gogohttp.MiddlewareRegistry, error)
+	ServerConfig  func(conf.Settings) gogohttp.ServerConfig
+	Ready         func(context.Context) error
+	Shutdown      func(context.Context) error
 }
 
 // Execute runs the Gogo management command registry.
@@ -162,52 +166,87 @@ func (p Project) fixtureStore(ctx context.Context) cli.FixtureStore {
 }
 
 func (p Project) serverStarter(accessLog io.Writer) cli.ServerStarter {
-	if p.Router == nil && p.AppConfigs == nil && p.Settings == nil {
+	if p.Router == nil && p.AppConfigs == nil && p.Settings == nil && p.Middleware == nil && p.ServerConfig == nil && p.Ready == nil && p.Shutdown == nil {
 		return nil
 	}
 	return func(ctx context.Context, config cli.RunserverConfig) error {
-		settings := config.Settings
-		if p.Settings != nil {
-			settings = mergeSettings(p.Settings(), config.Settings)
+		server, err := p.buildServer(ctx, accessLog, config)
+		if err != nil {
+			return err
 		}
-		settings.HTTPAddr = config.Addr
-
-		registry := app.NewRegistry()
-		if p.AppConfigs != nil {
-			for _, config := range p.AppConfigs() {
-				if err := registry.Register(config); err != nil {
-					return err
-				}
-			}
-		}
-
-		router := gogohttp.NewRouter()
-		if p.Router != nil {
-			resolved, err := p.Router()
-			if err != nil {
+		projectReady := true
+		if p.Ready != nil {
+			if err := p.Ready(ctx); err != nil {
 				return err
 			}
-			if resolved != nil {
-				router = resolved
+		}
+		err = server.ListenAndServe(ctx)
+		if projectReady && p.Shutdown != nil {
+			if shutdownErr := p.Shutdown(context.Background()); err == nil {
+				err = shutdownErr
 			}
 		}
-
-		middleware, err := gogohttp.BuildMiddleware(settings, gogohttp.BuiltInMiddlewareRegistry(accessLog))
-		if err != nil {
-			return err
-		}
-
-		server, err := gogohttp.NewServer(gogohttp.ServerConfig{
-			Settings:   settings,
-			Registry:   registry,
-			Router:     router,
-			Middleware: middleware,
-		})
-		if err != nil {
-			return err
-		}
-		return server.ListenAndServe(ctx)
+		return err
 	}
+}
+
+func (p Project) buildServer(_ context.Context, accessLog io.Writer, config cli.RunserverConfig) (*gogohttp.Server, error) {
+	settings := config.Settings
+	if p.Settings != nil {
+		settings = mergeSettings(p.Settings(), config.Settings)
+	}
+	settings.HTTPAddr = config.Addr
+
+	registry := app.NewRegistry()
+	if p.AppConfigs != nil {
+		for _, config := range p.AppConfigs() {
+			if err := registry.Register(config); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	router := gogohttp.NewRouter()
+	if p.Router != nil {
+		resolved, err := p.Router()
+		if err != nil {
+			return nil, err
+		}
+		if resolved != nil {
+			router = resolved
+		}
+	}
+
+	middlewareRegistry := gogohttp.BuiltInMiddlewareRegistry(accessLog)
+	if p.Middleware != nil {
+		projectRegistry, err := p.Middleware(settings)
+		if err != nil {
+			return nil, err
+		}
+		for name, factory := range projectRegistry {
+			middlewareRegistry[name] = factory
+		}
+	}
+	middleware, err := gogohttp.BuildMiddleware(settings, middlewareRegistry)
+	if err != nil {
+		return nil, err
+	}
+
+	serverConfig := gogohttp.ServerConfig{}
+	if p.ServerConfig != nil {
+		serverConfig = p.ServerConfig(settings)
+	}
+	serverConfig.Settings = settings
+	if serverConfig.Registry == nil {
+		serverConfig.Registry = registry
+	}
+	if serverConfig.Router == nil {
+		serverConfig.Router = router
+	}
+	if serverConfig.Middleware == nil {
+		serverConfig.Middleware = middleware
+	}
+	return gogohttp.NewServer(serverConfig)
 }
 
 func mergeSettings(projectSettings conf.Settings, loaded conf.Settings) conf.Settings {

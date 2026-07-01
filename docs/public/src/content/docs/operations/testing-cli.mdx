@@ -9,7 +9,9 @@ Inside a generated project, `go run manage.go <command>` is the explicit
 Django-style project entrypoint. The installed `gogo` binary also delegates
 project-aware commands to `go run manage.go <command>` when it is run from the
 project, so settings, routes, admin, app configs, model metadata, fixtures, and
-queue task registrations are loaded.
+queue task registrations are loaded. `runserver` also loads the project
+middleware registry, server configuration hook, readiness hook, and shutdown
+hook before starting the HTTP server.
 
 ```bash
 go run manage.go check
@@ -34,7 +36,7 @@ Generated projects also include a `Makefile` for common workflows.
 | `gogo startproject` | create a project scaffold |
 | `gogo <project-aware-command>` | delegate to `go run manage.go <project-aware-command>` inside a generated project |
 | `go run manage.go check` | run settings and system checks |
-| `go run manage.go runserver` | run the development HTTP server with HTTP routes, API routes, admin, and development static/media mounts |
+| `go run manage.go runserver` | run the development HTTP server with HTTP routes, API routes, admin, development static/media mounts, middleware registry, and lifecycle hooks |
 | `go run manage.go startapp` | create and auto-install an app scaffold |
 | `go run manage.go makemigrations` | create migrations |
 | `go run manage.go migrate` | apply migrations |

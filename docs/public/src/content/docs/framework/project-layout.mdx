@@ -12,7 +12,8 @@ Generated projects separate project-level wiring from app-level feature code:
 | `<project>/settings/` | base, local, test, and production settings constructors |
 | `<project>/urls.go` | root route registration |
 | `<project>/admin.go` | admin registry and site construction |
-| `<project>/middleware.go` | middleware list |
+| `<project>/middleware.go` | middleware registry for configured middleware names |
+| `<project>/lifecycle.go` | server configuration, readiness, and shutdown hooks |
 | `<project>/queue.go` | queue app construction |
 | `apps/` | first-party app packages |
 | `templates/` | project templates |

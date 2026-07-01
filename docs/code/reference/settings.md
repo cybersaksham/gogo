@@ -53,8 +53,8 @@ installed `gogo` binary for global help, version, and project creation. Inside
 a generated project, `go run manage.go <command>` is the explicit project
 entrypoint, and the installed `gogo` binary delegates project-aware commands to
 that entrypoint so commands load project settings, routes, admin, app configs,
-model metadata, fixtures, queue tasks, project checks, and custom project
-commands.
+model metadata, fixtures, queue tasks, project checks, custom project commands,
+custom middleware registries, and server lifecycle hooks.
 
 | Command | Status | Purpose |
 | --- | --- | --- |
@@ -64,7 +64,7 @@ commands.
 | `gogo --version` | available | Print version. |
 | `gogo <project-aware-command>` | available | Delegate to `go run manage.go <project-aware-command>` inside a generated project. |
 | `go run manage.go check` | available | Load settings and run system checks. Use `--deploy` for production readiness checks. |
-| `go run manage.go runserver` | available | Build middleware and run the HTTP server with project HTTP routes, API routes, admin, and development static/media mounts. |
+| `go run manage.go runserver` | available | Build middleware and run the HTTP server with project HTTP routes, API routes, admin, development static/media mounts, project server config, readiness hooks, and shutdown hooks. |
 | `gogo startproject` | available | Generate project scaffold. |
 | `go run manage.go startapp` | available | Generate app scaffold. |
 | `go run manage.go makemigrations` | available | Write migration files. |

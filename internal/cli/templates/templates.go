@@ -53,6 +53,7 @@ var projectTemplateFiles = []templateFile{
 	{TemplatePath: "project/urls.go.tmpl", TargetPath: "{{.ProjectName}}/urls.go"},
 	{TemplatePath: "project/admin.go.tmpl", TargetPath: "{{.ProjectName}}/admin.go"},
 	{TemplatePath: "project/middleware.go.tmpl", TargetPath: "{{.ProjectName}}/middleware.go"},
+	{TemplatePath: "project/lifecycle.go.tmpl", TargetPath: "{{.ProjectName}}/lifecycle.go"},
 	{TemplatePath: "project/queue.go.tmpl", TargetPath: "{{.ProjectName}}/queue.go"},
 	{TemplatePath: "project/deploy/docker/Dockerfile.tmpl", TargetPath: "deploy/docker/Dockerfile"},
 	{TemplatePath: "project/deploy/docker/docker-compose.yml.tmpl", TargetPath: "deploy/docker/docker-compose.yml"},

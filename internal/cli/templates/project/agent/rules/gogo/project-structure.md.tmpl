@@ -6,7 +6,8 @@ deciding where a feature belongs.
 ## Layout
 
 - `{{.ProjectName}}/` contains project-level wiring: settings, root URLs, admin
-  site construction, middleware, queue setup, and application bootstrap.
+  site construction, middleware registry, server lifecycle hooks, queue setup,
+  and application bootstrap.
 - `apps/` contains first-party app packages. Each app should be cohesive and own
   its domain behavior.
 - `templates/`, `static/`, `media/`, `fixtures/`, and `tests/` are project-level

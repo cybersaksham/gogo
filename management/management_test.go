@@ -5,13 +5,19 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/cybersaksham/gogo/auth"
 	"github.com/cybersaksham/gogo/checks"
+	"github.com/cybersaksham/gogo/conf"
+	gogohttp "github.com/cybersaksham/gogo/http"
 	"github.com/cybersaksham/gogo/internal/cli"
 	"github.com/cybersaksham/gogo/queue"
 
@@ -129,6 +135,113 @@ func TestExecuteProjectRunsProjectChecks(t *testing.T) {
 	}
 }
 
+func TestProjectBuildServerUsesCustomMiddlewareAndServerConfig(t *testing.T) {
+	settings := validManagementSettings()
+	settings.Middleware = []string{"project.HeaderMiddleware"}
+	project := Project{
+		Router: func() (*gogohttp.Router, error) {
+			router := gogohttp.NewRouter()
+			if err := router.Handle("home", "/", func(context.Context, *gogohttp.Request) gogohttp.Response {
+				return gogohttp.Text(http.StatusOK, "home")
+			}); err != nil {
+				return nil, err
+			}
+			return router, nil
+		},
+		Middleware: func(conf.Settings) (gogohttp.MiddlewareRegistry, error) {
+			return gogohttp.MiddlewareRegistry{
+				"project.HeaderMiddleware": func(conf.Settings) gogohttp.Middleware {
+					return func(next gogohttp.Handler) gogohttp.Handler {
+						return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+							w.Header().Set("X-Project-Middleware", "yes")
+							next.ServeHTTP(w, r)
+						})
+					}
+				},
+			}, nil
+		},
+		ServerConfig: func(conf.Settings) gogohttp.ServerConfig {
+			return gogohttp.ServerConfig{HealthPath: "/readyz/"}
+		},
+	}
+
+	server, err := project.buildServer(context.Background(), io.Discard, cli.RunserverConfig{Settings: settings, Addr: "127.0.0.1:0"})
+	if err != nil {
+		t.Fatalf("buildServer() error = %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
+	if recorder.Code != http.StatusOK || recorder.Body.String() != "home" || recorder.Header().Get("X-Project-Middleware") != "yes" {
+		t.Fatalf("home response = %d body=%q middleware=%q", recorder.Code, recorder.Body.String(), recorder.Header().Get("X-Project-Middleware"))
+	}
+
+	ready := httptest.NewRecorder()
+	server.Handler().ServeHTTP(ready, httptest.NewRequest(http.MethodGet, "/readyz/", nil))
+	if ready.Code != http.StatusOK {
+		t.Fatalf("custom health status = %d", ready.Code)
+	}
+}
+
+func TestProjectServerStarterReadyFailurePreventsServerStart(t *testing.T) {
+	readyErr := errors.New("ready failed")
+	project := Project{
+		Ready: func(context.Context) error {
+			return readyErr
+		},
+	}
+	err := project.serverStarter(io.Discard)(context.Background(), cli.RunserverConfig{Settings: validManagementSettings(), Addr: "127.0.0.1:0"})
+	if !errors.Is(err, readyErr) {
+		t.Fatalf("serverStarter error = %v, want readyErr", err)
+	}
+}
+
+func TestProjectServerStarterRunsShutdownAfterCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	var shutdownCalled bool
+	project := Project{
+		Ready: func(context.Context) error {
+			cancel()
+			return nil
+		},
+		Shutdown: func(context.Context) error {
+			shutdownCalled = true
+			return nil
+		},
+		ServerConfig: func(conf.Settings) gogohttp.ServerConfig {
+			return gogohttp.ServerConfig{ShutdownTimeout: 100 * time.Millisecond}
+		},
+	}
+
+	err := project.serverStarter(io.Discard)(ctx, cli.RunserverConfig{Settings: validManagementSettings(), Addr: "127.0.0.1:0"})
+	if err != nil {
+		t.Fatalf("serverStarter error = %v", err)
+	}
+	if !shutdownCalled {
+		t.Fatal("Shutdown hook was not called")
+	}
+}
+
+func TestProjectServerStarterRunsShutdownWithoutReadyHook(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	var shutdownCalled bool
+	project := Project{
+		Shutdown: func(context.Context) error {
+			shutdownCalled = true
+			return nil
+		},
+	}
+
+	err := project.serverStarter(io.Discard)(ctx, cli.RunserverConfig{Settings: validManagementSettings(), Addr: "127.0.0.1:0"})
+	if err != nil {
+		t.Fatalf("serverStarter error = %v", err)
+	}
+	if !shutdownCalled {
+		t.Fatal("Shutdown hook was not called")
+	}
+}
+
 func TestExecuteProjectCreateSuperuserPersistsToAuthUserTable(t *testing.T) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "db.sqlite3")
@@ -186,4 +299,12 @@ func (c projectCommand) Summary() string {
 
 func (c projectCommand) Run(ctx context.Context, args []string) error {
 	return c.run(ctx, args)
+}
+
+func validManagementSettings() conf.Settings {
+	settings := conf.DefaultSettings()
+	settings.SecretKey = "management-secret"
+	settings.DatabaseURL = "sqlite://:memory:"
+	settings.HTTPAddr = "127.0.0.1:0"
+	return settings
 }

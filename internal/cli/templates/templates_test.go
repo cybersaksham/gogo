@@ -42,6 +42,7 @@ func TestProjectFilesRenderExpectedStructure(t *testing.T) {
 		"media/.keep",
 		filepath.Join("myproject", "admin.go"),
 		filepath.Join("myproject", "app.go"),
+		filepath.Join("myproject", "lifecycle.go"),
 		filepath.Join("myproject", "middleware.go"),
 		filepath.Join("myproject", "queue.go"),
 		filepath.Join("myproject", "settings", "base.go"),
@@ -185,6 +186,10 @@ func TestProjectTemplatesRenderParseablePublicGoFiles(t *testing.T) {
 		"QueueApp:      myproject.NewQueueApp",
 		"Commands:      myproject.Commands",
 		"Checks:        myproject.Checks",
+		"Middleware:    myproject.Middleware",
+		"ServerConfig:  myproject.ServerConfig",
+		"Ready:         myproject.Ready",
+		"Shutdown:      myproject.Shutdown",
 	} {
 		if !strings.Contains(files["manage.go"], want) {
 			t.Fatalf("manage.go missing %q:\n%s", want, files["manage.go"])

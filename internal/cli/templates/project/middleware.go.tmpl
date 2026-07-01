@@ -1,7 +1,10 @@
 package {{.ProjectName}}
 
-import gogohttp "github.com/cybersaksham/gogo/http"
+import (
+	"github.com/cybersaksham/gogo/conf"
+	gogohttp "github.com/cybersaksham/gogo/http"
+)
 
-func Middleware() []gogohttp.Middleware {
-	return []gogohttp.Middleware{}
+func Middleware(conf.Settings) (gogohttp.MiddlewareRegistry, error) {
+	return gogohttp.MiddlewareRegistry{}, nil
 }
