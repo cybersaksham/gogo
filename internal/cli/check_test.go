@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	"github.com/cybersaksham/gogo/conf"
+	"github.com/cybersaksham/gogo/migrations"
+	"github.com/cybersaksham/gogo/models"
 )
 
 func TestCheckCommandPassesValidConfig(t *testing.T) {
@@ -126,6 +128,75 @@ GOGO_EMAIL_URL=smtp://mail:1025
 	}
 	if !strings.Contains(stdout.String(), "INFO deploy production deploy checks passed") {
 		t.Fatalf("deploy check output = %q", stdout.String())
+	}
+}
+
+func TestCheckCommandValidatesProjectModelsAndMigrations(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeTextFile(t, filepath.Join(dir, ".env"), `
+GOGO_SECRET_KEY=check-secret
+DATABASE_URL=sqlite://:memory:
+`)
+
+	root := NewRootWithOptions(RootOptions{
+		ProjectModels: []models.Metadata{{
+			AppLabel:  "blog",
+			ModelName: "Item",
+			TableName: "blog_item",
+			Fields: []models.FieldMeta{
+				{Name: "id", Column: "id", PrimaryKey: true},
+				{Name: "legacy_id", Column: "id"},
+			},
+		}},
+		ProjectMigrations: []migrations.Migration{{
+			AppLabel: "blog",
+			Name:     "0001_initial",
+			Operations: []migrations.Operation{
+				migrations.ManifestOperation{NameValue: "NoopMigration"},
+			},
+		}},
+	})
+	var stdout bytes.Buffer
+	err := root.Execute(context.Background(), []string{"check", "--tag", "models"}, &stdout, io.Discard)
+	if !errors.Is(err, ErrCommandFailed) {
+		t.Fatalf("check models error = %v, want ErrCommandFailed", err)
+	}
+	if !strings.Contains(stdout.String(), "duplicate column id") {
+		t.Fatalf("check models output = %q", stdout.String())
+	}
+
+	validModel := models.Metadata{
+		AppLabel:  "blog",
+		ModelName: "Item",
+		TableName: "blog_item",
+		Fields: []models.FieldMeta{
+			{Name: "id", Column: "id", PrimaryKey: true},
+		},
+	}
+	root = NewRootWithOptions(RootOptions{
+		ProjectModels: []models.Metadata{validModel},
+		ProjectMigrations: []migrations.Migration{
+			{
+				AppLabel:   "blog",
+				Name:       "0001_initial",
+				Operations: []migrations.Operation{migrations.ManifestOperation{NameValue: "NoopMigration"}},
+			},
+			{
+				AppLabel:     "blog",
+				Name:         "0002_missing",
+				Dependencies: []migrations.Dependency{{AppLabel: "blog", Name: "0009_missing"}},
+				Operations:   []migrations.Operation{migrations.ManifestOperation{NameValue: "NoopMigration"}},
+			},
+		},
+	})
+	stdout.Reset()
+	err = root.Execute(context.Background(), []string{"check", "--tag", "migrations"}, &stdout, io.Discard)
+	if !errors.Is(err, ErrCommandFailed) {
+		t.Fatalf("check migrations error = %v, want ErrCommandFailed", err)
+	}
+	if !strings.Contains(stdout.String(), "missing dependency") && !strings.Contains(stdout.String(), "0009_missing") {
+		t.Fatalf("check migrations output = %q", stdout.String())
 	}
 }
 

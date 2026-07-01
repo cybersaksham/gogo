@@ -55,6 +55,7 @@ func ExecuteProject(ctx context.Context, args []string, stdout, stderr io.Writer
 		FixtureStore:      project.fixtureStore(context.Background()),
 		ProjectChecks:     project.checks(),
 		ProjectMigrations: project.migrations(),
+		ProjectModels:     project.modelMetadata(),
 	})
 	for _, command := range project.commands() {
 		if err := root.Register(command); err != nil {
@@ -108,6 +109,13 @@ func (p Project) migrations() []migrations.Migration {
 		return nil
 	}
 	return append([]migrations.Migration(nil), p.Migrations()...)
+}
+
+func (p Project) modelMetadata() []models.Metadata {
+	if p.ModelMetadata == nil {
+		return nil
+	}
+	return append([]models.Metadata(nil), p.ModelMetadata()...)
 }
 
 func (p Project) checks() []checks.Check {

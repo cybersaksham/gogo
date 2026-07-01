@@ -8,6 +8,7 @@ import (
 	"github.com/cybersaksham/gogo/checks"
 	"github.com/cybersaksham/gogo/internal/version"
 	"github.com/cybersaksham/gogo/migrations"
+	"github.com/cybersaksham/gogo/models"
 )
 
 // Root dispatches built-in CLI commands.
@@ -28,6 +29,7 @@ type RootOptions struct {
 	FixtureStore      FixtureStore
 	ProjectChecks     []checks.Check
 	ProjectMigrations []migrations.Migration
+	ProjectModels     []models.Metadata
 }
 
 // NewRootWithOptions creates the root CLI with project-specific integrations.
@@ -156,7 +158,7 @@ func plannedCommands(root *Root, options RootOptions) []Command {
 	return []Command{
 		helpCommand{root: root},
 		versionCommand{},
-		NewCheckCommand(options.ProjectChecks...),
+		NewCheckCommandWithProject(options.ProjectModels, options.ProjectMigrations, options.ProjectChecks...),
 		NewRunserverCommand(options.RunserverStarter),
 		NewStartprojectCommand(),
 		NewStartappCommand(),
@@ -166,6 +168,8 @@ func plannedCommands(root *Root, options RootOptions) []Command {
 		NewSQLMigrateCommandWithMigrations(options.ProjectMigrations),
 		NewSquashmigrationsCommandWithMigrations(options.ProjectMigrations),
 		NewOptimizeMigrationCommandWithMigrations(options.ProjectMigrations),
+		NewInspectDBCommand(),
+		NewDiffSchemaCommand(options.ProjectModels),
 		NewCreateSuperuserCommand(authStore),
 		NewChangePasswordCommand(authStore),
 		NewCollectstaticCommand(nil),
