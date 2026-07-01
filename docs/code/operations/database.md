@@ -54,8 +54,34 @@ Operational rules:
 - Keep raw SQL reversible when rollback is required.
 - Use `--fake` or `--fake-initial` only after manual inspection confirms the
   database already matches the migration state. `--fake-initial` records an
-  initial migration only when all declared initial tables already exist.
+  initial migration only when declared initial tables and columns match the live
+  database.
 - Use `--prune` only when stale migration records are understood and backed up.
+
+## Existing Schema Adoption
+
+Use the schema-adoption commands before allowing Gogo to own a database that
+already has production tables.
+
+```bash
+go run manage.go inspectdb --table legacy_order
+go run manage.go diffschema --app legacy
+go run manage.go sqlmigrate legacy 0001_initial
+go run manage.go migrate --app legacy --fake-initial
+```
+
+Adoption rules:
+
+- Define exact app labels, table names, column names, primary keys, indexes,
+  constraints, and relationship targets in project model metadata.
+- Keep existing tables unmanaged until the team has reviewed the generated SQL
+  and is ready for Gogo migrations to own future changes.
+- Run `diffschema` against the live database and resolve any blocking drift
+  before baselining.
+- Baseline initial migrations with `--fake-initial`; it validates live table
+  shape before recording migration history.
+- After the baseline is recorded, use normal `makemigrations`, `sqlmigrate`,
+  `migrate --plan`, and `migrate` for new schema changes.
 
 ## Connection Management
 

@@ -218,13 +218,18 @@ func TestProjectTemplatesDocumentSmokeCommandsAndExtensionChoices(t *testing.T) 
 		"go run manage.go check",
 		"go run manage.go makemigrations --check --dry-run",
 		"go run manage.go migrate --plan",
+		"go run manage.go sqlmigrate auth 0001_initial",
 		"go run manage.go runserver --addr 127.0.0.1:8000",
-		"go run manage.go worker --check --broker-url memory:// --result-backend memory",
+		"export GOGO_BROKER_URL=redis://localhost:6379/0",
+		"export GOGO_RESULT_BACKEND=redis://localhost:6379/1",
+		`go run manage.go worker --check --broker-url "$GOGO_BROKER_URL" --result-backend "$GOGO_RESULT_BACKEND"`,
 		"framework views",
 		"API viewsets",
 		"raw handlers",
 		"custom commands",
 		"Unmanaged models",
+		"go run manage.go inspectdb",
+		"go run manage.go diffschema",
 	} {
 		if !strings.Contains(readme, want) {
 			t.Fatalf("README.md missing %q:\n%s", want, readme)

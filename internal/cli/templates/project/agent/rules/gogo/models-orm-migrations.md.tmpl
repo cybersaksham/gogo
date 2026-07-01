@@ -58,13 +58,15 @@ Framework module: `github.com/cybersaksham/gogo`.
 - `go run manage.go migrate` takes a database-backed migration lock before
   applying schema or history changes; a concurrent migration run fails before
   operations execute.
-- Use `--fake-initial` for existing-schema baselines only when every initial
-  migration table already exists. If any table is missing, the migration runs
-  normally.
+- Use `inspectdb` and `diffschema` before adopting existing tables. Baseline
+  with `--fake-initial` only when the live table shape matches the initial
+  migration state; missing or mismatched columns must stop the baseline.
 - Use migration commands for normal workflow:
 
 ```bash
 go run manage.go makemigrations
+go run manage.go inspectdb --table <table>
+go run manage.go diffschema --app <app>
 go run manage.go sqlmigrate <app> <migration>
 go run manage.go migrate
 go run manage.go showmigrations

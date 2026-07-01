@@ -22,13 +22,15 @@ Framework module: `github.com/cybersaksham/gogo`.
 - Configure result backends with `GOGO_RESULT_BACKEND` only when task results
   are required.
 - `memory` and `memory://` runtimes are for local development and tests.
-- Production URLs such as `redis://` or `amqp://` must resolve through
-  registered real runtime factories. If no factory is registered, worker and
-  beat startup must fail clearly instead of silently using memory.
+- `redis://` and `rediss://` resolve to real Redis broker and result backend
+  implementations. Production workers should use durable URLs and validate
+  them with `go run manage.go worker --check`.
+- `amqp://` and `amqps://` are unsupported until a real RabbitMQ runtime is
+  registered. They must fail clearly instead of silently using memory.
 - Broker packages include shared broker interfaces and local memory behavior;
-  Redis/RabbitMQ/SQL package helpers should not be treated as production-ready
-  URL factories unless the installed framework version explicitly registers
-  real implementations.
+  RabbitMQ/SQL package helpers should not be treated as production-ready URL
+  factories unless the installed framework version explicitly registers real
+  implementations.
 
 ## Reliability
 
@@ -60,6 +62,7 @@ Framework module: `github.com/cybersaksham/gogo`.
 
 ```bash
 go run manage.go worker
+go run manage.go worker --check --broker-url "$GOGO_BROKER_URL" --result-backend "$GOGO_RESULT_BACKEND"
 go run manage.go beat
 go run manage.go inspect
 go run manage.go queues

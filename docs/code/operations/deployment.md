@@ -92,6 +92,19 @@ is set to `memory` or `memory://`. Use a durable backend such as Redis for
 workers, or leave those variables empty when the deployment does not run queue
 processes.
 
+Validate worker runtime URLs before starting workers:
+
+```bash
+go run manage.go worker --check \
+  --broker-url "$GOGO_BROKER_URL" \
+  --result-backend "$GOGO_RESULT_BACKEND"
+```
+
+`redis://` and `rediss://` broker and result backend URLs must construct real
+Redis runtime objects and fail if Redis is unreachable. `amqp://` and
+`amqps://` remain unsupported runtime URLs until a real RabbitMQ transport is
+registered; they never fall back to memory.
+
 ## Migrations
 
 Review migration plans before applying them:

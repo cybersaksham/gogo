@@ -1,3 +1,4 @@
+// Package redis provides a real Redis-backed queue broker for Gogo workers.
 package redis
 
 import (

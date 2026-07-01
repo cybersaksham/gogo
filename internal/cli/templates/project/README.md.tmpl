@@ -21,8 +21,11 @@ go test ./...
 go run manage.go check
 go run manage.go makemigrations --check --dry-run
 go run manage.go migrate --plan
+go run manage.go sqlmigrate auth 0001_initial
 go run manage.go runserver --addr 127.0.0.1:8000
-go run manage.go worker --check --broker-url memory:// --result-backend memory
+export GOGO_BROKER_URL=redis://localhost:6379/0
+export GOGO_RESULT_BACKEND=redis://localhost:6379/1
+go run manage.go worker --check --broker-url "$GOGO_BROKER_URL" --result-backend "$GOGO_RESULT_BACKEND"
 ```
 
 ## Where Code Goes
@@ -38,3 +41,6 @@ for repeatable operations such as imports, reindexing, and backfills.
 Unmanaged models describe existing tables with `Managed: false` so ORM, admin,
 or API code can inspect metadata without migrations creating or altering the
 table.
+Use `go run manage.go inspectdb`, `go run manage.go diffschema`, and
+`go run manage.go migrate --fake-initial` when adopting a database that already
+has tables.

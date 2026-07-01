@@ -21,6 +21,19 @@ Run deploy checks:
 go run manage.go check --deploy
 ```
 
+Validate worker runtime URLs before starting workers:
+
+```bash
+go run manage.go worker --check \
+  --broker-url "$GOGO_BROKER_URL" \
+  --result-backend "$GOGO_RESULT_BACKEND"
+```
+
+Production deploy checks reject `memory` and `memory://` broker or result
+backend URLs. Use `redis://` or `rediss://` when the deployment runs workers, or
+leave queue URLs empty when no queue processes are deployed. `amqp://` and
+`amqps://` are unsupported until a real RabbitMQ runtime is registered.
+
 ## Services
 
 | Service | Setting |

@@ -79,8 +79,9 @@ execution does not take the lock.
 
 `migrate --fake-initial` records an initial migration without running its
 database operations only when every table declared by its initial table
-operations already exists. If any declared table is missing, the migration runs
-normally.
+operations exists and the live columns match the expected initial schema. If any
+declared table or column is missing or mismatched, the migration runs normally
+or fails through the schema check instead of silently baselining drift.
 
 ## Safety Checks
 

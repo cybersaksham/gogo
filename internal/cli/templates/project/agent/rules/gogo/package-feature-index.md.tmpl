@@ -52,10 +52,10 @@ go doc github.com/cybersaksham/gogo/<package>
 | `github.com/cybersaksham/gogo/signals` | signal declaration, dispatch, and receivers |
 | `github.com/cybersaksham/gogo/queue` | queue app, task registration, URL runtime factories, signatures, envelopes, workers, beat, schedules, retries, rate limits, routing, pools, results, serialization, security, inspection, events, and admin metadata |
 | `github.com/cybersaksham/gogo/queue/brokers` | broker interfaces and shared broker types |
-| `github.com/cybersaksham/gogo/queue/brokers/redis` | Redis broker key planning and serialization helpers; production URL factory support must be registered before use |
-| `github.com/cybersaksham/gogo/queue/brokers/rabbitmq` | RabbitMQ route planning helpers; production URL factory support must be registered before use |
+| `github.com/cybersaksham/gogo/queue/brokers/redis` | real Redis broker for `redis://` and `rediss://` queue URLs |
+| `github.com/cybersaksham/gogo/queue/brokers/rabbitmq` | RabbitMQ route planning helpers; AMQP runtime URLs are unsupported until a real transport is registered |
 | `github.com/cybersaksham/gogo/queue/backends` | result backend interfaces |
-| `github.com/cybersaksham/gogo/queue/backends/redis` | Redis result key planning helpers; production URL factory support must be registered before use |
+| `github.com/cybersaksham/gogo/queue/backends/redis` | real Redis result backend for `redis://` and `rediss://` result URLs |
 | `github.com/cybersaksham/gogo/queue/backends/sql` | SQL result backend implementation; URL factory support must be registered before use |
 | `github.com/cybersaksham/gogo/queue/canvas` | chains, groups, chords, chunks, maps, and workflow serialization |
 | `github.com/cybersaksham/gogo/cache` | local, dummy, file, database, Redis, and memcached-style cache APIs |

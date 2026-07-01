@@ -1,3 +1,4 @@
+// Package redis provides a real Redis-backed queue result backend.
 package redis
 
 import (

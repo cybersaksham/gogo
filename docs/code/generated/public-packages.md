@@ -48,11 +48,11 @@
 | `github.com/cybersaksham/gogo/orm/dialects/sqlite` | `sqlite` | - |
 | `github.com/cybersaksham/gogo/queue` | `queue` | - |
 | `github.com/cybersaksham/gogo/queue/backends` | `backends` | - |
-| `github.com/cybersaksham/gogo/queue/backends/redis` | `redis` | - |
+| `github.com/cybersaksham/gogo/queue/backends/redis` | `redis` | Package redis provides a real Redis-backed queue result backend. |
 | `github.com/cybersaksham/gogo/queue/backends/sql` | `sql` | - |
 | `github.com/cybersaksham/gogo/queue/brokers` | `brokers` | - |
 | `github.com/cybersaksham/gogo/queue/brokers/rabbitmq` | `rabbitmq` | - |
-| `github.com/cybersaksham/gogo/queue/brokers/redis` | `redis` | - |
+| `github.com/cybersaksham/gogo/queue/brokers/redis` | `redis` | Package redis provides a real Redis-backed queue broker for Gogo workers. |
 | `github.com/cybersaksham/gogo/queue/canvas` | `canvas` | - |
 | `github.com/cybersaksham/gogo/security` | `security` | - |
 | `github.com/cybersaksham/gogo/sessions` | `sessions` | - |
