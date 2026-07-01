@@ -85,7 +85,7 @@ func (o AddConstraint) MigrationOperationSpec() migrations.OperationSpec {
 }
 
 func (o RemoveConstraint) MigrationOperationSpec() migrations.OperationSpec {
-	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, TableName: o.TableName, ConstraintName: o.ConstraintName}
+	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, TableName: o.TableName, ConstraintName: o.ConstraintName, ConstraintType: o.ConstraintType}
 }
 
 func (o RunSQL) MigrationOperationSpec() migrations.OperationSpec {

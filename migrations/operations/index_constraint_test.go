@@ -2,6 +2,7 @@ package operations
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/cybersaksham/gogo/migrations"
@@ -50,6 +51,16 @@ func TestIndexAndConstraintOperations(t *testing.T) {
 	}
 	if len(state.Models["blog.Post"].Indexes) != 0 || len(state.Models["blog.Post"].Constraints) != 0 {
 		t.Fatalf("remove state = %#v", state.Models["blog.Post"])
+	}
+}
+
+func TestRemoveConstraintMarksUniqueRemovalUnsafe(t *testing.T) {
+	checks := (RemoveConstraint{ConstraintName: "orders_status_key", ConstraintType: "unique"}).SafetyChecks()
+	if len(checks) != 1 || !strings.Contains(checks[0].Message, "removes unique constraint") {
+		t.Fatalf("unique removal safety checks = %#v", checks)
+	}
+	if checks := (RemoveConstraint{ConstraintName: "orders_status_check", ConstraintType: "check"}).SafetyChecks(); len(checks) != 0 {
+		t.Fatalf("check removal safety checks = %#v", checks)
 	}
 }
 

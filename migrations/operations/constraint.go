@@ -17,6 +17,7 @@ type RemoveConstraint struct {
 	AppLabel, ModelName string
 	TableName           string
 	ConstraintName      string
+	ConstraintType      string
 }
 
 func (o AddConstraint) Name() string { return "AddConstraint" }
@@ -81,7 +82,7 @@ func (o RemoveConstraint) ReferencesModel(appLabel, modelName string) bool {
 }
 func (o RemoveConstraint) ReferencesField(string, string, string) bool { return false }
 func (o RemoveConstraint) SafetyChecks() []migrations.SafetyCheck {
-	if strings.HasPrefix(o.ConstraintName, "uniq") {
+	if o.ConstraintType == "unique" || strings.HasPrefix(o.ConstraintName, "uniq") {
 		return []migrations.SafetyCheck{{Operation: o.Name(), Message: "removes unique constraint " + o.ConstraintName}}
 	}
 	return nil

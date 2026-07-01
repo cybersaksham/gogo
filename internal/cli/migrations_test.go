@@ -658,6 +658,102 @@ func TestMakeMigrationsDetectsFieldIndexWithoutAlterField(t *testing.T) {
 	}
 }
 
+func TestMakeMigrationsDetectsDefaultOnlyAlterField(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	oldDefault := models.DefaultValue("draft")
+	newDefault := models.DefaultValue("published")
+	initial := migrations.Migration{
+		AppLabel: "sales",
+		Name:     migrations.InitialMigrationName(),
+		Atomic:   true,
+		Operations: []migrations.Operation{
+			operations.CreateModel{Model: migrations.ModelState{
+				AppLabel:  "sales",
+				Name:      "Order",
+				TableName: "orders",
+				Fields: []migrations.FieldState{
+					{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true},
+					{Name: "status", Column: "status", Kind: "text", Null: true, DBDefault: &oldDefault},
+				},
+			}},
+		},
+	}
+	meta := models.Metadata{
+		AppLabel:  "sales",
+		ModelName: "Order",
+		TableName: "orders",
+		Fields: []models.FieldMeta{
+			{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true},
+			{Name: "status", Column: "status", Kind: "text", Null: true, DBDefault: newDefault},
+		},
+	}
+	root := NewRootWithOptions(RootOptions{ProjectModels: []models.Metadata{meta}, ProjectMigrations: []migrations.Migration{initial}})
+
+	var stdout bytes.Buffer
+	if err := root.Execute(context.Background(), []string{"makemigrations", "--app", "sales", "--name", "default_status"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("makemigrations error = %v", err)
+	}
+	contents, err := os.ReadFile(filepath.Join(dir, "sales", "migrations", "0002_default_status.go"))
+	if err != nil {
+		t.Fatalf("read migration: %v", err)
+	}
+	if !strings.Contains(string(contents), `\"type\":\"AlterField\"`) {
+		t.Fatalf("migration missing AlterField:\n%s", contents)
+	}
+	stdout.Reset()
+	if err := root.Execute(context.Background(), []string{"sqlmigrate", "sales", "0002_default_status"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("sqlmigrate error = %v", err)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, `ALTER TABLE "orders" ALTER COLUMN "status" SET DEFAULT 'published';`) || strings.Contains(output, ` TYPE `) {
+		t.Fatalf("unexpected default-only sqlmigrate output:\n%s", output)
+	}
+}
+
+func TestMakeMigrationsDetectsFieldUniqueWithoutAlterField(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	initial := migrations.Migration{
+		AppLabel: "sales",
+		Name:     migrations.InitialMigrationName(),
+		Atomic:   true,
+		Operations: []migrations.Operation{
+			operations.CreateModel{Model: migrations.ModelState{
+				AppLabel:  "sales",
+				Name:      "Order",
+				TableName: "orders",
+				Fields: []migrations.FieldState{
+					{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true},
+					{Name: "status", Column: "status", Kind: "text", Null: true},
+				},
+			}},
+		},
+	}
+	meta := models.Metadata{
+		AppLabel:  "sales",
+		ModelName: "Order",
+		TableName: "orders",
+		Fields: []models.FieldMeta{
+			{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true},
+			{Name: "status", Column: "status", Kind: "text", Null: true, Unique: true},
+		},
+	}
+	root := NewRootWithOptions(RootOptions{ProjectModels: []models.Metadata{meta}, ProjectMigrations: []migrations.Migration{initial}})
+
+	var stdout bytes.Buffer
+	if err := root.Execute(context.Background(), []string{"makemigrations", "--app", "sales", "--name", "unique_status"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("makemigrations error = %v", err)
+	}
+	contents, err := os.ReadFile(filepath.Join(dir, "sales", "migrations", "0002_unique_status.go"))
+	if err != nil {
+		t.Fatalf("read migration: %v", err)
+	}
+	if !strings.Contains(string(contents), `\"type\":\"AddConstraint\"`) || strings.Contains(string(contents), `\"type\":\"AlterField\"`) {
+		t.Fatalf("unexpected migration operations:\n%s", contents)
+	}
+}
+
 func TestMakeMigrationsDetectsTableIndexAndConstraintChanges(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)

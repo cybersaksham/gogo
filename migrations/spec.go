@@ -26,6 +26,7 @@ type OperationSpec struct {
 	IndexName          string           `json:"index_name,omitempty"`
 	Constraint         *ConstraintState `json:"constraint,omitempty"`
 	ConstraintName     string           `json:"constraint_name,omitempty"`
+	ConstraintType     string           `json:"constraint_type,omitempty"`
 	SQL                string           `json:"sql,omitempty"`
 	ReverseSQL         string           `json:"reverse_sql,omitempty"`
 	Elidable           bool             `json:"elidable,omitempty"`

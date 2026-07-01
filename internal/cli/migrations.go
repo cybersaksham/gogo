@@ -487,7 +487,7 @@ func diffConstraints(oldModel, newModel migrations.ModelState) []migrations.Oper
 	for _, constraint := range oldModel.Constraints {
 		newConstraint, exists := newConstraints[constraint.Name]
 		if !exists || !constraintStateEqualForMigration(constraint, newConstraint) {
-			detected = append(detected, operations.RemoveConstraint{AppLabel: oldModel.AppLabel, ModelName: oldModel.Name, TableName: oldModel.TableName, ConstraintName: constraint.Name})
+			detected = append(detected, operations.RemoveConstraint{AppLabel: oldModel.AppLabel, ModelName: oldModel.Name, TableName: oldModel.TableName, ConstraintName: constraint.Name, ConstraintType: constraint.Type})
 		}
 	}
 	for _, constraint := range newModel.Constraints {
@@ -874,7 +874,7 @@ func migrationOperationFromSpec(defaultAppLabel string, spec migrations.Operatio
 		}
 		return operations.AddConstraint{AppLabel: appLabel, ModelName: spec.ModelName, TableName: spec.TableName, Constraint: *spec.Constraint}, true
 	case "RemoveConstraint":
-		return operations.RemoveConstraint{AppLabel: appLabel, ModelName: spec.ModelName, TableName: spec.TableName, ConstraintName: spec.ConstraintName}, true
+		return operations.RemoveConstraint{AppLabel: appLabel, ModelName: spec.ModelName, TableName: spec.TableName, ConstraintName: spec.ConstraintName, ConstraintType: spec.ConstraintType}, true
 	case "RunSQL":
 		return operations.RunSQL{SQL: spec.SQL, ReverseSQL: spec.ReverseSQL, ElidableOp: spec.Elidable}, true
 	case "SeparateDatabaseAndState":
