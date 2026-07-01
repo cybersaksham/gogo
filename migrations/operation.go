@@ -38,10 +38,11 @@ type TableSchema struct {
 
 // ColumnSchema describes one column required by an initial migration.
 type ColumnSchema struct {
-	Name       string
-	Kind       string
-	PrimaryKey bool
-	Nullable   bool
+	Name            string
+	Kind            string
+	PrimaryKey      bool
+	Nullable        bool
+	OrdinalPosition int
 }
 
 // Operation is the complete migration operation contract.

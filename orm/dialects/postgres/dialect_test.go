@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/cybersaksham/gogo/orm/dialects"
@@ -56,5 +57,17 @@ func TestPostgresDateJSONAndSavepoints(t *testing.T) {
 	}
 	if got := dialect.ReleaseSavepointSQL("sp1"); got != `RELEASE SAVEPOINT "sp1"` {
 		t.Fatalf("ReleaseSavepointSQL() = %q", got)
+	}
+}
+
+func TestPostgresDialectColumnShapeIntrospectionSQL(t *testing.T) {
+	sql := New().SchemaIntrospection().ColumnsSQL
+	if sql == "" {
+		t.Fatal("ColumnsSQL is empty")
+	}
+	for _, want := range []string{"table_name", "column_name", "data_type", "is_nullable", "primary_key", "ordinal_position"} {
+		if !strings.Contains(sql, want) {
+			t.Fatalf("ColumnsSQL missing %q: %s", want, sql)
+		}
 	}
 }

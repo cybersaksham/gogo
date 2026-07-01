@@ -17,3 +17,5 @@ var ErrMigrationCycle = errors.New("migration dependency cycle")
 var ErrInconsistentMigrationHistory = errors.New("inconsistent migration history")
 
 var ErrMigrationLocked = errors.New("migration lock already held")
+
+var ErrFakeInitialVerification = errors.New("fake-initial verification failed")

@@ -963,8 +963,7 @@ func (e sqlSchemaEditor) TableColumns(ctx context.Context, table string) ([]migr
 			if err := rows.Scan(&cid, &name, &kind, &notNull, &defaultValue, &primaryKey); err != nil {
 				return nil, err
 			}
-			_ = cid
-			columns = append(columns, migrations.ColumnSchema{Name: name, Kind: kind, PrimaryKey: primaryKey > 0, Nullable: notNull == 0 && primaryKey == 0})
+			columns = append(columns, migrations.ColumnSchema{Name: name, Kind: kind, PrimaryKey: primaryKey > 0, Nullable: notNull == 0 && primaryKey == 0, OrdinalPosition: cid + 1})
 		}
 		return columns, rows.Err()
 	case "postgres":
@@ -978,11 +977,14 @@ func (e sqlSchemaEditor) TableColumns(ctx context.Context, table string) ([]migr
 			var tableName string
 			var name string
 			var kind string
-			if err := rows.Scan(&tableName, &name, &kind); err != nil {
+			var nullable bool
+			var primaryKey bool
+			var ordinalPosition int
+			if err := rows.Scan(&tableName, &name, &kind, &nullable, &primaryKey, &ordinalPosition); err != nil {
 				return nil, err
 			}
 			if tableName == table {
-				columns = append(columns, migrations.ColumnSchema{Name: name, Kind: kind})
+				columns = append(columns, migrations.ColumnSchema{Name: name, Kind: kind, PrimaryKey: primaryKey, Nullable: nullable, OrdinalPosition: ordinalPosition})
 			}
 		}
 		return columns, rows.Err()

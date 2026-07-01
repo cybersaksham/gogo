@@ -116,12 +116,12 @@ func (e Executor) shouldFakeInitial(ctx context.Context, migration Migration, op
 	if len(schemas) > 0 {
 		checker, ok := e.Editor.(TableShapeChecker)
 		if !ok {
-			return false, nil
+			return false, fmt.Errorf("%w: schema editor cannot inspect table shape", ErrFakeInitialVerification)
 		}
 		for _, schema := range schemas {
 			matches, err := tableShapeMatches(ctx, checker, schema)
 			if err != nil {
-				return false, err
+				return false, fmt.Errorf("%w: inspect table %s: %v", ErrFakeInitialVerification, schema.Name, err)
 			}
 			if !matches {
 				return false, nil

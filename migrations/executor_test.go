@@ -146,6 +146,30 @@ func TestExecutorFakeInitialRequiresMatchingSchemaShape(t *testing.T) {
 	}
 }
 
+func TestExecutorFakeInitialFailsWhenInitialSchemaCannotBeVerified(t *testing.T) {
+	ctx := context.Background()
+	db := openRecorderDB(t)
+	defer db.Close()
+	recorder := NewRecorder(db, "executor")
+	migration := testMigration("blog", "0001_initial")
+	migration.Operations = []Operation{initialSchemaOperation{
+		table:   "blog_post",
+		columns: []ColumnSchema{{Name: "id", PrimaryKey: true}},
+	}}
+	editor := &FakeSchemaEditor{}
+
+	err := NewExecutor(recorder, editor).Apply(ctx, []Migration{migration}, ExecutorOptions{FakeInitial: true})
+	if !errors.Is(err, ErrFakeInitialVerification) {
+		t.Fatalf("Apply(fake-initial unverifiable) error = %v, want ErrFakeInitialVerification", err)
+	}
+	if len(editor.SQL) != 0 {
+		t.Fatalf("unverifiable fake-initial executed SQL: %#v", editor.SQL)
+	}
+	if ok, _ := recorder.IsApplied(ctx, migration.Dependency()); ok {
+		t.Fatal("unverifiable fake-initial migration was recorded")
+	}
+}
+
 func TestMigrationChecksumIncludesCanonicalContent(t *testing.T) {
 	base := testMigration("blog", "0001_initial")
 	base.Atomic = true

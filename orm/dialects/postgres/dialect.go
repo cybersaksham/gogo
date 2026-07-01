@@ -120,7 +120,7 @@ func (d Dialect) ReleaseSavepointSQL(name string) string {
 func (Dialect) SchemaIntrospection() dialects.SchemaIntrospection {
 	return dialects.SchemaIntrospection{
 		TablesSQL:      "SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname NOT IN ('pg_catalog', 'information_schema')",
-		ColumnsSQL:     "SELECT table_name, column_name, data_type FROM information_schema.columns",
+		ColumnsSQL:     "SELECT c.table_name, c.column_name, c.data_type, c.is_nullable = 'YES' AS nullable, COALESCE(pk.primary_key, false) AS primary_key, c.ordinal_position FROM information_schema.columns c LEFT JOIN (SELECT kcu.table_schema, kcu.table_name, kcu.column_name, true AS primary_key FROM information_schema.table_constraints tc JOIN information_schema.key_column_usage kcu ON tc.constraint_schema = kcu.constraint_schema AND tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema AND tc.table_name = kcu.table_name WHERE tc.constraint_type = 'PRIMARY KEY') pk ON c.table_schema = pk.table_schema AND c.table_name = pk.table_name AND c.column_name = pk.column_name WHERE c.table_schema NOT IN ('pg_catalog', 'information_schema') ORDER BY c.table_name, c.ordinal_position",
 		ConstraintsSQL: "SELECT conname FROM pg_constraint",
 		IndexesSQL:     "SELECT indexname FROM pg_indexes",
 	}
