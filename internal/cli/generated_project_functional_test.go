@@ -39,7 +39,7 @@ GOGO_HTTP_ADDR=127.0.0.1:0
 
 	withWorkingDirectory(t, filepath.Join(target, "apps"), func() {
 		var stdout bytes.Buffer
-		if err := NewRoot().Execute(context.Background(), []string{"makemigrations", "--app", "blog", "--name", "initial", "--empty"}, &stdout, &bytes.Buffer{}); err != nil {
+		if err := NewRoot().Execute(context.Background(), []string{"makemigrations", "--app", "blog", "--name", "initial"}, &stdout, &bytes.Buffer{}); err != nil {
 			t.Fatalf("makemigrations error = %v", err)
 		}
 		if !strings.Contains(stdout.String(), "created blog.0001_initial") {
