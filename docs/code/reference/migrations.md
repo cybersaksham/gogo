@@ -62,13 +62,18 @@ SQLite uses `?` placeholders. Applied history writes use `INSERT ... ON
 CONFLICT(app, name) DO UPDATE`, not SQLite-only replacement syntax, so history
 recording behaves consistently across supported databases.
 
+`Executor` takes a database-backed migration lock before mutating schema or
+history. The lock is stored in `gogo_migration_lock`; concurrent `migrate`
+processes fail with `ErrMigrationLocked` before operations run. Plan-only
+execution does not take the lock.
+
 ## Safety Checks
 
 Safety checks detect destructive drops, non-null additions without defaults, irreversible operations, unsafe SQL, and backend-specific hazards where operation metadata exposes the required details.
 
 ## Error Types
 
-`ErrInvalidMigration`, `ErrUnsafeMigration`, `ErrIrreversibleOperation`, `ErrDuplicateMigration`, `ErrMissingDependency`, `ErrMigrationCycle`, and `ErrInconsistentMigrationHistory`.
+`ErrInvalidMigration`, `ErrUnsafeMigration`, `ErrIrreversibleOperation`, `ErrDuplicateMigration`, `ErrMissingDependency`, `ErrMigrationCycle`, `ErrInconsistentMigrationHistory`, and `ErrMigrationLocked`.
 
 ## Example
 

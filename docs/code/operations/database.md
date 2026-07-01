@@ -43,6 +43,9 @@ go run manage.go showmigrations
 Operational rules:
 
 - Run migrations once per release.
+- `go run manage.go migrate` takes a database-backed lock before applying
+  schema or migration-history changes; a concurrent migration process fails
+  before operations run.
 - Take a backup before production migration.
 - Review generated SQL for locks, table rewrites, destructive operations, and
   long-running backfills.

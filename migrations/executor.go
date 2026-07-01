@@ -25,7 +25,18 @@ func NewExecutor(recorder Recorder, editor SchemaEditor) Executor {
 }
 
 // Apply applies migrations in order.
-func (e Executor) Apply(ctx context.Context, migrations []Migration, options ExecutorOptions) error {
+func (e Executor) Apply(ctx context.Context, migrations []Migration, options ExecutorOptions) (err error) {
+	release, err := e.lock(ctx, options)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if release != nil {
+			if releaseErr := release(context.Background()); err == nil {
+				err = releaseErr
+			}
+		}
+	}()
 	if err := e.Recorder.EnsureSchema(ctx); err != nil {
 		return err
 	}
@@ -54,7 +65,18 @@ func (e Executor) Apply(ctx context.Context, migrations []Migration, options Exe
 }
 
 // Rollback unapplies one migration.
-func (e Executor) Rollback(ctx context.Context, migration Migration, options ExecutorOptions) error {
+func (e Executor) Rollback(ctx context.Context, migration Migration, options ExecutorOptions) (err error) {
+	release, err := e.lock(ctx, options)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if release != nil {
+			if releaseErr := release(context.Background()); err == nil {
+				err = releaseErr
+			}
+		}
+	}()
 	for i := len(migration.Operations) - 1; i >= 0; i-- {
 		operation := migration.Operations[i]
 		if !operation.Reversible() {
@@ -70,6 +92,13 @@ func (e Executor) Rollback(ctx context.Context, migration Migration, options Exe
 		return e.Recorder.RecordUnapplied(ctx, migration.Dependency())
 	}
 	return nil
+}
+
+func (e Executor) lock(ctx context.Context, options ExecutorOptions) (func(context.Context) error, error) {
+	if options.Plan {
+		return nil, nil
+	}
+	return e.Recorder.AcquireLock(ctx)
 }
 
 func migrationChecksum(migration Migration) string {

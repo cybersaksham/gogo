@@ -99,7 +99,9 @@ go run manage.go showmigrations
 ```
 
 Run migrations once per deployment, not from every web or worker replica. Use a
-single release job, init job, or operator action with a database lock.
+single release job, init job, or operator action. `go run manage.go migrate`
+takes a database-backed migration lock and fails before operations run if
+another migration process already holds it.
 
 For risky migrations:
 

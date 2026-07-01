@@ -63,6 +63,33 @@ func TestExecutorFailureAndIrreversibleReverse(t *testing.T) {
 	}
 }
 
+func TestExecutorApplyRequiresMigrationLock(t *testing.T) {
+	ctx := context.Background()
+	db := openRecorderDB(t)
+	defer db.Close()
+	recorder := NewRecorder(db, "executor")
+	release, err := recorder.AcquireLock(ctx)
+	if err != nil {
+		t.Fatalf("AcquireLock() error = %v", err)
+	}
+	defer func() {
+		if err := release(ctx); err != nil {
+			t.Fatalf("release() error = %v", err)
+		}
+	}()
+
+	editor := &FakeSchemaEditor{}
+	executor := NewExecutor(recorder, editor)
+	migration := testMigration("blog", "0001_initial")
+	migration.Operations = []Operation{FakeOperation{NameValue: "op", ReversibleValue: true}}
+	if err := executor.Apply(ctx, []Migration{migration}, ExecutorOptions{}); !errors.Is(err, ErrMigrationLocked) {
+		t.Fatalf("Apply() error = %v, want ErrMigrationLocked", err)
+	}
+	if len(editor.SQL) != 0 {
+		t.Fatalf("locked Apply() executed SQL: %#v", editor.SQL)
+	}
+}
+
 type FailingOperation struct{}
 
 func (FailingOperation) Name() string                      { return "FailingOperation" }

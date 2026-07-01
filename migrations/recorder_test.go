@@ -2,6 +2,7 @@ package migrations
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -44,6 +45,31 @@ func TestRecorderAppliedHistory(t *testing.T) {
 	}
 	if ok, _ := recorder.IsApplied(ctx, migration.Dependency()); ok {
 		t.Fatalf("migration still applied")
+	}
+}
+
+func TestRecorderAcquireLockBlocksConcurrentMigration(t *testing.T) {
+	ctx := context.Background()
+	database := openRecorderDB(t)
+	defer database.Close()
+	recorder := NewRecorder(database, "test-executor")
+
+	release, err := recorder.AcquireLock(ctx)
+	if err != nil {
+		t.Fatalf("AcquireLock() error = %v", err)
+	}
+	if _, err := recorder.AcquireLock(ctx); !errors.Is(err, ErrMigrationLocked) {
+		t.Fatalf("second AcquireLock() error = %v, want ErrMigrationLocked", err)
+	}
+	if err := release(ctx); err != nil {
+		t.Fatalf("release() error = %v", err)
+	}
+	release, err = recorder.AcquireLock(ctx)
+	if err != nil {
+		t.Fatalf("AcquireLock() after release error = %v", err)
+	}
+	if err := release(ctx); err != nil {
+		t.Fatalf("second release() error = %v", err)
 	}
 }
 

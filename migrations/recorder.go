@@ -31,6 +31,9 @@ func NewRecorder(database *orm.Database, executorVersion string) Recorder {
 
 type recorderStatements struct {
 	EnsureSchema    string
+	EnsureLock      string
+	AcquireLock     string
+	ReleaseLock     string
 	IsApplied       string
 	RecordApplied   string
 	RecordUnapplied string
@@ -41,6 +44,21 @@ type recorderStatements struct {
 func (r Recorder) EnsureSchema(ctx context.Context) error {
 	_, err := r.db().ExecContext(ctx, r.statements().EnsureSchema)
 	return err
+}
+
+// AcquireLock takes the database-backed migration lock and returns a release function.
+func (r Recorder) AcquireLock(ctx context.Context) (func(context.Context) error, error) {
+	statements := r.statements()
+	if _, err := r.db().ExecContext(ctx, statements.EnsureLock); err != nil {
+		return nil, err
+	}
+	if _, err := r.db().ExecContext(ctx, statements.AcquireLock, "default", time.Now().UTC(), r.ExecutorVersion); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrMigrationLocked, err)
+	}
+	return func(ctx context.Context) error {
+		_, err := r.db().ExecContext(ctx, statements.ReleaseLock, "default")
+		return err
+	}, nil
 }
 
 // IsApplied reports whether a migration is applied.
@@ -113,7 +131,15 @@ func (r Recorder) statements() recorderStatements {
 	placeholder := r.placeholder
 	return recorderStatements{
 		EnsureSchema: `CREATE TABLE IF NOT EXISTS gogo_migrations (app TEXT NOT NULL, name TEXT NOT NULL, applied TIMESTAMP NOT NULL, checksum TEXT NOT NULL, executor_version TEXT NOT NULL, PRIMARY KEY(app, name))`,
-		IsApplied:    fmt.Sprintf(`SELECT 1 FROM gogo_migrations WHERE app = %s AND name = %s`, placeholder(1), placeholder(2)),
+		EnsureLock:   `CREATE TABLE IF NOT EXISTS gogo_migration_lock (name TEXT NOT NULL PRIMARY KEY, acquired TIMESTAMP NOT NULL, owner TEXT NOT NULL)`,
+		AcquireLock: fmt.Sprintf(
+			`INSERT INTO gogo_migration_lock(name, acquired, owner) VALUES (%s, %s, %s)`,
+			placeholder(1),
+			placeholder(2),
+			placeholder(3),
+		),
+		ReleaseLock: fmt.Sprintf(`DELETE FROM gogo_migration_lock WHERE name = %s`, placeholder(1)),
+		IsApplied:   fmt.Sprintf(`SELECT 1 FROM gogo_migrations WHERE app = %s AND name = %s`, placeholder(1), placeholder(2)),
 		RecordApplied: fmt.Sprintf(
 			`INSERT INTO gogo_migrations(app, name, applied, checksum, executor_version) VALUES (%s, %s, %s, %s, %s) ON CONFLICT(app, name) DO UPDATE SET applied = EXCLUDED.applied, checksum = EXCLUDED.checksum, executor_version = EXCLUDED.executor_version`,
 			placeholder(1),

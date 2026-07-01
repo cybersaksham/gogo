@@ -45,6 +45,9 @@ Framework module: `github.com/cybersaksham/gogo`.
   safety annotations.
 - Review generated operations for destructive changes before applying them.
 - Keep data migrations idempotent and reversible when possible.
+- `go run manage.go migrate` takes a database-backed migration lock before
+  applying schema or history changes; a concurrent migration run fails before
+  operations execute.
 - Use migration commands for normal workflow:
 
 ```bash
