@@ -6,7 +6,9 @@ import (
 
 	"github.com/cybersaksham/gogo/queue"
 	_ "github.com/cybersaksham/gogo/queue/backends"
+	_ "github.com/cybersaksham/gogo/queue/backends/redis"
 	_ "github.com/cybersaksham/gogo/queue/brokers"
+	_ "github.com/cybersaksham/gogo/queue/brokers/redis"
 )
 
 func TestRuntimeFactoriesCreateMemoryImplementations(t *testing.T) {
@@ -35,14 +37,43 @@ func TestRuntimeFactoriesCreateMemoryImplementations(t *testing.T) {
 	}
 }
 
-func TestRuntimeFactoriesRejectUnconfiguredProductionURLs(t *testing.T) {
-	if _, err := queue.NewBrokerFromURL(queue.RuntimeConfig{BrokerURL: "redis://localhost:6379/0"}); !errors.Is(err, queue.ErrUnsupportedRuntimeURL) {
-		t.Fatalf("NewBrokerFromURL(redis) error = %v, want ErrUnsupportedRuntimeURL", err)
+func TestRuntimeFactoriesCreateRedisImplementations(t *testing.T) {
+	for _, rawURL := range []string{"redis://localhost:6379/0", "rediss://localhost:6379/1"} {
+		broker, err := queue.NewBrokerFromURL(queue.RuntimeConfig{BrokerURL: rawURL})
+		if err != nil {
+			t.Fatalf("NewBrokerFromURL(%s) error = %v", rawURL, err)
+		}
+		if broker == nil {
+			t.Fatalf("NewBrokerFromURL(%s) returned nil broker", rawURL)
+		}
+
+		backend, err := queue.NewResultBackendFromURL(queue.RuntimeConfig{ResultBackend: rawURL})
+		if err != nil {
+			t.Fatalf("NewResultBackendFromURL(%s) error = %v", rawURL, err)
+		}
+		if backend == nil {
+			t.Fatalf("NewResultBackendFromURL(%s) returned nil backend", rawURL)
+		}
 	}
-	if _, err := queue.NewResultBackendFromURL(queue.RuntimeConfig{ResultBackend: "redis://localhost:6379/1"}); !errors.Is(err, queue.ErrUnsupportedRuntimeURL) {
-		t.Fatalf("NewResultBackendFromURL(redis) error = %v, want ErrUnsupportedRuntimeURL", err)
+}
+
+func TestRuntimeFactoriesRejectUnsupportedProductionURLs(t *testing.T) {
+	if _, err := queue.NewBrokerFromURL(queue.RuntimeConfig{BrokerURL: "amqp://localhost:5672/"}); !errors.Is(err, queue.ErrUnsupportedRuntimeURL) {
+		t.Fatalf("NewBrokerFromURL(amqp) error = %v, want ErrUnsupportedRuntimeURL", err)
+	}
+	if _, err := queue.NewResultBackendFromURL(queue.RuntimeConfig{ResultBackend: "amqp://localhost:5672/"}); !errors.Is(err, queue.ErrUnsupportedRuntimeURL) {
+		t.Fatalf("NewResultBackendFromURL(amqp) error = %v, want ErrUnsupportedRuntimeURL", err)
 	}
 	if _, err := queue.NewScheduleStoreFromURL(queue.RuntimeConfig{ScheduleStore: "redis://localhost:6379/2"}); !errors.Is(err, queue.ErrUnsupportedRuntimeURL) {
 		t.Fatalf("NewScheduleStoreFromURL(redis) error = %v, want ErrUnsupportedRuntimeURL", err)
+	}
+}
+
+func TestRuntimeFactoriesRejectMalformedRedisURLs(t *testing.T) {
+	if _, err := queue.NewBrokerFromURL(queue.RuntimeConfig{BrokerURL: "redis://localhost/not-a-db"}); !errors.Is(err, queue.ErrUnsupportedRuntimeURL) {
+		t.Fatalf("NewBrokerFromURL(malformed redis) error = %v, want ErrUnsupportedRuntimeURL", err)
+	}
+	if _, err := queue.NewResultBackendFromURL(queue.RuntimeConfig{ResultBackend: "redis://localhost/not-a-db"}); !errors.Is(err, queue.ErrUnsupportedRuntimeURL) {
+		t.Fatalf("NewResultBackendFromURL(malformed redis) error = %v, want ErrUnsupportedRuntimeURL", err)
 	}
 }

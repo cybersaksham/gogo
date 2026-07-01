@@ -40,20 +40,35 @@ Ack policies:
 
 Runtime factories are URL-driven and fail clearly when a configured production
 URL has no registered real implementation. `memory` and `memory://` are local
-development and test runtimes. A URL such as `redis://` or `amqp://` must be
-backed by a registered production factory; otherwise worker and beat startup
-returns `ErrUnsupportedRuntimeURL` instead of silently using memory.
+development and test runtimes only; production deploy checks reject them when
+they are configured as broker or result backend URLs.
+
+`redis://` and `rediss://` broker URLs create a Redis-backed broker. The broker
+stores task envelopes, queue metadata, ready work, delayed work, and in-flight
+deliveries in Redis. A worker that exits before ack leaves the delivery in the
+in-flight set until the visibility timeout expires; another worker then reclaims
+the task with its task ID, headers, group/chord IDs, callbacks, and attempt
+metadata preserved.
+
+`redis://` and `rediss://` result backend URLs create a Redis-backed result
+backend. Results, children, group metadata, and chord counters are stored in
+Redis. `Wait` polls Redis with context and timeout handling, so independent
+processes can wait for terminal results.
+
+RabbitMQ route-planning helpers remain available in `queue/brokers/rabbitmq`,
+but `amqp://` and `amqps://` runtime URLs are unsupported until a real AMQP
+transport is registered. They never fall back to memory.
 
 Broker packages:
 
 - `queue/brokers` memory broker
-- `queue/brokers/redis`
-- `queue/brokers/rabbitmq`
+- `queue/brokers/redis` real Redis broker for `redis://` and `rediss://`
+- `queue/brokers/rabbitmq` route-planning helpers; no runtime factory yet
 
 Result backend packages:
 
 - `queue/backends` memory backend
-- `queue/backends/redis`
+- `queue/backends/redis` real Redis result backend for `redis://` and `rediss://`
 - `queue/backends/sql`
 
 ## Canvas

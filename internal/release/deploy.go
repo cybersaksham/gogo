@@ -110,6 +110,12 @@ func RunDeployChecks(config DeployConfig) []checks.Result {
 	if settings.PasswordResetEnabled && strings.TrimSpace(settings.EmailURL) == "" {
 		results = append(results, deployResult("deploy.E016", "email backend is required for password reset", "Set GOGO_EMAIL_URL or disable password reset.", "GOGO_EMAIL_URL"))
 	}
+	if isMemoryEndpoint(settings.BrokerURL) {
+		results = append(results, deployResult("deploy.E017", "memory queue broker is not allowed in production", "Use a durable broker such as Redis for production workers, or leave GOGO_BROKER_URL empty when queues are not enabled.", "GOGO_BROKER_URL"))
+	}
+	if isMemoryEndpoint(settings.ResultBackend) {
+		results = append(results, deployResult("deploy.E018", "memory result backend is not allowed in production", "Use a durable result backend such as Redis or SQL for production workers, or leave GOGO_RESULT_BACKEND empty when queues are not enabled.", "GOGO_RESULT_BACKEND"))
+	}
 
 	if len(results) == 0 {
 		return []checks.Result{{ID: "deploy.I001", Tags: []string{"deploy"}, Severity: checks.SeverityInfo, Message: "production deploy checks passed"}}
@@ -165,6 +171,11 @@ func CheckEndpointReachable(ctx context.Context, rawURL string) error {
 		return err
 	}
 	return conn.Close()
+}
+
+func isMemoryEndpoint(rawURL string) bool {
+	value := strings.ToLower(strings.TrimSpace(rawURL))
+	return value == "memory" || strings.HasPrefix(value, "memory://")
 }
 
 // CheckMediaStorageWritable verifies that media storage exists and accepts writes.

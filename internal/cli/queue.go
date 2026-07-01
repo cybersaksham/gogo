@@ -12,7 +12,9 @@ import (
 
 	q "github.com/cybersaksham/gogo/queue"
 	"github.com/cybersaksham/gogo/queue/backends"
+	_ "github.com/cybersaksham/gogo/queue/backends/redis"
 	"github.com/cybersaksham/gogo/queue/brokers"
+	_ "github.com/cybersaksham/gogo/queue/brokers/redis"
 )
 
 var defaultQueueRuntime = NewQueueRuntime()
@@ -89,6 +91,11 @@ func (c queueWorkerCommand) runWithIO(ctx context.Context, args []string, stdout
 	}
 	if err := configureQueueRuntime(runtime, q.RuntimeConfig{BrokerURL: options.brokerURL, ResultBackend: options.resultBackend}); err != nil {
 		return fmt.Errorf("%w: %w", ErrCommandFailed, err)
+	}
+	if options.check {
+		if err := checkQueueRuntimeReachable(ctx, runtime); err != nil {
+			return fmt.Errorf("%w: %w", ErrCommandFailed, err)
+		}
 	}
 	if err := options.applyTaskTimeLimits(runtime.App); err != nil {
 		return err
@@ -243,6 +250,27 @@ func configureQueueRuntime(runtime *QueueRuntime, config q.RuntimeConfig) error 
 			return err
 		}
 		runtime.Store = store
+	}
+	return nil
+}
+
+type queueRuntimePinger interface {
+	Ping(context.Context) error
+}
+
+func checkQueueRuntimeReachable(ctx context.Context, runtime *QueueRuntime) error {
+	if runtime == nil {
+		return nil
+	}
+	if pinger, ok := runtime.Broker.(queueRuntimePinger); ok {
+		if err := pinger.Ping(ctx); err != nil {
+			return fmt.Errorf("Redis broker is not reachable: %w", err)
+		}
+	}
+	if pinger, ok := runtime.Backend.(queueRuntimePinger); ok {
+		if err := pinger.Ping(ctx); err != nil {
+			return fmt.Errorf("Redis result backend is not reachable: %w", err)
+		}
 	}
 	return nil
 }

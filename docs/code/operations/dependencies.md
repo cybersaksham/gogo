@@ -61,6 +61,11 @@ Adapters are acceptable when they integrate with an external service without
 replacing the framework API. For example, a Redis client is acceptable behind a
 Gogo broker implementation; a full external queue framework is not.
 
+Current Redis integration uses `github.com/redis/go-redis/v9` only behind Gogo
+runtime factories for broker and result-backend connectivity. Generated
+projects and public APIs continue to depend on Gogo queue interfaces rather than
+third-party Redis types.
+
 ## Review Checklist
 
 Before adding a dependency:

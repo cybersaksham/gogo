@@ -45,10 +45,25 @@ idempotency expectations explicitly for production tasks.
 ## Brokers and backends
 
 `memory` and `memory://` broker, backend, and schedule-store URLs are local
-development and test runtimes. Production URLs must resolve through registered
-real runtime factories. If a URL such as `redis://` or `amqp://` is configured
-without a registered implementation, worker and beat startup fail instead of
-silently using memory.
+development and test runtimes. Production deploy checks reject memory broker and
+result backend URLs.
+
+`redis://` and `rediss://` broker and result backend URLs use Redis. Redis
+brokers preserve task envelope metadata, delayed tasks, in-flight deliveries,
+ack/nack/requeue behavior, and visibility-timeout recovery after worker exits.
+Redis result backends store terminal state, child task IDs, group metadata, and
+chord counters so separate processes can wait for task results.
+
+`amqp://` and `amqps://` are unsupported runtime URLs until a real RabbitMQ
+transport is registered; they do not fall back to memory.
+
+Validate Redis worker configuration before deploying:
+
+```bash
+go run manage.go worker --check \
+  --broker-url "$GOGO_BROKER_URL" \
+  --result-backend "$GOGO_RESULT_BACKEND"
+```
 
 Canvas workflows live under `queue/canvas` and include chains, groups, chords,
 chunks, maps, and serialized workflow types.

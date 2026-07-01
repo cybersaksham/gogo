@@ -73,6 +73,25 @@ func TestRunDeployChecksCatchesEveryFailure(t *testing.T) {
 	}
 }
 
+func TestRunDeployChecksRejectsProductionMemoryQueueURLs(t *testing.T) {
+	settings := validDeploySettings(t)
+	settings.BrokerURL = "memory://"
+	settings.ResultBackend = "memory"
+	results := RunDeployChecks(DeployConfig{
+		Settings:               settings,
+		DatabaseReachable:      true,
+		StaticFilesCollected:   true,
+		MediaStorageWritable:   true,
+		QueueBrokerReachable:   true,
+		ResultBackendReachable: true,
+	})
+	got := resultIDs(results)
+	want := []string{"deploy.E017", "deploy.E018"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("result IDs = %#v, want %#v", got, want)
+	}
+}
+
 func TestBuildDeployConfigChecksSQLiteStaticMediaAndMemoryBackends(t *testing.T) {
 	root := t.TempDir()
 	staticRoot := filepath.Join(root, "staticfiles")
@@ -135,8 +154,8 @@ func validDeploySettings(t *testing.T) conf.Settings {
 		StaticFilesCollected: true,
 		PasswordResetEnabled: true,
 		EmailURL:             "smtp://mail:1025",
-		BrokerURL:            "memory://",
-		ResultBackend:        "memory",
+		BrokerURL:            "",
+		ResultBackend:        "",
 		DefaultAutoField:     "BigAutoField",
 		TimeZone:             "UTC",
 		LanguageCode:         "en-us",

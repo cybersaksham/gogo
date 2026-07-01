@@ -7,10 +7,9 @@ groups, chunks, maps, and chords.
 ## Configuration
 
 Set queue environment variables only when queues are enabled. `memory://` is
-for local development and tests. Production URLs must be backed by registered
-runtime factories; if a URL such as `redis://` is configured without a real
-registered implementation, worker and beat startup fail instead of falling back
-to memory.
+for local development and tests. Production deploy checks reject memory broker
+and result backend URLs. Leave `GOGO_BROKER_URL` and `GOGO_RESULT_BACKEND`
+empty when the deployment does not run workers.
 
 ```bash
 GOGO_BROKER_URL=redis://redis:6379/0
@@ -22,12 +21,26 @@ Runtime support:
 | Integration | Status |
 | --- | --- |
 | Memory broker/backend/schedule store | Local development and tests |
-| Redis broker/backend URLs | Fail fast unless a real Redis factory is registered |
-| RabbitMQ broker URLs | Fail fast unless a real RabbitMQ factory is registered |
+| Redis broker/backend URLs | Real Redis runtime for `redis://` and `rediss://` |
+| RabbitMQ broker URLs | Unsupported as runtime factories; no memory fallback |
 | SQL result backend URLs | Fail fast unless a SQL backend factory is registered |
 
 Use separate Redis databases, prefixes, or clusters for broker, result backend,
 and cache when operational isolation matters.
+
+Redis workers use a visibility timeout for in-flight deliveries. If a worker
+stops before acking a task, another worker can reclaim it after the timeout and
+the attempt count increments. Delayed tasks are held until their ETA before
+being consumed. Result backends store terminal state, children, group metadata,
+and chord counters in Redis so independent processes can wait for task results.
+
+Validate Redis reachability before deploying workers:
+
+```bash
+go run manage.go worker --check \
+  --broker-url "$GOGO_BROKER_URL" \
+  --result-backend "$GOGO_RESULT_BACKEND"
+```
 
 ## Worker Deployment
 

@@ -52,20 +52,20 @@ func TestQueueWorkerCommandParsesFlagsAndRunsOnce(t *testing.T) {
 	}
 }
 
-func TestQueueWorkerCheckRejectsUnsupportedProductionBrokerURL(t *testing.T) {
+func TestQueueWorkerCheckRejectsUnreachableRedisBrokerURL(t *testing.T) {
 	var stdout bytes.Buffer
 	err := NewWorkerCommand(NewQueueRuntime()).(interface {
 		runWithIO(context.Context, []string, io.Writer, io.Writer) error
 	}).runWithIO(context.Background(), []string{
 		"--check",
-		"--broker-url", "redis://localhost:6379/0",
+		"--broker-url", "redis://127.0.0.1:1/0",
 		"--result-backend", "memory",
 	}, &stdout, io.Discard)
 	if !errors.Is(err, ErrCommandFailed) {
 		t.Fatalf("worker --check error = %v, want ErrCommandFailed", err)
 	}
-	if !strings.Contains(err.Error(), "redis") {
-		t.Fatalf("worker --check error = %v, want redis URL context", err)
+	if !strings.Contains(err.Error(), "Redis broker is not reachable") {
+		t.Fatalf("worker --check error = %v, want Redis reachability context", err)
 	}
 	if stdout.Len() != 0 {
 		t.Fatalf("worker --check stdout = %q, want empty on invalid runtime", stdout.String())

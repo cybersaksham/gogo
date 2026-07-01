@@ -87,6 +87,11 @@ Run deploy checks before allowing traffic:
 go run manage.go check --deploy
 ```
 
+Production deploy checks fail when `GOGO_BROKER_URL` or `GOGO_RESULT_BACKEND`
+is set to `memory` or `memory://`. Use a durable backend such as Redis for
+workers, or leave those variables empty when the deployment does not run queue
+processes.
+
 ## Migrations
 
 Review migration plans before applying them:
