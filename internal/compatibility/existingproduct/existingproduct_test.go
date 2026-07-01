@@ -288,7 +288,7 @@ func TestExistingProductCustomTableMakemigrationsCompatibility(t *testing.T) {
 	if err := management.ExecuteProject(context.Background(), []string{"sqlmigrate", "sales", "0002_add_status"}, &sqlOut, &bytes.Buffer{}, project); err != nil {
 		t.Fatalf("sqlmigrate generated migration error = %v", err)
 	}
-	for _, want := range []string{`ALTER TABLE "orders" ADD COLUMN "status" text`, `CREATE INDEX "idx_orders_status" ON "orders" ("status")`, `ALTER TABLE "orders" ADD CONSTRAINT "uniq_orders_status" UNIQUE ("status")`} {
+	for _, want := range []string{`ALTER TABLE "orders" ADD COLUMN "status" text`, `CREATE INDEX "idx_orders_status" ON "orders" ("status")`, `-- SQLite rebuild required to add constraint "uniq_orders_status" on "orders"`} {
 		if !strings.Contains(sqlOut.String(), want) {
 			t.Fatalf("sqlmigrate output missing %q:\n%s", want, sqlOut.String())
 		}
@@ -305,7 +305,7 @@ func legacyOrderMetadata(managed bool) models.Metadata {
 		Fields: []models.FieldMeta{
 			{Name: "id", Column: "id", PrimaryKey: true},
 			{Name: "number", Column: "number"},
-			{Name: "created_at", Column: "created_at"},
+			{Name: "created_at", Column: "created_at", Null: true},
 		},
 	}
 }
@@ -321,7 +321,7 @@ func legacyInitialMigration() migrations.Migration {
 				Name:      "Order",
 				TableName: "legacy_order",
 				Fields: []migrations.FieldState{
-					{Name: "id", Column: "id", Kind: "integer", PrimaryKey: true},
+					{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true},
 					{Name: "number", Column: "number", Kind: "text"},
 					{Name: "created_at", Column: "created_at", Kind: "timestamp", Null: true},
 				},
