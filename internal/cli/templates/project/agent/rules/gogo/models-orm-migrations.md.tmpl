@@ -39,6 +39,13 @@ Framework module: `github.com/cybersaksham/gogo`.
 ## Migrations
 
 - Add migrations whenever model metadata changes database schema.
+- Mark existing tables with `Managed: false` when Gogo should expose metadata
+  to ORM, admin, API, serializers, or content types without creating, altering,
+  or dropping the table in migrations.
+- Keep model metadata valid: no duplicate field names or columns, every
+  declared concrete field set needs a primary key, index and constraint names
+  must be unique, custom permission codenames must be unique, and registered
+  relation targets must exist.
 - Keep migration files under the owning app's `migrations/` directory.
 - Use public migration operations for creating, altering, renaming, deleting
   models and fields, indexes, constraints, raw SQL, data migrations, and

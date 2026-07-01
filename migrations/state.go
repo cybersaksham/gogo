@@ -81,6 +81,9 @@ func StateFromRegistry(registry *models.Registry) ProjectState {
 		return state
 	}
 	for _, meta := range registry.Models() {
+		if !meta.IsManaged() {
+			continue
+		}
 		model := ModelState{
 			AppLabel:    meta.AppLabel,
 			Name:        meta.ModelName,

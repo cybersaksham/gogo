@@ -55,3 +55,11 @@ func PostMetadata() models.Metadata {
 Add explicit field names, column names, defaults, null and blank behavior,
 choices, validators, indexes, constraints, and custom permissions when those
 rules affect database, admin, API, or auth behavior.
+
+Metadata validation rejects duplicate field names or columns, declared fields
+without a primary key, duplicate index or constraint names, and duplicate custom
+permission codenames. After registering all models, use
+`models.Registry.ValidateRelations` to catch unknown relation targets.
+
+Set `Managed` to false for existing tables that Gogo should expose through
+ORM/admin/API metadata without including them in migration state.

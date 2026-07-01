@@ -59,6 +59,10 @@ replacement, and operation metadata. `migrate` and `sqlmigrate` load the
 render; filename-based SQL is only a compatibility fallback for older placeholder
 files with no operation metadata.
 
+Models with `Managed` explicitly set to false remain available to ORM, admin,
+API, serializer, and content-type consumers, but they are excluded from
+migration state so Gogo does not create, alter, or drop their existing tables.
+
 ## Migration History Recorder
 
 `Recorder` stores applied migration rows in `gogo_migrations` with app, name,

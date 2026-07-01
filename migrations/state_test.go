@@ -54,3 +54,22 @@ func TestProjectStateFromRegistry(t *testing.T) {
 		t.Fatalf("field state = %#v", model.Fields)
 	}
 }
+
+func TestProjectStateFromRegistrySkipsUnmanagedModels(t *testing.T) {
+	managed := false
+	registry := models.NewRegistry()
+	if err := registry.RegisterMetadata(models.Metadata{
+		AppLabel:  "legacy",
+		ModelName: "Order",
+		TableName: "legacy_order",
+		Managed:   &managed,
+		Fields:    []models.FieldMeta{{Name: "id", Column: "id", PrimaryKey: true}},
+	}); err != nil {
+		t.Fatalf("RegisterMetadata() error = %v", err)
+	}
+
+	state := StateFromRegistry(registry)
+	if _, exists := state.Models["legacy.Order"]; exists {
+		t.Fatalf("unmanaged model was included in migration state: %#v", state.Models)
+	}
+}

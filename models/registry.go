@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -92,6 +93,28 @@ func (r *Registry) SerializerMetadata() []Metadata {
 // ContentTypeMetadata returns metadata for content type creation.
 func (r *Registry) ContentTypeMetadata() []Metadata {
 	return r.Models()
+}
+
+// ValidateRelations verifies relation targets across all registered metadata.
+func (r *Registry) ValidateRelations() error {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for _, meta := range r.models {
+		for _, field := range meta.Fields {
+			target := strings.TrimSpace(field.RelationTarget)
+			if target == "" || target == "self" {
+				continue
+			}
+			if !strings.Contains(target, ".") {
+				target = meta.AppLabel + "." + target
+			}
+			if _, ok := r.byKey[target]; !ok {
+				return fmt.Errorf("%w: %s.%s relation %s targets unknown model %s", ErrInvalidMetadata, meta.AppLabel, meta.ModelName, field.Name, target)
+			}
+		}
+	}
+	return nil
 }
 
 func modelKey(appLabel, modelName string) string {

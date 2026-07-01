@@ -20,6 +20,7 @@ func TestAbstractBaseFieldsAreInheritedAndOverridden(t *testing.T) {
 		AppLabel:  "blog",
 		ModelName: "Post",
 		Fields: []FieldMeta{
+			{Name: "id", Column: "id", PrimaryKey: true},
 			{Name: "slug", Column: "post_slug"},
 			{Name: "title", Column: "title"},
 		},
@@ -29,7 +30,7 @@ func TestAbstractBaseFieldsAreInheritedAndOverridden(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveInheritance() error = %v", err)
 	}
-	if names := fieldNames(resolved.Fields); !reflect.DeepEqual(names, []string{"created_at", "slug", "title"}) {
+	if names := fieldNames(resolved.Fields); !reflect.DeepEqual(names, []string{"created_at", "slug", "id", "title"}) {
 		t.Fatalf("fields = %#v", names)
 	}
 	if resolved.Fields[0].SourceModel != "core.Timestamped" {
@@ -75,7 +76,7 @@ func TestProxyInheritanceUsesParentTableAndMetadata(t *testing.T) {
 		ModelName:          "Order",
 		TableName:          "orders_order",
 		DefaultManagerName: "objects",
-		Fields:             []FieldMeta{{Name: "status"}},
+		Fields:             []FieldMeta{{Name: "id", Column: "id", PrimaryKey: true}, {Name: "status"}},
 	}
 	proxy := Metadata{
 		AppLabel:           "orders",
@@ -97,13 +98,17 @@ func TestProxyInheritanceUsesParentTableAndMetadata(t *testing.T) {
 	if resolved.DefaultManagerName != "open_objects" {
 		t.Fatalf("DefaultManagerName = %q", resolved.DefaultManagerName)
 	}
-	if names := fieldNames(resolved.Fields); !reflect.DeepEqual(names, []string{"status"}) {
+	if names := fieldNames(resolved.Fields); !reflect.DeepEqual(names, []string{"id", "status"}) {
 		t.Fatalf("proxy fields = %#v", names)
 	}
 }
 
 func TestAuthUserExtensionMetadataPreservesFrameworkUserTable(t *testing.T) {
-	extension := Metadata{AppLabel: "accounts", ModelName: "CustomerUserExtension"}
+	extension := Metadata{
+		AppLabel:  "accounts",
+		ModelName: "CustomerUserExtension",
+		Fields:    []FieldMeta{{Name: "id", Column: "id", PrimaryKey: true}},
+	}
 	resolved, err := ResolveInheritance(extension, WithAuthUserExtension(AuthUserExtension{
 		UserModel:       ModelRef{AppLabel: "auth", ModelName: "User", TableName: "auth_user"},
 		ProfileRelation: "profile",

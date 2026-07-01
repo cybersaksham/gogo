@@ -65,6 +65,12 @@ Supported delete behaviors include cascade, protect, restrict, set null, set def
 
 ## Validation
 
+`models.ValidateMetadata` rejects invalid migration-facing metadata, including
+duplicate field names or columns, declared fields without a primary key,
+duplicate generated index names, duplicate generated constraint names, and
+duplicate custom permission codenames. `models.Registry.ValidateRelations`
+validates relation targets after all model metadata is registered.
+
 Field validation returns `fields.ErrValidation` or `fields.ErrInvalidField`.
 
 Model validation uses:

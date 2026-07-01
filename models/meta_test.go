@@ -103,3 +103,67 @@ func TestValidateMetadataRejectsUnmanagedGeneratedMigrations(t *testing.T) {
 		t.Fatalf("ValidateMetadata() error = %v, want ErrInvalidMetadata", err)
 	}
 }
+
+func TestValidateMetadataRejectsDuplicateColumnsAndMissingPrimaryKey(t *testing.T) {
+	err := ValidateMetadata(Metadata{
+		AppLabel:  "bad",
+		ModelName: "DuplicateColumn",
+		Fields: []FieldMeta{
+			{Name: "id", Column: "id", PrimaryKey: true},
+			{Name: "legacy_id", Column: "id"},
+		},
+	})
+	if !errors.Is(err, ErrInvalidMetadata) {
+		t.Fatalf("ValidateMetadata(duplicate columns) error = %v, want ErrInvalidMetadata", err)
+	}
+
+	err = ValidateMetadata(Metadata{
+		AppLabel:  "bad",
+		ModelName: "MissingPrimaryKey",
+		Fields:    []FieldMeta{{Name: "name", Column: "name"}},
+	})
+	if !errors.Is(err, ErrInvalidMetadata) {
+		t.Fatalf("ValidateMetadata(missing primary key) error = %v, want ErrInvalidMetadata", err)
+	}
+}
+
+func TestValidateMetadataRejectsDuplicateIndexesConstraintsAndPermissions(t *testing.T) {
+	err := ValidateMetadata(Metadata{
+		AppLabel:  "bad",
+		ModelName: "DuplicateNames",
+		Fields:    []FieldMeta{{Name: "id", Column: "id", PrimaryKey: true}},
+		Indexes: []Index{
+			{Name: "idx_name", Fields: []IndexField{Asc("name")}},
+			{Name: "idx_name", Fields: []IndexField{Asc("slug")}},
+		},
+	})
+	if !errors.Is(err, ErrInvalidMetadata) {
+		t.Fatalf("ValidateMetadata(duplicate indexes) error = %v, want ErrInvalidMetadata", err)
+	}
+
+	err = ValidateMetadata(Metadata{
+		AppLabel:  "bad",
+		ModelName: "DuplicateConstraints",
+		Fields:    []FieldMeta{{Name: "id", Column: "id", PrimaryKey: true}},
+		Constraints: []Constraint{
+			{Name: "uniq_name", Type: ConstraintUnique, Fields: []IndexField{Asc("name")}},
+			{Name: "uniq_name", Type: ConstraintUnique, Fields: []IndexField{Asc("slug")}},
+		},
+	})
+	if !errors.Is(err, ErrInvalidMetadata) {
+		t.Fatalf("ValidateMetadata(duplicate constraints) error = %v, want ErrInvalidMetadata", err)
+	}
+
+	err = ValidateMetadata(Metadata{
+		AppLabel:  "bad",
+		ModelName: "DuplicatePermissions",
+		Fields:    []FieldMeta{{Name: "id", Column: "id", PrimaryKey: true}},
+		Permissions: []Permission{
+			{CodeName: "publish", Name: "Can publish"},
+			{CodeName: "publish", Name: "Can publish again"},
+		},
+	})
+	if !errors.Is(err, ErrInvalidMetadata) {
+		t.Fatalf("ValidateMetadata(duplicate permissions) error = %v, want ErrInvalidMetadata", err)
+	}
+}

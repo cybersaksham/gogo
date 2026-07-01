@@ -100,6 +100,46 @@ func TestModelRegistryExposesMetadataForFrameworkConsumers(t *testing.T) {
 	}
 }
 
+func TestModelRegistryValidatesRelationTargets(t *testing.T) {
+	registry := NewRegistry()
+	if err := registry.RegisterMetadata(Metadata{
+		AppLabel:  "blog",
+		ModelName: "Article",
+		Fields:    []FieldMeta{{Name: "id", Column: "id", PrimaryKey: true}},
+	}); err != nil {
+		t.Fatalf("RegisterMetadata(article) error = %v", err)
+	}
+	if err := registry.RegisterMetadata(Metadata{
+		AppLabel:  "blog",
+		ModelName: "Comment",
+		Fields: []FieldMeta{
+			{Name: "id", Column: "id", PrimaryKey: true},
+			{Name: "article_id", Column: "article_id", RelationTarget: "blog.Article"},
+			{Name: "parent_id", Column: "parent_id", RelationTarget: "self"},
+		},
+	}); err != nil {
+		t.Fatalf("RegisterMetadata(comment) error = %v", err)
+	}
+	if err := registry.ValidateRelations(); err != nil {
+		t.Fatalf("ValidateRelations() error = %v", err)
+	}
+
+	missing := NewRegistry()
+	if err := missing.RegisterMetadata(Metadata{
+		AppLabel:  "blog",
+		ModelName: "Comment",
+		Fields: []FieldMeta{
+			{Name: "id", Column: "id", PrimaryKey: true},
+			{Name: "author_id", Column: "author_id", RelationTarget: "auth.User"},
+		},
+	}); err != nil {
+		t.Fatalf("RegisterMetadata(comment) error = %v", err)
+	}
+	if err := missing.ValidateRelations(); !errors.Is(err, ErrInvalidMetadata) {
+		t.Fatalf("ValidateRelations() error = %v, want ErrInvalidMetadata", err)
+	}
+}
+
 func modelNames(models []Metadata) []string {
 	names := make([]string, len(models))
 	for i, meta := range models {
