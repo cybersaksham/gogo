@@ -49,10 +49,10 @@ func TestGeneratedProjectEndToEndVerification(t *testing.T) {
 	withWorkingDirectory(t, filepath.Join(target, "apps"), func() {
 		for _, appName := range []string{"accounts", "blog"} {
 			var stdout bytes.Buffer
-			if err := NewRoot().Execute(context.Background(), []string{"makemigrations", "--app", appName, "--name", "end_to_end"}, &stdout, &bytes.Buffer{}); err != nil {
-				t.Fatalf("makemigrations %s error = %v", appName, err)
+			if err := NewRoot().Execute(context.Background(), []string{"makemigrations", "--app", appName, "--name", "end_to_end", "--check", "--dry-run"}, &stdout, &bytes.Buffer{}); err != nil {
+				t.Fatalf("makemigrations check %s error = %v", appName, err)
 			}
-			want := "created " + appName + ".0001_end_to_end"
+			want := "no changes detected"
 			if !strings.Contains(stdout.String(), want) {
 				t.Fatalf("makemigrations %s stdout = %q, want %q", appName, stdout.String(), want)
 			}

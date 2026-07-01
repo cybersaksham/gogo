@@ -30,7 +30,22 @@ func TestGeneratedProjectWithAppCompilesAsDownstreamModule(t *testing.T) {
 	writeTextFile(t, filepath.Join(target, ".env"), "GOGO_SECRET_KEY=generated-project-secret\nDATABASE_URL=sqlite://./db.sqlite3\n")
 	writeTextFile(t, filepath.Join(target, "generated_runtime_test.go"), generatedRuntimeRouteTestSource())
 	runGeneratedCommand(t, target, "go", "mod", "tidy")
-	runGeneratedCommand(t, target, "go", "run", "manage.go", "makemigrations")
+	makemigrationsCheck := runGeneratedCommandOutput(t, target, "go", "run", "manage.go", "makemigrations", "--check", "--dry-run")
+	if !strings.Contains(makemigrationsCheck, "no changes detected") {
+		t.Fatalf("makemigrations check output = %q", makemigrationsCheck)
+	}
+	migrationPlan := runGeneratedCommandOutput(t, target, "go", "run", "manage.go", "migrate", "--plan")
+	if !strings.Contains(migrationPlan, "apply blog.0001_initial") {
+		t.Fatalf("migrate --plan output = %q", migrationPlan)
+	}
+	sqlmigrateOutput := runGeneratedCommandOutput(t, target, "go", "run", "manage.go", "sqlmigrate", "blog", "0001_initial")
+	if !strings.Contains(sqlmigrateOutput, "CREATE TABLE IF NOT EXISTS blog_item") {
+		t.Fatalf("sqlmigrate output = %q", sqlmigrateOutput)
+	}
+	workerCheck := runGeneratedCommandOutput(t, target, "go", "run", "manage.go", "worker", "--check", "--broker-url", "memory://", "--result-backend", "memory")
+	if !strings.Contains(workerCheck, "worker configured queues=default") {
+		t.Fatalf("worker --check output = %q", workerCheck)
+	}
 	runGeneratedCommand(t, target, "go", "run", "manage.go", "migrate")
 	runGeneratedCommand(t, target, "go", "run", "manage.go", "createsuperuser", "--username", "admin", "--email", "admin@example.com", "--password", "CorrectHorseBatteryStaple42", "--noinput")
 	inspectOutput := runGeneratedCommandOutput(t, target, "go", "run", "manage.go", "inspect", "--report")
