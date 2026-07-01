@@ -34,3 +34,9 @@ writer, such as Server-Sent Events, WebSockets, response flushing, or
 
 Keep route handlers thin. Put reusable business logic in app services so admin,
 API, tasks, and tests can reuse the same code.
+
+## Access Logs
+
+`gogo.http.AccessLogMiddleware` writes structured JSON with method, path, host,
+remote address, status, duration, request ID, and `route_name` when the request
+matches either a framework route or a raw `net/http.Handler` route.

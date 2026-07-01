@@ -177,6 +177,7 @@ func (r *Router) ServeHTTP(w nethttp.ResponseWriter, raw *nethttp.Request) {
 			request.WithPathParam(name, value)
 			raw.SetPathValue(name, value)
 		}
+		setAccessLogRouteName(raw.Context(), route.Name)
 		if route.Kind == RouteKindHTTP {
 			route.HTTPHandler.ServeHTTP(w, raw)
 			return

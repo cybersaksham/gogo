@@ -2,6 +2,7 @@ package http
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	nethttp "net/http"
 	"net/http/httptest"
@@ -132,6 +133,40 @@ func TestAccessLogMiddlewareWritesStructuredFields(t *testing.T) {
 	}
 }
 
+func TestAccessLogMiddlewareIncludesFrameworkRouteName(t *testing.T) {
+	router := NewRouter()
+	if err := router.Handle("object-list", "/objects/", func(_ context.Context, _ *Request) Response {
+		return Text(nethttp.StatusAccepted, "accepted")
+	}, nethttp.MethodGet); err != nil {
+		t.Fatalf("Handle() error = %v", err)
+	}
+
+	var log bytes.Buffer
+	Chain(router, AccessLogMiddleware(&log)).ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(nethttp.MethodGet, "/objects/", nil))
+
+	entry := decodeAccessLogEntry(t, log.Bytes())
+	if entry["route_name"] != "object-list" {
+		t.Fatalf("route_name = %#v, want object-list in entry %#v", entry["route_name"], entry)
+	}
+}
+
+func TestAccessLogMiddlewareIncludesRawRouteName(t *testing.T) {
+	router := NewRouter()
+	if err := router.HandleHTTP("stream-events", "/events/", nethttp.HandlerFunc(func(w nethttp.ResponseWriter, _ *nethttp.Request) {
+		w.WriteHeader(nethttp.StatusNoContent)
+	}), nethttp.MethodGet); err != nil {
+		t.Fatalf("HandleHTTP() error = %v", err)
+	}
+
+	var log bytes.Buffer
+	Chain(router, AccessLogMiddleware(&log)).ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(nethttp.MethodGet, "/events/", nil))
+
+	entry := decodeAccessLogEntry(t, log.Bytes())
+	if entry["route_name"] != "stream-events" {
+		t.Fatalf("route_name = %#v, want stream-events in entry %#v", entry["route_name"], entry)
+	}
+}
+
 func TestHostValidationMiddlewareRejectsUnexpectedHost(t *testing.T) {
 	final := Handler(nethttp.HandlerFunc(func(w nethttp.ResponseWriter, _ *nethttp.Request) {
 		w.WriteHeader(204)
@@ -155,6 +190,15 @@ func TestHostValidationMiddlewareRejectsUnexpectedHost(t *testing.T) {
 	if rejected.Code != 400 {
 		t.Fatalf("rejected status = %d, want 400", rejected.Code)
 	}
+}
+
+func decodeAccessLogEntry(t *testing.T, raw []byte) map[string]any {
+	t.Helper()
+	var entry map[string]any
+	if err := json.Unmarshal(bytes.TrimSpace(raw), &entry); err != nil {
+		t.Fatalf("log entry is not JSON: %v", err)
+	}
+	return entry
 }
 
 func recordingMiddleware(name string, order *[]string) Middleware {

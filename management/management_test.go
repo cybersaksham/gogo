@@ -198,14 +198,14 @@ func TestProjectServerStarterReadyFailurePreventsServerStart(t *testing.T) {
 
 func TestProjectServerStarterRunsShutdownAfterCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	var shutdownCalled bool
+	var shutdownCalls int
 	project := Project{
 		Ready: func(context.Context) error {
 			cancel()
 			return nil
 		},
 		Shutdown: func(context.Context) error {
-			shutdownCalled = true
+			shutdownCalls++
 			return nil
 		},
 		ServerConfig: func(conf.Settings) gogohttp.ServerConfig {
@@ -217,8 +217,8 @@ func TestProjectServerStarterRunsShutdownAfterCancellation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("serverStarter error = %v", err)
 	}
-	if !shutdownCalled {
-		t.Fatal("Shutdown hook was not called")
+	if shutdownCalls != 1 {
+		t.Fatalf("Shutdown hook calls = %d, want 1", shutdownCalls)
 	}
 }
 

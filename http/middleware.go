@@ -19,7 +19,14 @@ const RequestIDHeader = "X-Request-ID"
 
 type contextKey string
 
-const requestIDContextKey contextKey = "gogo.request_id"
+const (
+	requestIDContextKey contextKey = "gogo.request_id"
+	accessLogContextKey contextKey = "gogo.access_log"
+)
+
+type accessLogFields struct {
+	routeName string
+}
 
 // Handler is the HTTP handler boundary used by framework middleware.
 type Handler = nethttp.Handler
@@ -115,6 +122,8 @@ func AccessLogMiddleware(writer io.Writer) Middleware {
 	return func(next Handler) Handler {
 		return nethttp.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
 			recorder := &statusRecorder{ResponseWriter: w, status: nethttp.StatusOK}
+			fields := &accessLogFields{}
+			r = r.WithContext(context.WithValue(r.Context(), accessLogContextKey, fields))
 			started := time.Now()
 			next.ServeHTTP(recorder, r)
 
@@ -126,6 +135,9 @@ func AccessLogMiddleware(writer io.Writer) Middleware {
 				"remote_addr": r.RemoteAddr,
 				"request_id":  RequestIDFromContext(r.Context()),
 				"status":      recorder.status,
+			}
+			if fields.routeName != "" {
+				entry["route_name"] = fields.routeName
 			}
 			_ = json.NewEncoder(writer).Encode(entry)
 		})
@@ -160,6 +172,14 @@ func (r *statusRecorder) Write(data []byte) (int, error) {
 		r.status = nethttp.StatusOK
 	}
 	return r.ResponseWriter.Write(data)
+}
+
+func setAccessLogRouteName(ctx context.Context, routeName string) {
+	fields, _ := ctx.Value(accessLogContextKey).(*accessLogFields)
+	if fields == nil {
+		return
+	}
+	fields.routeName = routeName
 }
 
 func newRequestID() string {

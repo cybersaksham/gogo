@@ -151,6 +151,29 @@ func TestShutdownAfterPartialReadyShutsDownStartedApps(t *testing.T) {
 	}
 }
 
+func TestShutdownRunsEachReadyAppExactlyOnce(t *testing.T) {
+	var calls int
+	registry := NewRegistry()
+	mustRegisterApp(t, registry, lifecycleConfig{
+		BaseConfig: appConfig(t, "example.blog", "blog"),
+		ready:      func(context.Context, *Registry) error { return nil },
+		shutdown:   func(context.Context) error { calls++; return nil },
+	})
+
+	if err := registry.Ready(context.Background()); err != nil {
+		t.Fatalf("Ready() error = %v", err)
+	}
+	if err := registry.Shutdown(context.Background()); err != nil {
+		t.Fatalf("Shutdown() error = %v", err)
+	}
+	if err := registry.Shutdown(context.Background()); err != nil {
+		t.Fatalf("Shutdown() second call error = %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("shutdown calls = %d, want 1", calls)
+	}
+}
+
 func TestReadyWithCanceledContextStopsBeforeHooks(t *testing.T) {
 	calls := 0
 	registry := NewRegistry()
