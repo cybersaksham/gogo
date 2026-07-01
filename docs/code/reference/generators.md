@@ -77,7 +77,12 @@ Define models in `models.go` by returning `models.Metadata` from `ModelMeta`. Ad
 
 Register admin entries in `admin.go` with `admin.Registry.RegisterMetadata` or `Register`. Keep list displays, search fields, filters, readonly fields, inlines, actions, and prepopulated fields close to the model they configure. Use `go run manage.go createsuperuser` to create staff admin users for the generated admin login.
 
-Expose HTTP routes in `urls.go` with the framework HTTP router. Expose JSON APIs in `api.go` with the API router and serializers from `serializers.go`; generated project routing mounts app APIs under `/api/`.
+Expose HTTP routes in `urls.go` with the framework HTTP router. Use
+`router.Handle` for Gogo views and `router.HandleHTTP` for existing
+`net/http.Handler` routes that need the original writer/request, including
+streaming, flushing, hijacking, upgrades, and `r.PathValue(...)`. Expose JSON
+APIs in `api.go` with the API router and serializers from `serializers.go`;
+generated project routing mounts app APIs under `/api/`.
 
 Register background work in `tasks.go` with `queue.App.RegisterTask`. Keep task names namespaced as `<app>.<task>` and set queue, retry, timeout, and ack options explicitly.
 

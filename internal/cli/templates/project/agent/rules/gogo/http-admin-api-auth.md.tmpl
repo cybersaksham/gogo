@@ -13,6 +13,10 @@ Framework module: `github.com/cybersaksham/gogo`.
   those `RegisterAPI` handlers under `/api/`.
 - Use Gogo HTTP request/response helpers, route patterns, URL reversing,
   middleware, decorators, redirects, generic views, and error handling.
+- Use `router.Handle` for Gogo framework views. Use `router.HandleHTTP` for
+  existing `net/http.Handler` routes that need the original response writer or
+  request, including streaming, flushing, hijacking, WebSocket-style upgrades,
+  and standard-library `r.PathValue(...)` route parameters.
 - Built-in HTTP helpers include method decorators, conditional requests, ETag
   and Last-Modified handling, gzip responses, Vary headers, cache-control
   decorators, frame-options decorators, CSRF decorators, request IDs, panic

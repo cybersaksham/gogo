@@ -119,6 +119,12 @@ func TestGeneratedFunctionalSurface(t *testing.T) {
 		t.Fatalf("homepage status = %d", response.Code)
 	}
 
+	rawResponse := httptest.NewRecorder()
+	router.ServeHTTP(rawResponse, httptest.NewRequest(http.MethodGet, "/raw/", nil))
+	if rawResponse.Code != http.StatusOK || rawResponse.Body.String() != "raw handler" {
+		t.Fatalf("raw route response = %d body=%q", rawResponse.Code, rawResponse.Body.String())
+	}
+
 	site := project.NewAdminSite()
 	if site.URLPrefix != "/admin" || site.ModelRegistry == nil {
 		t.Fatalf("admin site = %#v", site)

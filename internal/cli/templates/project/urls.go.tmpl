@@ -22,6 +22,11 @@ func RegisterRoutes(router *gogohttp.Router) error {
 	}, http.MethodGet); err != nil {
 		return err
 	}
+	if err := router.HandleHTTP("raw", "/raw/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("raw handler"))
+	}), http.MethodGet); err != nil {
+		return err
+	}
 	// gogo:startapp-routes
 	apiRouter, err := NewAPIRouter()
 	if err != nil {

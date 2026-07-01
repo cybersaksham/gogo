@@ -19,5 +19,18 @@ Gogo HTTP code belongs in project and app URL files:
 | Views | function views, generic views, decorators, and shared handler helpers |
 | Errors | centralized error handling and consistent HTTP responses |
 
+## Framework And Raw Handlers
+
+Use `router.Handle` for Gogo framework views that return `gogohttp.Response`.
+Use `router.HandleHTTP` when mounting an existing `net/http.Handler` directly.
+Raw handlers receive the original `http.ResponseWriter` and `*http.Request`, so
+streaming, flushing, hijacking, upgrades, and file-serving behavior are
+preserved. Path parameters are also available through `r.PathValue("name")`.
+
+`gogohttp.FromHandler` remains useful for adapting simple non-streaming handlers
+into framework views. Use `HandleHTTP` for handlers that depend on the real
+writer, such as Server-Sent Events, WebSockets, response flushing, or
+`http.ResponseController`.
+
 Keep route handlers thin. Put reusable business logic in app services so admin,
 API, tasks, and tests can reuse the same code.
