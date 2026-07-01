@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"testing"
+
+	"github.com/cybersaksham/gogo/models"
 )
 
 func TestExecutorApplyRollbackAndFake(t *testing.T) {
@@ -143,6 +145,35 @@ func TestExecutorFakeInitialRequiresMatchingSchemaShape(t *testing.T) {
 	}
 	if len(match.SQL) != 0 {
 		t.Fatalf("shape match should fake initial without SQL, got %#v", match.SQL)
+	}
+}
+
+func TestExecutorFakeInitialRejectsTypeAndDefaultMismatch(t *testing.T) {
+	ctx := context.Background()
+	db := openRecorderDB(t)
+	defer db.Close()
+	recorder := NewRecorder(db, "executor")
+	defaultValue := databaseDefaultPtr(models.DefaultValue("draft"))
+	migration := testMigration("blog", "0001_initial")
+	migration.Operations = []Operation{initialSchemaOperation{
+		table: "blog_post",
+		columns: []ColumnSchema{
+			{Name: "id", Kind: "bigint", NormalizedKind: "bigint", PrimaryKey: true},
+			{Name: "title", Kind: "text", NormalizedKind: "text", Default: defaultValue},
+		},
+	}}
+
+	editor := &shapeAwareSchemaEditor{columns: map[string][]ColumnSchema{
+		"blog_post": {
+			{Name: "id", Kind: "bigint", NormalizedKind: "bigint", PrimaryKey: true},
+			{Name: "title", Kind: "integer", NormalizedKind: "integer"},
+		},
+	}}
+	if err := NewExecutor(recorder, editor).Apply(ctx, []Migration{migration}, ExecutorOptions{FakeInitial: true}); err != nil {
+		t.Fatalf("Apply(fake-initial mismatch) error = %v", err)
+	}
+	if len(editor.SQL) != 1 {
+		t.Fatalf("type/default mismatch should execute migration SQL, got %#v", editor.SQL)
 	}
 }
 

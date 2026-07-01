@@ -69,8 +69,11 @@ func TestDiffSchemaReportsMissingColumnsAndPassesMatch(t *testing.T) {
 	}
 
 	db = openSchemaTestDB(t, dbPath)
-	if _, err := db.Exec(`ALTER TABLE blog_item ADD COLUMN slug text`); err != nil {
-		t.Fatalf("add slug: %v", err)
+	if _, err := db.Exec(`DROP TABLE blog_item`); err != nil {
+		t.Fatalf("drop blog table: %v", err)
+	}
+	if _, err := db.Exec(`CREATE TABLE blog_item (id integer PRIMARY KEY, name text NOT NULL, slug text NOT NULL)`); err != nil {
+		t.Fatalf("create matching blog table: %v", err)
 	}
 	db.Close()
 	stdout.Reset()
@@ -79,6 +82,41 @@ func TestDiffSchemaReportsMissingColumnsAndPassesMatch(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "schema matches model metadata") {
 		t.Fatalf("diffschema match output = %q", stdout.String())
+	}
+}
+
+func TestDiffSchemaReportsTypeAndDefaultMismatches(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "db.sqlite3")
+	writeSchemaTestEnv(t, dir, dbPath)
+	db := openSchemaTestDB(t, dbPath)
+	if _, err := db.Exec(`CREATE TABLE blog_item (id integer PRIMARY KEY, status integer DEFAULT 1 NOT NULL)`); err != nil {
+		t.Fatalf("create blog table: %v", err)
+	}
+	db.Close()
+	t.Chdir(dir)
+
+	defaultValue := models.DefaultValue("draft")
+	meta := models.Metadata{
+		AppLabel:  "blog",
+		ModelName: "Item",
+		TableName: "blog_item",
+		Fields: []models.FieldMeta{
+			{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true},
+			{Name: "status", Column: "status", Kind: "text", DBDefault: defaultValue},
+		},
+	}
+	root := NewRootWithOptions(RootOptions{ProjectModels: []models.Metadata{meta}})
+	var stdout bytes.Buffer
+	err := root.Execute(context.Background(), []string{"diffschema", "--app", "blog"}, &stdout, &bytes.Buffer{})
+	if !errors.Is(err, ErrCommandFailed) {
+		t.Fatalf("diffschema error = %v, want ErrCommandFailed", err)
+	}
+	output := stdout.String()
+	for _, want := range []string{`TYPE mismatch blog_item.status`, `DEFAULT mismatch blog_item.status`} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("diffschema output missing %q:\n%s", want, output)
+		}
 	}
 }
 

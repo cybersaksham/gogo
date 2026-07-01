@@ -3,6 +3,8 @@ package migrations
 import (
 	"context"
 	"strings"
+
+	"github.com/cybersaksham/gogo/models"
 )
 
 // SchemaEditor is the database-facing contract used by operations.
@@ -57,11 +59,21 @@ type TableSchema struct {
 
 // ColumnSchema describes one column required by an initial migration.
 type ColumnSchema struct {
-	Name            string
-	Kind            string
-	PrimaryKey      bool
-	Nullable        bool
-	OrdinalPosition int
+	Schema             string
+	Name               string
+	Kind               string
+	NormalizedKind     string
+	UDTName            string
+	CharacterMaxLength int
+	NumericPrecision   int
+	NumericScale       int
+	Default            *models.DatabaseDefault
+	DefaultSQL         string
+	Collation          string
+	Identity           bool
+	PrimaryKey         bool
+	Nullable           bool
+	OrdinalPosition    int
 }
 
 // Operation is the complete migration operation contract.

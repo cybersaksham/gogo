@@ -1359,7 +1359,11 @@ func (e sqlSchemaEditor) TableColumns(ctx context.Context, table string) ([]migr
 			if err := rows.Scan(&cid, &name, &kind, &notNull, &defaultValue, &primaryKey); err != nil {
 				return nil, err
 			}
-			columns = append(columns, migrations.ColumnSchema{Name: name, Kind: kind, PrimaryKey: primaryKey > 0, Nullable: notNull == 0 && primaryKey == 0, OrdinalPosition: cid + 1})
+			column := migrations.ColumnSchema{Name: name, Kind: kind, NormalizedKind: normalizeSQLiteColumnKind(kind), PrimaryKey: primaryKey > 0, Nullable: notNull == 0 && primaryKey == 0, OrdinalPosition: cid + 1}
+			if defaultValue.Valid {
+				column.DefaultSQL = defaultValue.String
+			}
+			columns = append(columns, column)
 		}
 		return columns, rows.Err()
 	case "postgres":
@@ -1371,21 +1375,96 @@ func (e sqlSchemaEditor) TableColumns(ctx context.Context, table string) ([]migr
 		var columns []migrations.ColumnSchema
 		for rows.Next() {
 			var tableName string
+			var tableSchema string
 			var name string
 			var kind string
+			var udtName string
+			var characterMaxLength sql.NullInt64
+			var numericPrecision sql.NullInt64
+			var numericScale sql.NullInt64
+			var defaultValue sql.NullString
+			var collation sql.NullString
+			var identity bool
 			var nullable bool
 			var primaryKey bool
 			var ordinalPosition int
-			if err := rows.Scan(&tableName, &name, &kind, &nullable, &primaryKey, &ordinalPosition); err != nil {
+			if err := rows.Scan(&tableSchema, &tableName, &name, &kind, &udtName, &characterMaxLength, &numericPrecision, &numericScale, &defaultValue, &collation, &identity, &nullable, &primaryKey, &ordinalPosition); err != nil {
 				return nil, err
 			}
 			if tableName == table {
-				columns = append(columns, migrations.ColumnSchema{Name: name, Kind: kind, PrimaryKey: primaryKey, Nullable: nullable, OrdinalPosition: ordinalPosition})
+				column := migrations.ColumnSchema{
+					Schema:          tableSchema,
+					Name:            name,
+					Kind:            kind,
+					NormalizedKind:  normalizePostgresColumnKind(kind, intFromNull(characterMaxLength), intFromNull(numericPrecision), intFromNull(numericScale)),
+					UDTName:         udtName,
+					PrimaryKey:      primaryKey,
+					Nullable:        nullable,
+					Identity:        identity,
+					OrdinalPosition: ordinalPosition,
+				}
+				column.CharacterMaxLength = intFromNull(characterMaxLength)
+				column.NumericPrecision = intFromNull(numericPrecision)
+				column.NumericScale = intFromNull(numericScale)
+				if defaultValue.Valid {
+					column.DefaultSQL = defaultValue.String
+				}
+				if collation.Valid {
+					column.Collation = collation.String
+				}
+				columns = append(columns, column)
 			}
 		}
 		return columns, rows.Err()
 	default:
 		return nil, errors.New("database dialect does not support column introspection")
+	}
+}
+
+func intFromNull(value sql.NullInt64) int {
+	if !value.Valid {
+		return 0
+	}
+	return int(value.Int64)
+}
+
+func normalizeSQLiteColumnKind(kind string) string {
+	normalized := migrations.NormalizeColumnKind(kind)
+	if strings.Contains(normalized, "int") {
+		return "bigint"
+	}
+	if strings.Contains(normalized, "char") || strings.Contains(normalized, "clob") || strings.Contains(normalized, "text") {
+		return "text"
+	}
+	if strings.Contains(normalized, "blob") {
+		return "blob"
+	}
+	if strings.Contains(normalized, "real") || strings.Contains(normalized, "floa") || strings.Contains(normalized, "doub") {
+		return "float"
+	}
+	return normalized
+}
+
+func normalizePostgresColumnKind(kind string, characterMaxLength, numericPrecision, numericScale int) string {
+	normalized := migrations.NormalizeColumnKind(kind)
+	switch normalized {
+	case "character varying", "varchar":
+		if characterMaxLength > 0 {
+			return fmt.Sprintf("varchar(%d)", characterMaxLength)
+		}
+		return "varchar"
+	case "numeric":
+		if numericPrecision > 0 && numericScale > 0 {
+			return fmt.Sprintf("numeric(%d,%d)", numericPrecision, numericScale)
+		}
+		if numericPrecision > 0 {
+			return fmt.Sprintf("numeric(%d)", numericPrecision)
+		}
+		return "numeric"
+	case "timestamp without time zone":
+		return "timestamp"
+	default:
+		return normalized
 	}
 }
 

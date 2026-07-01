@@ -66,10 +66,13 @@ func (o CreateModel) InitialSchema() []migrations.TableSchema {
 	columns := make([]migrations.ColumnSchema, 0, len(fields))
 	for _, field := range fields {
 		columns = append(columns, migrations.ColumnSchema{
-			Name:       columnName(field),
-			Kind:       fieldKind(field),
-			PrimaryKey: field.PrimaryKey,
-			Nullable:   field.Null,
+			Name:           columnName(field),
+			Kind:           fieldKind(field),
+			NormalizedKind: migrations.NormalizeColumnKind(fieldKind(field)),
+			Default:        field.DBDefault,
+			Collation:      field.DBCollation,
+			PrimaryKey:     field.PrimaryKey,
+			Nullable:       field.Null,
 		})
 	}
 	return []migrations.TableSchema{{Name: table, Columns: columns}}

@@ -179,21 +179,37 @@ func compareModelToSchema(ctx context.Context, editor sqlSchemaEditor, meta mode
 	if len(columns) == 0 {
 		return []string{fmt.Sprintf("MISSING table %s for %s.%s", table, meta.AppLabel, meta.ModelName)}
 	}
-	actual := make(map[string]migrations.ColumnSchema, len(columns))
-	for _, column := range columns {
-		actual[column.Name] = column
+	expected := tableSchemaFromMetadata(meta, table)
+	differences := migrations.CompareTableSchema(expected, columns)
+	diffs := make([]string, 0, len(differences))
+	for _, difference := range differences {
+		diffs = append(diffs, difference.String()+fmt.Sprintf(" for %s.%s", meta.AppLabel, meta.ModelName))
 	}
-	var diffs []string
+	return diffs
+}
+
+func tableSchemaFromMetadata(meta models.Metadata, table string) migrations.TableSchema {
+	columns := make([]migrations.ColumnSchema, 0, len(meta.Fields))
 	for _, field := range meta.Fields {
 		column := field.Column
 		if column == "" {
 			column = field.Name
 		}
-		if _, ok := actual[column]; !ok {
-			diffs = append(diffs, fmt.Sprintf("MISSING column %s.%s for %s.%s", table, column, meta.AppLabel, meta.ModelName))
+		defaultValue, _ := models.NormalizeDatabaseDefault(field.DBDefault)
+		columnSchema := migrations.ColumnSchema{
+			Name:           column,
+			Kind:           field.Kind,
+			NormalizedKind: migrations.NormalizeColumnKind(field.Kind),
+			PrimaryKey:     field.PrimaryKey,
+			Nullable:       field.Null,
+			Collation:      field.DBCollation,
 		}
+		if defaultValue.Kind != models.DefaultNone {
+			columnSchema.Default = &defaultValue
+		}
+		columns = append(columns, columnSchema)
 	}
-	return diffs
+	return migrations.TableSchema{Name: table, Columns: columns}
 }
 
 func modelNameFromTable(table string) string {

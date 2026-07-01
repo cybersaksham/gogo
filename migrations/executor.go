@@ -205,23 +205,7 @@ func tableShapeMatches(ctx context.Context, checker TableShapeChecker, expected 
 	if len(actualColumns) == 0 {
 		return false, nil
 	}
-	actualByName := make(map[string]ColumnSchema, len(actualColumns))
-	for _, column := range actualColumns {
-		actualByName[strings.ToLower(column.Name)] = column
-	}
-	for _, column := range expected.Columns {
-		actual, ok := actualByName[strings.ToLower(column.Name)]
-		if !ok {
-			return false, nil
-		}
-		if column.PrimaryKey && !actual.PrimaryKey {
-			return false, nil
-		}
-		if !column.Nullable && actual.Nullable && !column.PrimaryKey {
-			return false, nil
-		}
-	}
-	return true, nil
+	return len(CompareTableSchema(expected, actualColumns)) == 0, nil
 }
 
 func migrationChecksum(migration Migration) string {

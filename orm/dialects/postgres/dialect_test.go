@@ -65,7 +65,7 @@ func TestPostgresDialectColumnShapeIntrospectionSQL(t *testing.T) {
 	if sql == "" {
 		t.Fatal("ColumnsSQL is empty")
 	}
-	for _, want := range []string{"table_name", "column_name", "data_type", "is_nullable", "primary_key", "ordinal_position"} {
+	for _, want := range []string{"table_schema", "table_name", "column_name", "data_type", "udt_name", "character_maximum_length", "numeric_precision", "numeric_scale", "column_default", "collation_name", "is_identity", "primary_key", "ordinal_position"} {
 		if !strings.Contains(sql, want) {
 			t.Fatalf("ColumnsSQL missing %q: %s", want, sql)
 		}
