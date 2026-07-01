@@ -9,6 +9,7 @@ import (
 	_ "github.com/cybersaksham/gogo/queue/backends/redis"
 	_ "github.com/cybersaksham/gogo/queue/brokers"
 	_ "github.com/cybersaksham/gogo/queue/brokers/redis"
+	_ "github.com/cybersaksham/gogo/queue/schedulers/redis"
 )
 
 func TestRuntimeFactoriesCreateMemoryImplementations(t *testing.T) {
@@ -54,6 +55,14 @@ func TestRuntimeFactoriesCreateRedisImplementations(t *testing.T) {
 		if backend == nil {
 			t.Fatalf("NewResultBackendFromURL(%s) returned nil backend", rawURL)
 		}
+
+		store, err := queue.NewScheduleStoreFromURL(queue.RuntimeConfig{ScheduleStore: rawURL})
+		if err != nil {
+			t.Fatalf("NewScheduleStoreFromURL(%s) error = %v", rawURL, err)
+		}
+		if store == nil {
+			t.Fatalf("NewScheduleStoreFromURL(%s) returned nil store", rawURL)
+		}
 	}
 }
 
@@ -64,8 +73,8 @@ func TestRuntimeFactoriesRejectUnsupportedProductionURLs(t *testing.T) {
 	if _, err := queue.NewResultBackendFromURL(queue.RuntimeConfig{ResultBackend: "amqp://localhost:5672/"}); !errors.Is(err, queue.ErrUnsupportedRuntimeURL) {
 		t.Fatalf("NewResultBackendFromURL(amqp) error = %v, want ErrUnsupportedRuntimeURL", err)
 	}
-	if _, err := queue.NewScheduleStoreFromURL(queue.RuntimeConfig{ScheduleStore: "redis://localhost:6379/2"}); !errors.Is(err, queue.ErrUnsupportedRuntimeURL) {
-		t.Fatalf("NewScheduleStoreFromURL(redis) error = %v, want ErrUnsupportedRuntimeURL", err)
+	if _, err := queue.NewScheduleStoreFromURL(queue.RuntimeConfig{ScheduleStore: "amqp://localhost:5672/"}); !errors.Is(err, queue.ErrUnsupportedRuntimeURL) {
+		t.Fatalf("NewScheduleStoreFromURL(amqp) error = %v, want ErrUnsupportedRuntimeURL", err)
 	}
 }
 
@@ -75,5 +84,8 @@ func TestRuntimeFactoriesRejectMalformedRedisURLs(t *testing.T) {
 	}
 	if _, err := queue.NewResultBackendFromURL(queue.RuntimeConfig{ResultBackend: "redis://localhost/not-a-db"}); !errors.Is(err, queue.ErrUnsupportedRuntimeURL) {
 		t.Fatalf("NewResultBackendFromURL(malformed redis) error = %v, want ErrUnsupportedRuntimeURL", err)
+	}
+	if _, err := queue.NewScheduleStoreFromURL(queue.RuntimeConfig{ScheduleStore: "redis://localhost/not-a-db"}); !errors.Is(err, queue.ErrUnsupportedRuntimeURL) {
+		t.Fatalf("NewScheduleStoreFromURL(malformed redis) error = %v, want ErrUnsupportedRuntimeURL", err)
 	}
 }

@@ -38,6 +38,7 @@ var knownEnvKeys = []string{
 	"GOGO_PASSWORD_RESET_ENABLED",
 	"GOGO_BROKER_URL",
 	"GOGO_RESULT_BACKEND",
+	"GOGO_SCHEDULE_STORE",
 	"GOGO_CACHE_URL",
 	"GOGO_EMAIL_URL",
 }
@@ -195,6 +196,9 @@ func SettingsFromMap(values map[string]string) Settings {
 	}
 	if value := values["GOGO_RESULT_BACKEND"]; value != "" {
 		settings.ResultBackend = value
+	}
+	if value := values["GOGO_SCHEDULE_STORE"]; value != "" {
+		settings.ScheduleStore = value
 	}
 	if value := values["GOGO_CACHE_URL"]; value != "" {
 		settings.CacheURL = value

@@ -33,6 +33,8 @@ type DeployConfig struct {
 	QueueBrokerError       error
 	ResultBackendReachable bool
 	ResultBackendError     error
+	ScheduleStoreReachable bool
+	ScheduleStoreError     error
 }
 
 // BuildDeployConfig runs reachability and filesystem checks for deploy validation.
@@ -52,6 +54,10 @@ func BuildDeployConfig(ctx context.Context, settings conf.Settings) DeployConfig
 	if strings.TrimSpace(settings.ResultBackend) != "" {
 		config.ResultBackendError = CheckEndpointReachable(ctx, settings.ResultBackend)
 		config.ResultBackendReachable = config.ResultBackendError == nil
+	}
+	if strings.TrimSpace(settings.ScheduleStore) != "" {
+		config.ScheduleStoreError = CheckEndpointReachable(ctx, settings.ScheduleStore)
+		config.ScheduleStoreReachable = config.ScheduleStoreError == nil
 	}
 
 	return config
@@ -107,6 +113,9 @@ func RunDeployChecks(config DeployConfig) []checks.Result {
 	if strings.TrimSpace(settings.ResultBackend) != "" && !config.ResultBackendReachable {
 		results = append(results, deployResult("deploy.E015", "result backend is not reachable", errorHint(config.ResultBackendError, "Check GOGO_RESULT_BACKEND and result backend network access."), "GOGO_RESULT_BACKEND"))
 	}
+	if strings.TrimSpace(settings.ScheduleStore) != "" && !config.ScheduleStoreReachable {
+		results = append(results, deployResult("deploy.E019", "schedule store is not reachable", errorHint(config.ScheduleStoreError, "Check GOGO_SCHEDULE_STORE and schedule store network access."), "GOGO_SCHEDULE_STORE"))
+	}
 	if settings.PasswordResetEnabled && strings.TrimSpace(settings.EmailURL) == "" {
 		results = append(results, deployResult("deploy.E016", "email backend is required for password reset", "Set GOGO_EMAIL_URL or disable password reset.", "GOGO_EMAIL_URL"))
 	}
@@ -115,6 +124,9 @@ func RunDeployChecks(config DeployConfig) []checks.Result {
 	}
 	if isMemoryEndpoint(settings.ResultBackend) {
 		results = append(results, deployResult("deploy.E018", "memory result backend is not allowed in production", "Use a durable result backend such as Redis or SQL for production workers, or leave GOGO_RESULT_BACKEND empty when queues are not enabled.", "GOGO_RESULT_BACKEND"))
+	}
+	if isMemoryEndpoint(settings.ScheduleStore) {
+		results = append(results, deployResult("deploy.E020", "memory schedule store is not allowed in production", "Use a durable schedule store such as Redis for production beat, or leave GOGO_SCHEDULE_STORE empty when beat is not enabled.", "GOGO_SCHEDULE_STORE"))
 	}
 
 	if len(results) == 0 {

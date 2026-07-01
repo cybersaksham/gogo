@@ -21,10 +21,12 @@ Framework module: `github.com/cybersaksham/gogo`.
 - Configure brokers with `GOGO_BROKER_URL`.
 - Configure result backends with `GOGO_RESULT_BACKEND` only when task results
   are required.
+- Configure beat schedule stores with `GOGO_SCHEDULE_STORE` when beat schedules
+  must persist or coordinate across processes.
 - `memory` and `memory://` runtimes are for local development and tests.
-- `redis://` and `rediss://` resolve to real Redis broker and result backend
-  implementations. Production workers should use durable URLs and validate
-  them with `go run manage.go worker --check`.
+- `redis://` and `rediss://` resolve to real Redis broker, result backend, and
+  beat schedule-store implementations. Production workers should use durable
+  URLs and validate them with `go run manage.go worker --check`.
 - `amqp://` and `amqps://` are unsupported until a real RabbitMQ runtime is
   registered. They must fail clearly instead of silently using memory.
 - Broker packages include shared broker interfaces and local memory behavior;
@@ -63,7 +65,7 @@ Framework module: `github.com/cybersaksham/gogo`.
 ```bash
 go run manage.go worker
 go run manage.go worker --check --broker-url "$GOGO_BROKER_URL" --result-backend "$GOGO_RESULT_BACKEND"
-go run manage.go beat
+go run manage.go beat --broker-url "$GOGO_BROKER_URL" --schedule-path "$GOGO_SCHEDULE_STORE"
 go run manage.go inspect
 go run manage.go queues
 ```

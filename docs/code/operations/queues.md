@@ -8,12 +8,14 @@ groups, chunks, maps, and chords.
 
 Set queue environment variables only when queues are enabled. `memory://` is
 for local development and tests. Production deploy checks reject memory broker
-and result backend URLs. Leave `GOGO_BROKER_URL` and `GOGO_RESULT_BACKEND`
-empty when the deployment does not run workers.
+and result backend or schedule-store URLs. Leave `GOGO_BROKER_URL`,
+`GOGO_RESULT_BACKEND`, and `GOGO_SCHEDULE_STORE` empty when the deployment does
+not run workers or beat.
 
 ```bash
 GOGO_BROKER_URL=redis://redis:6379/0
 GOGO_RESULT_BACKEND=redis://redis:6379/1
+GOGO_SCHEDULE_STORE=redis://redis:6379/2
 ```
 
 Runtime support:
@@ -21,18 +23,20 @@ Runtime support:
 | Integration | Status |
 | --- | --- |
 | Memory broker/backend/schedule store | Local development and tests |
-| Redis broker/backend URLs | Real Redis runtime for `redis://` and `rediss://` |
+| Redis broker/backend/schedule URLs | Real Redis runtime for `redis://` and `rediss://` |
 | RabbitMQ broker URLs | Unsupported as runtime factories; no memory fallback |
 | SQL result backend URLs | Fail fast unless a SQL backend factory is registered |
 
 Use separate Redis databases, prefixes, or clusters for broker, result backend,
-and cache when operational isolation matters.
+schedule store, and cache when operational isolation matters.
 
 Redis workers use a visibility timeout for in-flight deliveries. If a worker
 stops before acking a task, another worker can reclaim it after the timeout and
 the attempt count increments. Delayed tasks are held until their ETA before
 being consumed. Result backends store terminal state, children, group metadata,
 and chord counters in Redis so independent processes can wait for task results.
+Redis schedule stores persist beat entries and use Redis locks so only one beat
+process enqueues a given schedule at a time.
 
 Validate Redis reachability before deploying workers:
 
@@ -81,7 +85,7 @@ configured with locks that prevent duplicate enqueue.
 ```bash
 go run manage.go beat \
   --broker-url "$GOGO_BROKER_URL" \
-  --schedule-path memory:// \
+  --schedule-path "$GOGO_SCHEDULE_STORE" \
   --interval 1s
 ```
 

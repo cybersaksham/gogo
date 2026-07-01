@@ -55,6 +55,11 @@ backend. Results, children, group metadata, and chord counters are stored in
 Redis. `Wait` polls Redis with context and timeout handling, so independent
 processes can wait for terminal results.
 
+`redis://` and `rediss://` schedule-store URLs create a Redis-backed beat
+schedule store. Beat entries are stored in Redis hashes and schedule locks use
+Redis `SET NX` with TTL, so multiple beat processes do not enqueue the same
+entry concurrently.
+
 RabbitMQ route-planning helpers remain available in `queue/brokers/rabbitmq`,
 but `amqp://` and `amqps://` runtime URLs are unsupported until a real AMQP
 transport is registered. They never fall back to memory.
@@ -70,6 +75,11 @@ Result backend packages:
 - `queue/backends` memory backend
 - `queue/backends/redis` real Redis result backend for `redis://` and `rediss://`
 - `queue/backends/sql`
+
+Schedule store packages:
+
+- `queue` memory schedule store
+- `queue/schedulers/redis` real Redis schedule store for `redis://` and `rediss://`
 
 ## Canvas
 
@@ -93,6 +103,8 @@ Schedule types:
 - `SolarSchedule`
 
 `MemoryScheduleStore` provides deterministic tests and local examples.
+`queue/schedulers/redis` provides persistent Redis beat entries and locks for
+production beat deployments.
 
 ## States
 

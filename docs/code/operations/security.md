@@ -29,6 +29,7 @@ Set production values explicitly. Do not rely on development defaults.
 | `GOGO_ADMIN_PATH_REVIEWED` | `true` after admin exposure is reviewed |
 | `GOGO_BROKER_URL` | Required when workers or beat are deployed |
 | `GOGO_RESULT_BACKEND` | Required when task results are persisted |
+| `GOGO_SCHEDULE_STORE` | Required when beat schedules must persist across processes |
 | `GOGO_EMAIL_URL` | Required when password reset or outbound mail is enabled |
 
 `conf.Settings.Validate` currently rejects missing `GOGO_SECRET_KEY`, missing

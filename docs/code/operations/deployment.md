@@ -48,7 +48,8 @@ GOGO_MEDIA_URL=/media/
 GOGO_MEDIA_ROOT=/app/media
 GOGO_BROKER_URL=redis://redis:6379/0
 GOGO_RESULT_BACKEND=redis://redis:6379/1
-GOGO_CACHE_URL=redis://redis:6379/2
+GOGO_SCHEDULE_STORE=redis://redis:6379/2
+GOGO_CACHE_URL=redis://redis:6379/3
 GOGO_EMAIL_URL=
 GOGO_SESSION_COOKIE_NAME=gogo_sessionid
 GOGO_CSRF_COOKIE_NAME=gogo_csrftoken
@@ -87,10 +88,10 @@ Run deploy checks before allowing traffic:
 go run manage.go check --deploy
 ```
 
-Production deploy checks fail when `GOGO_BROKER_URL` or `GOGO_RESULT_BACKEND`
-is set to `memory` or `memory://`. Use a durable backend such as Redis for
-workers, or leave those variables empty when the deployment does not run queue
-processes.
+Production deploy checks fail when `GOGO_BROKER_URL`,
+`GOGO_RESULT_BACKEND`, or `GOGO_SCHEDULE_STORE` is set to `memory` or
+`memory://`. Use durable Redis URLs for workers and beat, or leave those
+variables empty when the deployment does not run queue processes.
 
 Validate worker runtime URLs before starting workers:
 
@@ -98,12 +99,15 @@ Validate worker runtime URLs before starting workers:
 go run manage.go worker --check \
   --broker-url "$GOGO_BROKER_URL" \
   --result-backend "$GOGO_RESULT_BACKEND"
+go run manage.go beat --once \
+  --broker-url "$GOGO_BROKER_URL" \
+  --schedule-path "$GOGO_SCHEDULE_STORE"
 ```
 
-`redis://` and `rediss://` broker and result backend URLs must construct real
-Redis runtime objects and fail if Redis is unreachable. `amqp://` and
-`amqps://` remain unsupported runtime URLs until a real RabbitMQ transport is
-registered; they never fall back to memory.
+`redis://` and `rediss://` broker, result backend, and schedule-store URLs must
+construct real Redis runtime objects and fail if Redis is unreachable.
+`amqp://` and `amqps://` remain unsupported runtime URLs until a real RabbitMQ
+transport is registered; they never fall back to memory.
 
 ## Migrations
 

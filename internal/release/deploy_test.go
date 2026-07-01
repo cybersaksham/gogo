@@ -21,6 +21,7 @@ func TestRunDeployChecksPassesValidConfig(t *testing.T) {
 		MediaStorageWritable:   true,
 		QueueBrokerReachable:   true,
 		ResultBackendReachable: true,
+		ScheduleStoreReachable: true,
 	})
 	if len(results) != 1 || results[0].ID != "deploy.I001" || results[0].Severity != checks.SeverityInfo {
 		t.Fatalf("results = %#v", results)
@@ -39,6 +40,7 @@ func TestRunDeployChecksCatchesEveryFailure(t *testing.T) {
 		AdminPath:            "admin",
 		BrokerURL:            "redis://localhost:1/0",
 		ResultBackend:        "redis://localhost:1/1",
+		ScheduleStore:        "redis://localhost:1/2",
 		PasswordResetEnabled: true,
 	}
 	results := RunDeployChecks(DeployConfig{
@@ -47,6 +49,7 @@ func TestRunDeployChecksCatchesEveryFailure(t *testing.T) {
 		MediaStorageError:    errors.New("media down"),
 		QueueBrokerError:     errors.New("broker down"),
 		ResultBackendError:   errors.New("result backend down"),
+		ScheduleStoreError:   errors.New("schedule store down"),
 		StaticFilesCollected: false,
 	})
 	got := resultIDs(results)
@@ -66,6 +69,7 @@ func TestRunDeployChecksCatchesEveryFailure(t *testing.T) {
 		"deploy.E013",
 		"deploy.E014",
 		"deploy.E015",
+		"deploy.E019",
 		"deploy.E016",
 	}
 	if !reflect.DeepEqual(got, want) {
@@ -77,6 +81,7 @@ func TestRunDeployChecksRejectsProductionMemoryQueueURLs(t *testing.T) {
 	settings := validDeploySettings(t)
 	settings.BrokerURL = "memory://"
 	settings.ResultBackend = "memory"
+	settings.ScheduleStore = "memory://"
 	results := RunDeployChecks(DeployConfig{
 		Settings:               settings,
 		DatabaseReachable:      true,
@@ -84,9 +89,10 @@ func TestRunDeployChecksRejectsProductionMemoryQueueURLs(t *testing.T) {
 		MediaStorageWritable:   true,
 		QueueBrokerReachable:   true,
 		ResultBackendReachable: true,
+		ScheduleStoreReachable: true,
 	})
 	got := resultIDs(results)
-	want := []string{"deploy.E017", "deploy.E018"}
+	want := []string{"deploy.E017", "deploy.E018", "deploy.E020"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("result IDs = %#v, want %#v", got, want)
 	}
@@ -112,6 +118,7 @@ func TestBuildDeployConfigChecksSQLiteStaticMediaAndMemoryBackends(t *testing.T)
 	settings.MediaRoot = mediaRoot
 	settings.BrokerURL = "memory://"
 	settings.ResultBackend = "memory"
+	settings.ScheduleStore = "memory://"
 
 	config := BuildDeployConfig(context.Background(), settings)
 	if !config.DatabaseReachable || config.DatabaseError != nil {
@@ -128,6 +135,9 @@ func TestBuildDeployConfigChecksSQLiteStaticMediaAndMemoryBackends(t *testing.T)
 	}
 	if !config.ResultBackendReachable || config.ResultBackendError != nil {
 		t.Fatalf("result backend reachable = %t error = %v", config.ResultBackendReachable, config.ResultBackendError)
+	}
+	if !config.ScheduleStoreReachable || config.ScheduleStoreError != nil {
+		t.Fatalf("schedule store reachable = %t error = %v", config.ScheduleStoreReachable, config.ScheduleStoreError)
 	}
 }
 

@@ -15,6 +15,7 @@ import (
 	_ "github.com/cybersaksham/gogo/queue/backends/redis"
 	"github.com/cybersaksham/gogo/queue/brokers"
 	_ "github.com/cybersaksham/gogo/queue/brokers/redis"
+	_ "github.com/cybersaksham/gogo/queue/schedulers/redis"
 )
 
 var defaultQueueRuntime = NewQueueRuntime()

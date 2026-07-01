@@ -43,6 +43,7 @@ Settings live in `conf.Settings` and are loaded from defaults, `.env`, and proce
 | `PasswordResetEnabled` | `GOGO_PASSWORD_RESET_ENABLED` | auth email | false | Requires `GOGO_EMAIL_URL` in deploy checks. |
 | `BrokerURL` | `GOGO_BROKER_URL` | queue workers | empty | Queue broker URL. |
 | `ResultBackend` | `GOGO_RESULT_BACKEND` | task results | empty | Queue result backend URL. |
+| `ScheduleStore` | `GOGO_SCHEDULE_STORE` | beat schedules | empty | Queue beat schedule store URL. |
 | `CacheURL` | `GOGO_CACHE_URL` | cache | empty | Cache backend URL. |
 | `EmailURL` | `GOGO_EMAIL_URL` | email | empty | Email backend URL. |
 

@@ -27,12 +27,16 @@ Validate worker runtime URLs before starting workers:
 go run manage.go worker --check \
   --broker-url "$GOGO_BROKER_URL" \
   --result-backend "$GOGO_RESULT_BACKEND"
+go run manage.go beat --once \
+  --broker-url "$GOGO_BROKER_URL" \
+  --schedule-path "$GOGO_SCHEDULE_STORE"
 ```
 
-Production deploy checks reject `memory` and `memory://` broker or result
-backend URLs. Use `redis://` or `rediss://` when the deployment runs workers, or
-leave queue URLs empty when no queue processes are deployed. `amqp://` and
-`amqps://` are unsupported until a real RabbitMQ runtime is registered.
+Production deploy checks reject `memory` and `memory://` broker, result
+backend, or schedule-store URLs. Use `redis://` or `rediss://` when the
+deployment runs workers or beat, or leave queue URLs empty when no queue
+processes are deployed. `amqp://` and `amqps://` are unsupported until a real
+RabbitMQ runtime is registered.
 
 ## Services
 
@@ -41,6 +45,7 @@ leave queue URLs empty when no queue processes are deployed. `amqp://` and
 | Database | `DATABASE_URL` |
 | Queue broker | `GOGO_BROKER_URL` |
 | Result backend | `GOGO_RESULT_BACKEND` |
+| Beat schedule store | `GOGO_SCHEDULE_STORE` |
 | Cache | `GOGO_CACHE_URL` |
 | Email | `GOGO_EMAIL_URL` |
 

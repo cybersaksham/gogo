@@ -54,6 +54,7 @@
 | `github.com/cybersaksham/gogo/queue/brokers/rabbitmq` | `rabbitmq` | - |
 | `github.com/cybersaksham/gogo/queue/brokers/redis` | `redis` | Package redis provides a real Redis-backed queue broker for Gogo workers. |
 | `github.com/cybersaksham/gogo/queue/canvas` | `canvas` | - |
+| `github.com/cybersaksham/gogo/queue/schedulers/redis` | `redis` | Package redis provides a real Redis-backed beat schedule store. |
 | `github.com/cybersaksham/gogo/security` | `security` | - |
 | `github.com/cybersaksham/gogo/sessions` | `sessions` | - |
 | `github.com/cybersaksham/gogo/signals` | `signals` | - |

@@ -38,6 +38,7 @@ type Settings struct {
 	PasswordResetEnabled bool
 	BrokerURL            string
 	ResultBackend        string
+	ScheduleStore        string
 	CacheURL             string
 	EmailURL             string
 }
