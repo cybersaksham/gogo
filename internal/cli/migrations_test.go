@@ -15,6 +15,7 @@ import (
 	authmigrations "github.com/cybersaksham/gogo/auth/migrations"
 	"github.com/cybersaksham/gogo/migrations"
 	"github.com/cybersaksham/gogo/migrations/operations"
+	"github.com/cybersaksham/gogo/models"
 	sqlitedialect "github.com/cybersaksham/gogo/orm/dialects/sqlite"
 
 	_ "modernc.org/sqlite"
@@ -355,6 +356,201 @@ func TestMakeMigrationsCheckFailsWhenMigrationWouldBeCreated(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "would create blog.0001_initial") {
 		t.Fatalf("makemigrations stdout = %q", stdout.String())
+	}
+}
+
+func TestMakeMigrationsUsesProjectModelMetadata(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	meta := models.Metadata{
+		AppLabel:  "sales",
+		ModelName: "Order",
+		TableName: "orders",
+		Fields: []models.FieldMeta{
+			{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true},
+			{Name: "status", Column: "status", Kind: "text", Null: true},
+		},
+	}
+	root := NewRootWithOptions(RootOptions{ProjectModels: []models.Metadata{meta}, ProjectMigrations: []migrations.Migration{}})
+
+	var stdout bytes.Buffer
+	if err := root.Execute(context.Background(), []string{"makemigrations", "--app", "sales"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("makemigrations error = %v", err)
+	}
+	contents, err := os.ReadFile(filepath.Join(dir, "sales", "migrations", "0001_initial.go"))
+	if err != nil {
+		t.Fatalf("read migration: %v", err)
+	}
+	for _, want := range []string{`\"type\":\"CreateModel\"`, `\"table_name\":\"orders\"`, `\"name\":\"status\"`} {
+		if !strings.Contains(string(contents), want) {
+			t.Fatalf("migration missing %q:\n%s", want, contents)
+		}
+	}
+	if strings.Contains(string(contents), `blog_item`) || !strings.Contains(stdout.String(), "created sales.0001_initial") {
+		t.Fatalf("unexpected migration/stdout:\n%s\n%s", contents, stdout.String())
+	}
+}
+
+func TestMakeMigrationsReportsNoChangesFromProjectMigrationHistory(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	meta := models.Metadata{
+		AppLabel:  "sales",
+		ModelName: "Order",
+		TableName: "orders",
+		Fields: []models.FieldMeta{
+			{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true},
+			{Name: "status", Column: "status", Kind: "text", Null: true},
+		},
+	}
+	initial := migrations.Migration{
+		AppLabel: "sales",
+		Name:     migrations.InitialMigrationName(),
+		Atomic:   true,
+		Operations: []migrations.Operation{
+			operations.CreateModel{Model: migrations.ModelState{
+				AppLabel:  "sales",
+				Name:      "Order",
+				TableName: "orders",
+				Fields: []migrations.FieldState{
+					{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true},
+					{Name: "status", Column: "status", Kind: "text", Null: true},
+				},
+			}},
+		},
+	}
+	root := NewRootWithOptions(RootOptions{ProjectModels: []models.Metadata{meta}, ProjectMigrations: []migrations.Migration{initial}})
+
+	var stdout bytes.Buffer
+	if err := root.Execute(context.Background(), []string{"makemigrations", "--app", "sales", "--check", "--dry-run"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("makemigrations check error = %v", err)
+	}
+	if !strings.Contains(stdout.String(), "no changes detected") {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+}
+
+func TestMakeMigrationsDetectsAddFieldOnCustomTable(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	initial := migrations.Migration{
+		AppLabel: "sales",
+		Name:     migrations.InitialMigrationName(),
+		Atomic:   true,
+		Operations: []migrations.Operation{
+			operations.CreateModel{Model: migrations.ModelState{
+				AppLabel:  "sales",
+				Name:      "Order",
+				TableName: "orders",
+				Fields:    []migrations.FieldState{{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true}},
+			}},
+		},
+	}
+	meta := models.Metadata{
+		AppLabel:  "sales",
+		ModelName: "Order",
+		TableName: "orders",
+		Fields: []models.FieldMeta{
+			{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true},
+			{Name: "status", Column: "status", Kind: "text", Null: true},
+		},
+	}
+	root := NewRootWithOptions(RootOptions{ProjectModels: []models.Metadata{meta}, ProjectMigrations: []migrations.Migration{initial}})
+
+	var stdout bytes.Buffer
+	if err := root.Execute(context.Background(), []string{"makemigrations", "--app", "sales", "--name", "add_status"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("makemigrations error = %v", err)
+	}
+	contents, err := os.ReadFile(filepath.Join(dir, "sales", "migrations", "0002_add_status.go"))
+	if err != nil {
+		t.Fatalf("read migration: %v", err)
+	}
+	for _, want := range []string{`\"type\":\"AddField\"`, `\"table_name\":\"orders\"`, `\"name\":\"status\"`} {
+		if !strings.Contains(string(contents), want) {
+			t.Fatalf("migration missing %q:\n%s", want, contents)
+		}
+	}
+	stdout.Reset()
+	if err := root.Execute(context.Background(), []string{"sqlmigrate", "sales", "0002_add_status"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("sqlmigrate new migration error = %v", err)
+	}
+	if !strings.Contains(stdout.String(), `ALTER TABLE "orders" ADD COLUMN "status" text`) {
+		t.Fatalf("sqlmigrate new migration stdout = %q", stdout.String())
+	}
+}
+
+func TestMakeMigrationsRejectsUnsafeNonNullAddField(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	initial := migrations.Migration{
+		AppLabel: "sales",
+		Name:     migrations.InitialMigrationName(),
+		Atomic:   true,
+		Operations: []migrations.Operation{
+			operations.CreateModel{Model: migrations.ModelState{AppLabel: "sales", Name: "Order", TableName: "orders", Fields: []migrations.FieldState{{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true}}}},
+		},
+	}
+	meta := models.Metadata{
+		AppLabel:  "sales",
+		ModelName: "Order",
+		TableName: "orders",
+		Fields: []models.FieldMeta{
+			{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true},
+			{Name: "status", Column: "status", Kind: "text"},
+		},
+	}
+	root := NewRootWithOptions(RootOptions{ProjectModels: []models.Metadata{meta}, ProjectMigrations: []migrations.Migration{initial}})
+
+	err := root.Execute(context.Background(), []string{"makemigrations", "--app", "sales"}, &bytes.Buffer{}, &bytes.Buffer{})
+	if !errors.Is(err, migrations.ErrUnsafeMigration) {
+		t.Fatalf("makemigrations error = %v, want ErrUnsafeMigration", err)
+	}
+}
+
+func TestMakeMigrationsDetectsTableIndexAndConstraintChanges(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	initial := migrations.Migration{
+		AppLabel: "sales",
+		Name:     migrations.InitialMigrationName(),
+		Atomic:   true,
+		Operations: []migrations.Operation{
+			operations.CreateModel{Model: migrations.ModelState{
+				AppLabel:  "sales",
+				Name:      "Order",
+				TableName: "sales_order",
+				Fields: []migrations.FieldState{
+					{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true},
+					{Name: "status", Column: "status", Kind: "text", Null: true},
+				},
+			}},
+		},
+	}
+	meta := models.Metadata{
+		AppLabel:  "sales",
+		ModelName: "Order",
+		TableName: "orders",
+		Fields: []models.FieldMeta{
+			{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true},
+			{Name: "status", Column: "status", Kind: "text", Null: true},
+		},
+		Indexes:     []models.Index{{Name: "idx_orders_status", Fields: []models.IndexField{models.Asc("status")}}},
+		Constraints: []models.Constraint{{Name: "uniq_orders_status", Type: models.ConstraintUnique, Fields: []models.IndexField{models.Asc("status")}}},
+	}
+	root := NewRootWithOptions(RootOptions{ProjectModels: []models.Metadata{meta}, ProjectMigrations: []migrations.Migration{initial}})
+
+	var stdout bytes.Buffer
+	if err := root.Execute(context.Background(), []string{"makemigrations", "--app", "sales", "--name", "table_indexes"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("makemigrations error = %v", err)
+	}
+	contents, err := os.ReadFile(filepath.Join(dir, "sales", "migrations", "0002_table_indexes.go"))
+	if err != nil {
+		t.Fatalf("read migration: %v", err)
+	}
+	for _, want := range []string{`\"type\":\"AlterModelTable\"`, `\"old_table\":\"sales_order\"`, `\"new_table\":\"orders\"`, `\"type\":\"AddIndex\"`, `\"type\":\"AddConstraint\"`} {
+		if !strings.Contains(string(contents), want) {
+			t.Fatalf("migration missing %q:\n%s", want, contents)
+		}
 	}
 }
 

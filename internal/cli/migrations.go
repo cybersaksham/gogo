@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,6 +22,7 @@ import (
 	"github.com/cybersaksham/gogo/internal/schema"
 	"github.com/cybersaksham/gogo/migrations"
 	"github.com/cybersaksham/gogo/migrations/operations"
+	"github.com/cybersaksham/gogo/models"
 	"github.com/cybersaksham/gogo/orm"
 	"github.com/cybersaksham/gogo/orm/dialects"
 	postgresdialect "github.com/cybersaksham/gogo/orm/dialects/postgres"
@@ -35,6 +37,9 @@ func NewMakemigrationsCommand() Command {
 }
 func NewMakemigrationsCommandWithMigrations(projectMigrations []migrations.Migration) Command {
 	return migrationCommand{name: "makemigrations", summary: "Create new migrations", projectMigrations: projectMigrations}
+}
+func NewMakemigrationsCommandWithProject(projectModels []models.Metadata, projectMigrations []migrations.Migration) Command {
+	return migrationCommand{name: "makemigrations", summary: "Create new migrations", projectModels: append([]models.Metadata(nil), projectModels...), projectMigrations: projectMigrations}
 }
 func NewMigrateCommand() Command {
 	return migrationCommand{name: "migrate", summary: "Apply or roll back migrations"}
@@ -70,6 +75,7 @@ func NewOptimizeMigrationCommandWithMigrations(projectMigrations []migrations.Mi
 type migrationCommand struct {
 	name              string
 	summary           string
+	projectModels     []models.Metadata
 	projectMigrations []migrations.Migration
 }
 
@@ -86,7 +92,7 @@ func (c migrationCommand) runWithIO(ctx context.Context, args []string, stdout, 
 	}
 	switch c.name {
 	case "makemigrations":
-		return runMakeMigrations(options, stdout)
+		return runMakeMigrations(options, stdout, c.projectModels, c.projectMigrations)
 	case "migrate":
 		return runMigrate(ctx, options, stdout, c.projectMigrations)
 	case "showmigrations":
@@ -140,7 +146,75 @@ func parseMigrationFlags(command string, args []string) (migrationOptions, []str
 	return options, flags.Args(), nil
 }
 
-func runMakeMigrations(options migrationOptions, stdout io.Writer) error {
+func runMakeMigrations(options migrationOptions, stdout io.Writer, projectModels []models.Metadata, projectMigrations []migrations.Migration) error {
+	if len(projectModels) == 0 {
+		return runLegacyMakeMigrations(options, stdout)
+	}
+	targets, err := projectMigrationTargets(options.app, projectModels)
+	if err != nil {
+		return err
+	}
+	created := false
+	for _, target := range targets {
+		known, err := knownMigrations(target.appLabel, projectMigrations)
+		if err != nil {
+			return err
+		}
+		operationsToWrite := []migrations.Operation{migrations.ManifestOperation{NameValue: "EmptyMigration"}}
+		if !options.empty {
+			from, err := projectStateFromMigrations(known)
+			if err != nil {
+				return fmt.Errorf("%w: build historical migration state: %v", ErrCommandFailed, err)
+			}
+			to, err := projectStateFromModels(projectModels, target.appLabel)
+			if err != nil {
+				return fmt.Errorf("%w: build model state: %v", ErrCommandFailed, err)
+			}
+			operationsToWrite, err = diffProjectStates(from, to, target.appLabel)
+			if err != nil {
+				return err
+			}
+			if len(operationsToWrite) == 0 {
+				continue
+			}
+		}
+		migration := migrations.Migration{
+			AppLabel:   target.appLabel,
+			Name:       migrations.NextMigrationName(len(known)+1, migrationFileBaseName(options, len(known))),
+			Atomic:     true,
+			Operations: operationsToWrite,
+		}
+		if len(known) > 0 {
+			latest := known[len(known)-1]
+			migration.Dependencies = []migrations.Dependency{{AppLabel: latest.AppLabel, Name: latest.Name}}
+		}
+		if options.dryRun || options.check {
+			if _, err := fmt.Fprintf(stdout, "would create %s\n", migration.Identity()); err != nil {
+				return err
+			}
+			created = true
+			continue
+		}
+		if _, err := migrations.NewWriter(target.dir).Write(migration); err != nil {
+			return fmt.Errorf("%w: write migration: %v", ErrCommandFailed, err)
+		}
+		if _, err := fmt.Fprintf(stdout, "created %s\n", migration.Identity()); err != nil {
+			return err
+		}
+		created = true
+	}
+	if !created {
+		if _, err := fmt.Fprintln(stdout, "no changes detected"); err != nil {
+			return err
+		}
+	}
+	if options.check && created {
+		return fmt.Errorf("%w: model changes are not reflected in migrations", ErrCommandFailed)
+	}
+	return nil
+}
+
+func runLegacyMakeMigrations(options migrationOptions, stdout io.Writer) error {
 	apps := migrationTargets(options.app)
 	name := options.name
 	if name == "" {
@@ -259,6 +333,225 @@ func generatedItemModelState(appLabel string) migrations.ModelState {
 	}
 }
 
+func projectMigrationTargets(appLabel string, projectModels []models.Metadata) ([]migrationTarget, error) {
+	if appLabel != "" {
+		return []migrationTarget{{appLabel: appLabel, dir: migrationDirForApp(appLabel)}}, nil
+	}
+	labels := map[string]struct{}{}
+	for _, meta := range projectModels {
+		if meta.AppLabel == "" || meta.AppLabel == "auth" || !meta.IsManaged() {
+			continue
+		}
+		labels[meta.AppLabel] = struct{}{}
+	}
+	appLabels := make([]string, 0, len(labels))
+	for label := range labels {
+		appLabels = append(appLabels, label)
+	}
+	sort.Strings(appLabels)
+	targets := make([]migrationTarget, 0, len(appLabels))
+	for _, label := range appLabels {
+		targets = append(targets, migrationTarget{appLabel: label, dir: migrationDirForApp(label)})
+	}
+	return targets, nil
+}
+
+func migrationFileBaseName(options migrationOptions, existingCount int) string {
+	if options.name != "" {
+		return options.name
+	}
+	if existingCount == 0 {
+		return "initial"
+	}
+	return "auto"
+}
+
+func projectStateFromModels(projectModels []models.Metadata, appLabel string) (migrations.ProjectState, error) {
+	registry := models.NewRegistry()
+	for _, meta := range projectModels {
+		if appLabel != "" && meta.AppLabel != appLabel {
+			continue
+		}
+		if meta.AppLabel == "auth" || !meta.IsManaged() {
+			continue
+		}
+		normalized := normalizeMigrationMetadata(meta)
+		if err := registry.RegisterMetadata(normalized); err != nil {
+			return migrations.ProjectState{}, err
+		}
+	}
+	return migrations.StateFromRegistry(registry), nil
+}
+
+func normalizeMigrationMetadata(meta models.Metadata) models.Metadata {
+	normalized := meta.Clone()
+	if normalized.TableName == "" && normalized.DBTable != "" {
+		normalized.TableName = normalized.DBTable
+	}
+	if normalized.DBTable == "" && normalized.TableName != "" {
+		normalized.DBTable = normalized.TableName
+	}
+	if normalized.TableName == "" && normalized.AppLabel != "" && normalized.ModelName != "" {
+		normalized.TableName = generatedModelTableName(normalized.AppLabel, normalized.ModelName)
+		normalized.DBTable = normalized.TableName
+	}
+	return normalized
+}
+
+func projectStateFromMigrations(known []migrations.Migration) (migrations.ProjectState, error) {
+	state := migrations.NewProjectState()
+	for _, migration := range known {
+		for _, operation := range migration.Operations {
+			if err := operation.StateForwards(&state); err != nil {
+				return migrations.ProjectState{}, fmt.Errorf("%s %s: %w", migration.Identity(), operation.Name(), err)
+			}
+		}
+	}
+	return state, nil
+}
+
+func diffProjectStates(from, to migrations.ProjectState, appLabel string) ([]migrations.Operation, error) {
+	var detected []migrations.Operation
+	for _, key := range sortedModelKeys(to, appLabel) {
+		newModel := to.Models[key]
+		oldModel, exists := from.Models[key]
+		if !exists {
+			detected = append(detected, operations.CreateModel{Model: newModel})
+			continue
+		}
+		detected = append(detected, diffExistingModel(oldModel, newModel)...)
+	}
+	for _, key := range sortedModelKeys(from, appLabel) {
+		if _, exists := to.Models[key]; exists {
+			continue
+		}
+		detected = append(detected, operations.DeleteModel{Model: from.Models[key]})
+	}
+	if err := validateMakemigrationOperations(detected); err != nil {
+		return nil, err
+	}
+	return detected, nil
+}
+
+func diffExistingModel(oldModel, newModel migrations.ModelState) []migrations.Operation {
+	var detected []migrations.Operation
+	if oldModel.TableName != newModel.TableName {
+		detected = append(detected, operations.AlterModelTable{AppLabel: newModel.AppLabel, ModelName: newModel.Name, OldTable: oldModel.TableName, NewTable: newModel.TableName})
+	}
+	tableName := newModel.TableName
+	oldFields := fieldStatesByName(oldModel.Fields)
+	newFields := fieldStatesByName(newModel.Fields)
+	for _, field := range newModel.Fields {
+		oldField, exists := oldFields[field.Name]
+		if !exists {
+			detected = append(detected, operations.AddField{AppLabel: newModel.AppLabel, ModelName: newModel.Name, TableName: tableName, Field: field, HasDefault: fieldHasDatabaseDefault(field)})
+			continue
+		}
+		if !reflect.DeepEqual(oldField, field) {
+			detected = append(detected, operations.AlterField{AppLabel: newModel.AppLabel, ModelName: newModel.Name, TableName: tableName, OldField: oldField, NewField: field})
+		}
+	}
+	for _, field := range oldModel.Fields {
+		if _, exists := newFields[field.Name]; !exists {
+			detected = append(detected, operations.RemoveField{AppLabel: oldModel.AppLabel, ModelName: oldModel.Name, TableName: oldModel.TableName, Field: field})
+		}
+	}
+	detected = append(detected, diffIndexes(oldModel, newModel)...)
+	detected = append(detected, diffConstraints(oldModel, newModel)...)
+	return detected
+}
+
+func diffIndexes(oldModel, newModel migrations.ModelState) []migrations.Operation {
+	oldIndexes := indexStatesByName(oldModel.Indexes)
+	newIndexes := indexStatesByName(newModel.Indexes)
+	var detected []migrations.Operation
+	for _, index := range oldModel.Indexes {
+		newIndex, exists := newIndexes[index.Name]
+		if !exists || !reflect.DeepEqual(index, newIndex) {
+			detected = append(detected, operations.RemoveIndex{AppLabel: oldModel.AppLabel, ModelName: oldModel.Name, TableName: oldModel.TableName, IndexName: index.Name})
+		}
+	}
+	for _, index := range newModel.Indexes {
+		oldIndex, exists := oldIndexes[index.Name]
+		if !exists || !reflect.DeepEqual(oldIndex, index) {
+			detected = append(detected, operations.AddIndex{AppLabel: newModel.AppLabel, ModelName: newModel.Name, TableName: newModel.TableName, Index: index})
+		}
+	}
+	return detected
+}
+
+func diffConstraints(oldModel, newModel migrations.ModelState) []migrations.Operation {
+	oldConstraints := constraintStatesByName(oldModel.Constraints)
+	newConstraints := constraintStatesByName(newModel.Constraints)
+	var detected []migrations.Operation
+	for _, constraint := range oldModel.Constraints {
+		newConstraint, exists := newConstraints[constraint.Name]
+		if !exists || !reflect.DeepEqual(constraint, newConstraint) {
+			detected = append(detected, operations.RemoveConstraint{AppLabel: oldModel.AppLabel, ModelName: oldModel.Name, TableName: oldModel.TableName, ConstraintName: constraint.Name})
+		}
+	}
+	for _, constraint := range newModel.Constraints {
+		oldConstraint, exists := oldConstraints[constraint.Name]
+		if !exists || !reflect.DeepEqual(oldConstraint, constraint) {
+			detected = append(detected, operations.AddConstraint{AppLabel: newModel.AppLabel, ModelName: newModel.Name, TableName: newModel.TableName, Constraint: constraint})
+		}
+	}
+	return detected
+}
+
+func validateMakemigrationOperations(ops []migrations.Operation) error {
+	for _, operation := range ops {
+		validator, ok := operation.(interface{ ValidateSafety() error })
+		if !ok {
+			continue
+		}
+		if err := validator.ValidateSafety(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func sortedModelKeys(state migrations.ProjectState, appLabel string) []string {
+	keys := make([]string, 0, len(state.Models))
+	for key, model := range state.Models {
+		if appLabel != "" && model.AppLabel != appLabel {
+			continue
+		}
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func fieldStatesByName(fields []migrations.FieldState) map[string]migrations.FieldState {
+	values := make(map[string]migrations.FieldState, len(fields))
+	for _, field := range fields {
+		values[field.Name] = field
+	}
+	return values
+}
+
+func indexStatesByName(indexes []migrations.IndexState) map[string]migrations.IndexState {
+	values := make(map[string]migrations.IndexState, len(indexes))
+	for _, index := range indexes {
+		values[index.Name] = index
+	}
+	return values
+}
+
+func constraintStatesByName(constraints []migrations.ConstraintState) map[string]migrations.ConstraintState {
+	values := make(map[string]migrations.ConstraintState, len(constraints))
+	for _, constraint := range constraints {
+		values[constraint.Name] = constraint
+	}
+	return values
+}
+
+func fieldHasDatabaseDefault(field migrations.FieldState) bool {
+	return field.DBDefault != nil
+}
+
 func runMigrate(ctx context.Context, options migrationOptions, stdout io.Writer, projectMigrations []migrations.Migration) error {
 	if options.prune {
 		_, err := fmt.Fprintln(stdout, "pruned stale migration records")
@@ -344,6 +637,7 @@ func knownMigrations(appLabel string, projectMigrations []migrations.Migration) 
 	known := builtInMigrations(appLabel)
 	if projectMigrations != nil {
 		known = append(known, filterProjectMigrations(appLabel, projectMigrations)...)
+		known = appendMissingDiskMigrations(known, appLabel)
 		sortMigrations(known)
 		return known, nil
 	}
@@ -361,6 +655,27 @@ func knownMigrations(appLabel string, projectMigrations []migrations.Migration) 
 	}
 	sortMigrations(known)
 	return known, nil
+}
+
+func appendMissingDiskMigrations(known []migrations.Migration, appLabel string) []migrations.Migration {
+	seen := make(map[string]struct{}, len(known))
+	for _, migration := range known {
+		seen[migration.Identity()] = struct{}{}
+	}
+	for _, target := range migrationTargets(appLabel) {
+		targetMigrations, err := knownMigrationsForTarget(target)
+		if err != nil {
+			continue
+		}
+		for _, migration := range targetMigrations {
+			if _, exists := seen[migration.Identity()]; exists {
+				continue
+			}
+			seen[migration.Identity()] = struct{}{}
+			known = append(known, migration)
+		}
+	}
+	return known
 }
 
 func filterProjectMigrations(appLabel string, projectMigrations []migrations.Migration) []migrations.Migration {

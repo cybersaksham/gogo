@@ -162,7 +162,7 @@ func plannedCommands(root *Root, options RootOptions) []Command {
 		NewRunserverCommand(options.RunserverStarter),
 		NewStartprojectCommand(),
 		NewStartappCommand(),
-		NewMakemigrationsCommandWithMigrations(options.ProjectMigrations),
+		NewMakemigrationsCommandWithProject(options.ProjectModels, options.ProjectMigrations),
 		NewMigrateCommandWithMigrations(options.ProjectMigrations),
 		NewShowmigrationsCommandWithMigrations(options.ProjectMigrations),
 		NewSQLMigrateCommandWithMigrations(options.ProjectMigrations),
