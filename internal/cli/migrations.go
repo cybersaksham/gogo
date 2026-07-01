@@ -32,25 +32,44 @@ import (
 func NewMakemigrationsCommand() Command {
 	return migrationCommand{name: "makemigrations", summary: "Create new migrations"}
 }
+func NewMakemigrationsCommandWithMigrations(projectMigrations []migrations.Migration) Command {
+	return migrationCommand{name: "makemigrations", summary: "Create new migrations", projectMigrations: projectMigrations}
+}
 func NewMigrateCommand() Command {
 	return migrationCommand{name: "migrate", summary: "Apply or roll back migrations"}
+}
+func NewMigrateCommandWithMigrations(projectMigrations []migrations.Migration) Command {
+	return migrationCommand{name: "migrate", summary: "Apply or roll back migrations", projectMigrations: projectMigrations}
 }
 func NewShowmigrationsCommand() Command {
 	return migrationCommand{name: "showmigrations", summary: "List migrations"}
 }
+func NewShowmigrationsCommandWithMigrations(projectMigrations []migrations.Migration) Command {
+	return migrationCommand{name: "showmigrations", summary: "List migrations", projectMigrations: projectMigrations}
+}
 func NewSQLMigrateCommand() Command {
 	return migrationCommand{name: "sqlmigrate", summary: "Render migration SQL"}
+}
+func NewSQLMigrateCommandWithMigrations(projectMigrations []migrations.Migration) Command {
+	return migrationCommand{name: "sqlmigrate", summary: "Render migration SQL", projectMigrations: projectMigrations}
 }
 func NewSquashmigrationsCommand() Command {
 	return migrationCommand{name: "squashmigrations", summary: "Squash migrations"}
 }
+func NewSquashmigrationsCommandWithMigrations(projectMigrations []migrations.Migration) Command {
+	return migrationCommand{name: "squashmigrations", summary: "Squash migrations", projectMigrations: projectMigrations}
+}
 func NewOptimizeMigrationCommand() Command {
 	return migrationCommand{name: "optimizemigration", summary: "Optimize a migration"}
 }
+func NewOptimizeMigrationCommandWithMigrations(projectMigrations []migrations.Migration) Command {
+	return migrationCommand{name: "optimizemigration", summary: "Optimize a migration", projectMigrations: projectMigrations}
+}
 
 type migrationCommand struct {
-	name    string
-	summary string
+	name              string
+	summary           string
+	projectMigrations []migrations.Migration
 }
 
 func (c migrationCommand) Name() string    { return c.name }
@@ -68,15 +87,15 @@ func (c migrationCommand) runWithIO(ctx context.Context, args []string, stdout, 
 	case "makemigrations":
 		return runMakeMigrations(options, stdout)
 	case "migrate":
-		return runMigrate(ctx, options, stdout)
+		return runMigrate(ctx, options, stdout, c.projectMigrations)
 	case "showmigrations":
-		return runShowMigrations(ctx, options, stdout)
+		return runShowMigrations(ctx, options, stdout, c.projectMigrations)
 	case "sqlmigrate":
-		return runSQLMigrate(options, positionals, stdout)
+		return runSQLMigrate(options, positionals, stdout, c.projectMigrations)
 	case "squashmigrations":
-		return runSquashMigrations(positionals, stdout)
+		return runSquashMigrations(positionals, stdout, c.projectMigrations)
 	case "optimizemigration":
-		return runOptimizeMigration(positionals, stdout)
+		return runOptimizeMigration(positionals, stdout, c.projectMigrations)
 	}
 	return nil
 }
@@ -216,15 +235,35 @@ func defaultMigrationOperation(appLabel string, empty bool) migrations.Operation
 	if empty {
 		return migrations.ManifestOperation{NameValue: "EmptyMigration"}
 	}
-	return migrations.ManifestOperation{NameValue: "CreateModel:" + appLabel + ".Item"}
+	return operations.CreateModel{Model: generatedItemModelState(appLabel)}
 }
 
-func runMigrate(ctx context.Context, options migrationOptions, stdout io.Writer) error {
+func generatedItemModelState(appLabel string) migrations.ModelState {
+	table := generatedModelTableName(appLabel, "Item")
+	return migrations.ModelState{
+		AppLabel:  appLabel,
+		Name:      "Item",
+		TableName: table,
+		Fields: []migrations.FieldState{
+			{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true},
+			{Name: "name", Column: "name", Kind: "text"},
+			{Name: "slug", Column: "slug", Kind: "text"},
+			{Name: "created_at", Column: "created_at", Kind: "timestamp", Null: true},
+			{Name: "updated_at", Column: "updated_at", Kind: "timestamp", Null: true},
+		},
+		Constraints: []migrations.ConstraintState{
+			{Name: appLabel + "_item_slug_uniq", Type: "unique", Fields: []string{"slug"}},
+		},
+		Options: map[string]any{"verbose_name": "item"},
+	}
+}
+
+func runMigrate(ctx context.Context, options migrationOptions, stdout io.Writer, projectMigrations []migrations.Migration) error {
 	if options.prune {
 		_, err := fmt.Fprintln(stdout, "pruned stale migration records")
 		return err
 	}
-	known, err := knownMigrations(options.app)
+	known, err := knownMigrations(options.app, projectMigrations)
 	if err != nil {
 		return err
 	}
@@ -265,8 +304,8 @@ func runMigrate(ctx context.Context, options migrationOptions, stdout io.Writer)
 	return nil
 }
 
-func runShowMigrations(ctx context.Context, options migrationOptions, stdout io.Writer) error {
-	known, err := knownMigrations(options.app)
+func runShowMigrations(ctx context.Context, options migrationOptions, stdout io.Writer, projectMigrations []migrations.Migration) error {
+	known, err := knownMigrations(options.app, projectMigrations)
 	if err != nil {
 		return err
 	}
@@ -300,9 +339,14 @@ func runShowMigrations(ctx context.Context, options migrationOptions, stdout io.
 	return nil
 }
 
-func knownMigrations(appLabel string) ([]migrations.Migration, error) {
-	targets := migrationTargets(appLabel)
+func knownMigrations(appLabel string, projectMigrations []migrations.Migration) ([]migrations.Migration, error) {
 	known := builtInMigrations(appLabel)
+	if projectMigrations != nil {
+		known = append(known, filterProjectMigrations(appLabel, projectMigrations)...)
+		sortMigrations(known)
+		return known, nil
+	}
+	targets := migrationTargets(appLabel)
 	if appLabel != "" && len(known) > 0 {
 		sortMigrations(known)
 		return known, nil
@@ -316,6 +360,17 @@ func knownMigrations(appLabel string) ([]migrations.Migration, error) {
 	}
 	sortMigrations(known)
 	return known, nil
+}
+
+func filterProjectMigrations(appLabel string, projectMigrations []migrations.Migration) []migrations.Migration {
+	filtered := make([]migrations.Migration, 0, len(projectMigrations))
+	for _, migration := range projectMigrations {
+		if appLabel != "" && migration.AppLabel != appLabel {
+			continue
+		}
+		filtered = append(filtered, migration)
+	}
+	return filtered
 }
 
 func sortMigrations(known []migrations.Migration) {
@@ -347,8 +402,14 @@ func migrationFromFile(appLabel, dir, name string) migrations.Migration {
 	}
 	migration.Dependencies = metadata.Dependencies
 	migration.Replaces = metadata.Replaces
-	if len(metadata.Operations) > 0 {
-		migration.Operations = migrationOperationsFromNames(appLabel, metadata.Operations)
+	migration.RunBefore = metadata.RunBefore
+	if metadata.HasAtomic {
+		migration.Atomic = metadata.Atomic
+	}
+	if len(metadata.OperationSpecs) > 0 {
+		migration.Operations = migrationOperationsFromSpecs(appLabel, metadata.OperationSpecs)
+	} else if len(metadata.OperationNames) > 0 {
+		migration.Operations = migrationOperationsFromNames(appLabel, metadata.OperationNames)
 	}
 	return migration
 }
@@ -396,6 +457,136 @@ func migrationOperationsFromNames(appLabel string, names []string) []migrations.
 		return []migrations.Operation{migrations.ManifestOperation{NameValue: "NoopMigration"}}
 	}
 	return operations
+}
+
+func migrationOperationsFromSpecs(appLabel string, specs []migrations.OperationSpec) []migrations.Operation {
+	compiled := make([]migrations.Operation, 0, len(specs))
+	for _, spec := range specs {
+		operation, ok := migrationOperationFromSpec(appLabel, spec)
+		if !ok {
+			compiled = append(compiled, migrations.ManifestOperation{Spec: spec})
+			continue
+		}
+		compiled = append(compiled, operation)
+	}
+	if len(compiled) == 0 {
+		return []migrations.Operation{migrations.ManifestOperation{NameValue: "NoopMigration"}}
+	}
+	return compiled
+}
+
+func migrationOperationFromSpec(defaultAppLabel string, spec migrations.OperationSpec) (migrations.Operation, bool) {
+	appLabel := firstNonEmptyString(spec.AppLabel, defaultAppLabel)
+	switch spec.Type {
+	case "EmptyMigration", "NoopMigration":
+		return migrations.ManifestOperation{Spec: spec}, true
+	case "":
+		return nil, false
+	case "CreateModel":
+		if spec.Model == nil {
+			return nil, false
+		}
+		return operations.CreateModel{Model: *spec.Model}, true
+	case "DeleteModel":
+		if spec.Model == nil {
+			return nil, false
+		}
+		return operations.DeleteModel{Model: *spec.Model}, true
+	case "RenameModel":
+		return operations.RenameModel{AppLabel: appLabel, OldName: spec.OldName, NewName: spec.NewName}, true
+	case "AlterModelTable":
+		return operations.AlterModelTable{AppLabel: appLabel, ModelName: spec.ModelName, OldTable: spec.OldTable, NewTable: spec.NewTable}, true
+	case "AlterModelTableComment":
+		return operations.AlterModelTableComment{AppLabel: appLabel, ModelName: spec.ModelName, Comment: spec.Comment}, true
+	case "AlterModelOptions":
+		return operations.AlterModelOptions{AppLabel: appLabel, ModelName: spec.ModelName, Options: spec.Options}, true
+	case "AlterModelManagers":
+		return operations.AlterModelManagers{AppLabel: appLabel, ModelName: spec.ModelName, Managers: append([]string(nil), spec.Managers...)}, true
+	case "AlterOrderWithRespectTo":
+		return operations.AlterOrderWithRespectTo{AppLabel: appLabel, ModelName: spec.ModelName, Field: spec.FieldName}, true
+	case "AlterTogether":
+		return operations.AlterTogether{AppLabel: appLabel, ModelName: spec.ModelName, UniqueTogether: cloneStringMatrix(spec.UniqueTogether), IndexTogether: cloneStringMatrix(spec.IndexTogether)}, true
+	case "AddField":
+		if spec.Field == nil {
+			return nil, false
+		}
+		return operations.AddField{AppLabel: appLabel, ModelName: spec.ModelName, Field: *spec.Field, HasDefault: spec.HasDefault, UnsafeAcknowledged: spec.UnsafeAcknowledged}, true
+	case "RemoveField":
+		if spec.Field == nil {
+			return nil, false
+		}
+		return operations.RemoveField{AppLabel: appLabel, ModelName: spec.ModelName, Field: *spec.Field}, true
+	case "AlterField":
+		if spec.OldField == nil || spec.NewField == nil {
+			return nil, false
+		}
+		return operations.AlterField{AppLabel: appLabel, ModelName: spec.ModelName, OldField: *spec.OldField, NewField: *spec.NewField}, true
+	case "RenameField":
+		return operations.RenameField{AppLabel: appLabel, ModelName: spec.ModelName, OldName: spec.OldName, NewName: spec.NewName}, true
+	case "AddIndex":
+		if spec.Index == nil {
+			return nil, false
+		}
+		return operations.AddIndex{AppLabel: appLabel, ModelName: spec.ModelName, Index: *spec.Index}, true
+	case "RemoveIndex":
+		return operations.RemoveIndex{AppLabel: appLabel, ModelName: spec.ModelName, IndexName: spec.IndexName}, true
+	case "RenameIndex":
+		return operations.RenameIndex{AppLabel: appLabel, ModelName: spec.ModelName, OldName: spec.OldName, NewName: spec.NewName}, true
+	case "AddConstraint":
+		if spec.Constraint == nil {
+			return nil, false
+		}
+		return operations.AddConstraint{AppLabel: appLabel, ModelName: spec.ModelName, Constraint: *spec.Constraint}, true
+	case "RemoveConstraint":
+		return operations.RemoveConstraint{AppLabel: appLabel, ModelName: spec.ModelName, ConstraintName: spec.ConstraintName}, true
+	case "RunSQL":
+		return operations.RunSQL{SQL: spec.SQL, ReverseSQL: spec.ReverseSQL, ElidableOp: spec.Elidable}, true
+	case "SeparateDatabaseAndState":
+		separate := operations.SeparateDatabaseAndState{}
+		for _, nested := range spec.DatabaseOperations {
+			operation, ok := migrationOperationFromSpec(defaultAppLabel, nested)
+			if !ok {
+				return nil, false
+			}
+			separate.DatabaseOperations = append(separate.DatabaseOperations, operation)
+		}
+		for _, nested := range spec.StateOperations {
+			operation, ok := migrationOperationFromSpec(defaultAppLabel, nested)
+			if !ok {
+				return nil, false
+			}
+			separate.StateOperations = append(separate.StateOperations, operation)
+		}
+		return separate, true
+	default:
+		if strings.HasPrefix(spec.Type, "CreateModel:") || strings.HasPrefix(spec.Type, "AddField:") {
+			operations := migrationOperationsFromNames(defaultAppLabel, []string{spec.Type})
+			if len(operations) == 1 {
+				return operations[0], true
+			}
+		}
+		return nil, false
+	}
+}
+
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func cloneStringMatrix(values [][]string) [][]string {
+	if values == nil {
+		return nil
+	}
+	clone := make([][]string, len(values))
+	for index, value := range values {
+		clone[index] = append([]string(nil), value...)
+	}
+	return clone
 }
 
 func createModelStatementFromOperation(defaultAppLabel, operation string) (string, bool) {
@@ -513,9 +704,13 @@ func replacementNames(migration migrations.Migration) []string {
 }
 
 type generatedMigrationMetadata struct {
-	Dependencies []migrations.Dependency
-	Replaces     []migrations.Dependency
-	Operations   []string
+	Dependencies   []migrations.Dependency
+	Replaces       []migrations.Dependency
+	RunBefore      []migrations.Dependency
+	OperationSpecs []migrations.OperationSpec
+	OperationNames []string
+	Atomic         bool
+	HasAtomic      bool
 }
 
 func parseGeneratedMigrationMetadata(path string) (generatedMigrationMetadata, error) {
@@ -534,24 +729,29 @@ func parseGeneratedMigrationMetadata(path string) (generatedMigrationMetadata, e
 			return true
 		}
 		switch key.Name {
+		case "Atomic":
+			metadata.Atomic, metadata.HasAtomic = boolLiteralValue(keyValue.Value)
 		case "Dependencies":
 			metadata.Dependencies = parseMigrationDependencies(keyValue.Value)
 		case "Replaces":
 			metadata.Replaces = parseMigrationDependencies(keyValue.Value)
+		case "RunBefore":
+			metadata.RunBefore = parseMigrationDependencies(keyValue.Value)
 		case "Operations":
-			metadata.Operations = parseMigrationOperations(keyValue.Value)
+			metadata.OperationSpecs, metadata.OperationNames = parseMigrationOperations(keyValue.Value)
 		}
 		return true
 	})
 	return metadata, nil
 }
 
-func parseMigrationOperations(expr ast.Expr) []string {
+func parseMigrationOperations(expr ast.Expr) ([]migrations.OperationSpec, []string) {
 	literal, ok := expr.(*ast.CompositeLit)
 	if !ok {
-		return nil
+		return nil, nil
 	}
-	operations := make([]string, 0, len(literal.Elts))
+	specs := make([]migrations.OperationSpec, 0, len(literal.Elts))
+	names := make([]string, 0, len(literal.Elts))
 	for _, element := range literal.Elts {
 		operationLiteral, ok := element.(*ast.CompositeLit)
 		if !ok {
@@ -563,15 +763,27 @@ func parseMigrationOperations(expr ast.Expr) []string {
 				continue
 			}
 			key, ok := keyValue.Key.(*ast.Ident)
-			if !ok || key.Name != "NameValue" {
+			if !ok {
 				continue
 			}
-			if name := stringLiteralValue(keyValue.Value); name != "" {
-				operations = append(operations, name)
+			switch key.Name {
+			case "SpecJSON":
+				raw := stringLiteralValue(keyValue.Value)
+				if raw == "" {
+					continue
+				}
+				spec, err := migrations.OperationSpecFromJSON(raw)
+				if err == nil && spec.Type != "" {
+					specs = append(specs, spec)
+				}
+			case "NameValue":
+				if name := stringLiteralValue(keyValue.Value); name != "" {
+					names = append(names, name)
+				}
 			}
 		}
 	}
-	return operations
+	return specs, names
 }
 
 func parseMigrationDependencies(expr ast.Expr) []migrations.Dependency {
@@ -619,6 +831,21 @@ func stringLiteralValue(expr ast.Expr) string {
 		return ""
 	}
 	return value
+}
+
+func boolLiteralValue(expr ast.Expr) (bool, bool) {
+	ident, ok := expr.(*ast.Ident)
+	if !ok {
+		return false, false
+	}
+	switch ident.Name {
+	case "true":
+		return true, true
+	case "false":
+		return false, true
+	default:
+		return false, false
+	}
 }
 
 func appliedMigrationSet(ctx context.Context, recorder migrations.Recorder) (map[string]struct{}, error) {
@@ -714,6 +941,56 @@ func (e sqlSchemaEditor) TableExists(ctx context.Context, table string) (bool, e
 	return false, rows.Err()
 }
 
+func (e sqlSchemaEditor) TableColumns(ctx context.Context, table string) ([]migrations.ColumnSchema, error) {
+	if e.dialect == nil || e.dialect.SchemaIntrospection().ColumnsSQL == "" {
+		return nil, errors.New("database dialect does not support column introspection")
+	}
+	switch e.dialect.Name() {
+	case "sqlite":
+		rows, err := e.db.QueryContext(ctx, "PRAGMA table_info("+e.dialect.QuoteIdent(table)+")")
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		var columns []migrations.ColumnSchema
+		for rows.Next() {
+			var cid int
+			var name string
+			var kind string
+			var notNull int
+			var defaultValue sql.NullString
+			var primaryKey int
+			if err := rows.Scan(&cid, &name, &kind, &notNull, &defaultValue, &primaryKey); err != nil {
+				return nil, err
+			}
+			_ = cid
+			columns = append(columns, migrations.ColumnSchema{Name: name, Kind: kind, PrimaryKey: primaryKey > 0, Nullable: notNull == 0 && primaryKey == 0})
+		}
+		return columns, rows.Err()
+	case "postgres":
+		rows, err := e.db.QueryContext(ctx, e.dialect.SchemaIntrospection().ColumnsSQL)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		var columns []migrations.ColumnSchema
+		for rows.Next() {
+			var tableName string
+			var name string
+			var kind string
+			if err := rows.Scan(&tableName, &name, &kind); err != nil {
+				return nil, err
+			}
+			if tableName == table {
+				columns = append(columns, migrations.ColumnSchema{Name: name, Kind: kind})
+			}
+		}
+		return columns, rows.Err()
+	default:
+		return nil, errors.New("database dialect does not support column introspection")
+	}
+}
+
 type sqlMigrationOperation struct {
 	NameValue  string
 	Statements []string
@@ -778,7 +1055,7 @@ func migrationFileNames(dir string) ([]string, error) {
 	return names, nil
 }
 
-func runSQLMigrate(options migrationOptions, positionals []string, stdout io.Writer) error {
+func runSQLMigrate(options migrationOptions, positionals []string, stdout io.Writer, projectMigrations []migrations.Migration) error {
 	if len(positionals) < 2 {
 		return fmt.Errorf("%w: usage sqlmigrate <app> <migration>", ErrInvalidArguments)
 	}
@@ -787,7 +1064,7 @@ func runSQLMigrate(options migrationOptions, positionals []string, stdout io.Wri
 	if _, err := fmt.Fprintf(stdout, "-- SQL for %s.%s on database %s\n", appLabel, migrationName, options.database); err != nil {
 		return err
 	}
-	migration, ok, err := knownMigration(appLabel, migrationName)
+	migration, ok, err := knownMigration(appLabel, migrationName, projectMigrations)
 	if err != nil {
 		return err
 	}
@@ -807,8 +1084,8 @@ func runSQLMigrate(options migrationOptions, positionals []string, stdout io.Wri
 	return nil
 }
 
-func knownMigration(appLabel, migrationName string) (migrations.Migration, bool, error) {
-	known, err := knownMigrations(appLabel)
+func knownMigration(appLabel, migrationName string, projectMigrations []migrations.Migration) (migrations.Migration, bool, error) {
+	known, err := knownMigrations(appLabel, projectMigrations)
 	if err != nil {
 		return migrations.Migration{}, false, err
 	}
@@ -847,21 +1124,27 @@ func builtInMigration(appLabel, migrationName string) (migrations.Migration, boo
 }
 
 func sqlStatementsForMigration(migration migrations.Migration) []string {
-	var statements []string
+	editor := &collectingSchemaEditor{}
 	for _, operation := range migration.Operations {
-		switch typed := operation.(type) {
-		case operations.RunSQL:
-			if strings.TrimSpace(typed.SQL) != "" {
-				statements = append(statements, typed.SQL)
-			}
-		case sqlMigrationOperation:
-			statements = append(statements, typed.Statements...)
+		if err := operation.DatabaseForwards(context.Background(), editor); err != nil {
+			continue
 		}
 	}
-	return statements
+	return editor.statements
 }
 
-func runSquashMigrations(positionals []string, stdout io.Writer) error {
+type collectingSchemaEditor struct {
+	statements []string
+}
+
+func (e *collectingSchemaEditor) Execute(_ context.Context, statement string, _ ...any) error {
+	if strings.TrimSpace(statement) != "" {
+		e.statements = append(e.statements, statement)
+	}
+	return nil
+}
+
+func runSquashMigrations(positionals []string, stdout io.Writer, projectMigrations []migrations.Migration) error {
 	if len(positionals) < 3 {
 		return fmt.Errorf("%w: usage squashmigrations <app> <start> <end>", ErrInvalidArguments)
 	}
@@ -869,7 +1152,7 @@ func runSquashMigrations(positionals []string, stdout io.Writer) error {
 	start := positionals[1]
 	end := positionals[2]
 	dir := migrationDirForApp(appLabel)
-	names, err := migrationFileNames(dir)
+	names, err := squashMigrationNames(appLabel, dir, projectMigrations)
 	if err != nil {
 		return fmt.Errorf("%w: list migrations: %v", ErrCommandFailed, err)
 	}
@@ -897,12 +1180,33 @@ func runSquashMigrations(positionals []string, stdout io.Writer) error {
 	return err
 }
 
-func runOptimizeMigration(positionals []string, stdout io.Writer) error {
+func squashMigrationNames(appLabel, dir string, projectMigrations []migrations.Migration) ([]string, error) {
+	if projectMigrations != nil {
+		var names []string
+		for _, migration := range filterProjectMigrations(appLabel, projectMigrations) {
+			names = append(names, migration.Name)
+		}
+		sort.Strings(names)
+		return names, nil
+	}
+	return migrationFileNames(dir)
+}
+
+func runOptimizeMigration(positionals []string, stdout io.Writer, projectMigrations []migrations.Migration) error {
 	if len(positionals) < 2 {
 		return fmt.Errorf("%w: usage optimizemigration <app> <migration>", ErrInvalidArguments)
 	}
 	appLabel := positionals[0]
 	name := positionals[1]
+	if projectMigrations != nil {
+		if _, ok, err := knownMigration(appLabel, name, projectMigrations); err != nil {
+			return err
+		} else if !ok {
+			return fmt.Errorf("%w: migration %s.%s not found", ErrInvalidArguments, appLabel, name)
+		}
+		_, err := fmt.Fprintf(stdout, "no optimizations needed for %s.%s\n", appLabel, name)
+		return err
+	}
 	path := filepath.Join(migrationDirForApp(appLabel), name+".go")
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {

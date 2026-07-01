@@ -1,0 +1,36 @@
+package {{.AppName}}migrations
+
+import (
+	gogomigrations "github.com/cybersaksham/gogo/migrations"
+	"github.com/cybersaksham/gogo/migrations/operations"
+)
+
+func Migrations() []gogomigrations.Migration {
+	return []gogomigrations.Migration{Initial()}
+}
+
+func Initial() gogomigrations.Migration {
+	return gogomigrations.Migration{
+		AppLabel: "{{.AppLabel}}",
+		Name:     gogomigrations.InitialMigrationName(),
+		Atomic:   true,
+		Operations: []gogomigrations.Operation{
+			operations.CreateModel{Model: gogomigrations.ModelState{
+				AppLabel:  "{{.AppLabel}}",
+				Name:      "Item",
+				TableName: "{{.AppLabel}}_item",
+				Fields: []gogomigrations.FieldState{
+					{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true},
+					{Name: "name", Column: "name", Kind: "text"},
+					{Name: "slug", Column: "slug", Kind: "text"},
+					{Name: "created_at", Column: "created_at", Kind: "timestamp", Null: true},
+					{Name: "updated_at", Column: "updated_at", Kind: "timestamp", Null: true},
+				},
+				Constraints: []gogomigrations.ConstraintState{
+					{Name: "{{.AppLabel}}_item_slug_uniq", Type: "unique", Fields: []string{"slug"}},
+				},
+				Options: map[string]any{"verbose_name": "item"},
+			}},
+		},
+	}
+}

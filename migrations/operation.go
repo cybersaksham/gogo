@@ -15,9 +15,33 @@ type TableExistenceChecker interface {
 	TableExists(context.Context, string) (bool, error)
 }
 
+// TableShapeChecker is implemented by schema editors that can inspect columns.
+type TableShapeChecker interface {
+	TableColumns(context.Context, string) ([]ColumnSchema, error)
+}
+
 // InitialTableProvider lets fake-initial compare an initial migration with existing schema.
 type InitialTableProvider interface {
 	InitialTables() []string
+}
+
+// InitialSchemaProvider lets fake-initial validate existing table shape.
+type InitialSchemaProvider interface {
+	InitialSchema() []TableSchema
+}
+
+// TableSchema describes the minimum table shape required by an initial migration.
+type TableSchema struct {
+	Name    string
+	Columns []ColumnSchema
+}
+
+// ColumnSchema describes one column required by an initial migration.
+type ColumnSchema struct {
+	Name       string
+	Kind       string
+	PrimaryKey bool
+	Nullable   bool
 }
 
 // Operation is the complete migration operation contract.

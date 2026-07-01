@@ -7,6 +7,7 @@ import (
 
 	"github.com/cybersaksham/gogo/checks"
 	"github.com/cybersaksham/gogo/internal/version"
+	"github.com/cybersaksham/gogo/migrations"
 )
 
 // Root dispatches built-in CLI commands.
@@ -21,11 +22,12 @@ func NewRoot() *Root {
 
 // RootOptions configures project-specific command integrations.
 type RootOptions struct {
-	RunserverStarter ServerStarter
-	AuthStore        authUserStore
-	QueueRuntime     *QueueRuntime
-	FixtureStore     FixtureStore
-	ProjectChecks    []checks.Check
+	RunserverStarter  ServerStarter
+	AuthStore         authUserStore
+	QueueRuntime      *QueueRuntime
+	FixtureStore      FixtureStore
+	ProjectChecks     []checks.Check
+	ProjectMigrations []migrations.Migration
 }
 
 // NewRootWithOptions creates the root CLI with project-specific integrations.
@@ -158,12 +160,12 @@ func plannedCommands(root *Root, options RootOptions) []Command {
 		NewRunserverCommand(options.RunserverStarter),
 		NewStartprojectCommand(),
 		NewStartappCommand(),
-		NewMakemigrationsCommand(),
-		NewMigrateCommand(),
-		NewShowmigrationsCommand(),
-		NewSQLMigrateCommand(),
-		NewSquashmigrationsCommand(),
-		NewOptimizeMigrationCommand(),
+		NewMakemigrationsCommandWithMigrations(options.ProjectMigrations),
+		NewMigrateCommandWithMigrations(options.ProjectMigrations),
+		NewShowmigrationsCommandWithMigrations(options.ProjectMigrations),
+		NewSQLMigrateCommandWithMigrations(options.ProjectMigrations),
+		NewSquashmigrationsCommandWithMigrations(options.ProjectMigrations),
+		NewOptimizeMigrationCommandWithMigrations(options.ProjectMigrations),
 		NewCreateSuperuserCommand(authStore),
 		NewChangePasswordCommand(authStore),
 		NewCollectstaticCommand(nil),

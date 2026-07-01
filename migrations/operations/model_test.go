@@ -20,7 +20,7 @@ func TestModelOperationsMutateStateAndRenderSQL(t *testing.T) {
 	if err := create.DatabaseForwards(context.Background(), editor); err != nil {
 		t.Fatalf("CreateModel DatabaseForwards() error = %v", err)
 	}
-	if editor.SQL[0] != `CREATE TABLE blog_post ()` {
+	if editor.SQL[0] != `CREATE TABLE IF NOT EXISTS blog_post (id bigint PRIMARY KEY)` {
 		t.Fatalf("create SQL = %q", editor.SQL[0])
 	}
 

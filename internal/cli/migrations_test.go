@@ -83,7 +83,7 @@ func TestMakeMigrationsDiscoversGeneratedAppsFromProjectRoot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected generated app migration %s: %v", path, err)
 	}
-	if !strings.Contains(string(contents), `"blog"`) || !strings.Contains(string(contents), `CreateModel:blog.Item`) {
+	if !strings.Contains(string(contents), `"blog"`) || !strings.Contains(string(contents), `\"type\":\"CreateModel\"`) || !strings.Contains(string(contents), `blog_item`) {
 		t.Fatalf("migration contents did not describe blog item:\n%s", contents)
 	}
 	if !strings.Contains(stdout.String(), "created blog.0001_initial") {

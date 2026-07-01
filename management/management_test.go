@@ -19,6 +19,8 @@ import (
 	"github.com/cybersaksham/gogo/conf"
 	gogohttp "github.com/cybersaksham/gogo/http"
 	"github.com/cybersaksham/gogo/internal/cli"
+	"github.com/cybersaksham/gogo/migrations"
+	"github.com/cybersaksham/gogo/migrations/operations"
 	"github.com/cybersaksham/gogo/queue"
 
 	_ "modernc.org/sqlite"
@@ -135,6 +137,41 @@ func TestExecuteProjectRunsProjectChecks(t *testing.T) {
 	}
 }
 
+func TestExecuteProjectUsesCompiledMigrations(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	dbPath := filepath.Join(dir, "db.sqlite3")
+	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte("GOGO_SECRET_KEY=management-secret\nDATABASE_URL=sqlite://"+filepath.ToSlash(dbPath)+"\n"), 0o600); err != nil {
+		t.Fatalf("write env: %v", err)
+	}
+	project := Project{
+		Migrations: func() []migrations.Migration {
+			return []migrations.Migration{{
+				AppLabel: "blog",
+				Name:     migrations.InitialMigrationName(),
+				Atomic:   true,
+				Operations: []migrations.Operation{
+					operations.RunSQL{SQL: "CREATE TABLE blog_compiled (id integer PRIMARY KEY)"},
+				},
+			}}
+		},
+	}
+
+	var sqlOut bytes.Buffer
+	if err := ExecuteProject(context.Background(), []string{"sqlmigrate", "blog", "0001_initial"}, &sqlOut, &bytes.Buffer{}, project); err != nil {
+		t.Fatalf("ExecuteProject(sqlmigrate) error = %v", err)
+	}
+	if !strings.Contains(sqlOut.String(), "CREATE TABLE blog_compiled") {
+		t.Fatalf("sqlmigrate did not use compiled migration:\n%s", sqlOut.String())
+	}
+
+	var migrateOut bytes.Buffer
+	if err := ExecuteProject(context.Background(), []string{"migrate", "--app", "blog"}, &migrateOut, &bytes.Buffer{}, project); err != nil {
+		t.Fatalf("ExecuteProject(migrate) error = %v\n%s", err, migrateOut.String())
+	}
+	assertManagementSQLiteTableExists(t, dbPath, "blog_compiled")
+}
+
 func TestProjectBuildServerUsesCustomMiddlewareAndServerConfig(t *testing.T) {
 	settings := validManagementSettings()
 	settings.Middleware = []string{"project.HeaderMiddleware"}
@@ -180,6 +217,19 @@ func TestProjectBuildServerUsesCustomMiddlewareAndServerConfig(t *testing.T) {
 	server.Handler().ServeHTTP(ready, httptest.NewRequest(http.MethodGet, "/readyz/", nil))
 	if ready.Code != http.StatusOK {
 		t.Fatalf("custom health status = %d", ready.Code)
+	}
+}
+
+func assertManagementSQLiteTableExists(t *testing.T, dbPath, table string) {
+	t.Helper()
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	defer db.Close()
+	var name string
+	if err := db.QueryRow(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name); err != nil {
+		t.Fatalf("expected sqlite table %s: %v", table, err)
 	}
 }
 

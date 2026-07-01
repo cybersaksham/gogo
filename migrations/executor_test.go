@@ -111,6 +111,67 @@ func TestExecutorFakeInitialRecordsWhenInitialTablesExist(t *testing.T) {
 	}
 }
 
+func TestExecutorFakeInitialRequiresMatchingSchemaShape(t *testing.T) {
+	ctx := context.Background()
+	db := openRecorderDB(t)
+	defer db.Close()
+	recorder := NewRecorder(db, "executor")
+	migration := testMigration("blog", "0001_initial")
+	migration.Operations = []Operation{initialSchemaOperation{
+		table:   "blog_post",
+		columns: []ColumnSchema{{Name: "id", PrimaryKey: true}, {Name: "title"}},
+	}}
+
+	mismatch := &shapeAwareSchemaEditor{columns: map[string][]ColumnSchema{
+		"blog_post": {{Name: "id", PrimaryKey: true}},
+	}}
+	if err := NewExecutor(recorder, mismatch).Apply(ctx, []Migration{migration}, ExecutorOptions{FakeInitial: true}); err != nil {
+		t.Fatalf("Apply(fake-initial mismatch) error = %v", err)
+	}
+	if len(mismatch.SQL) != 1 {
+		t.Fatalf("shape mismatch should execute migration SQL, got %#v", mismatch.SQL)
+	}
+	if err := NewExecutor(recorder, mismatch).Rollback(ctx, migration, ExecutorOptions{Fake: true}); err != nil {
+		t.Fatalf("cleanup rollback error = %v", err)
+	}
+
+	match := &shapeAwareSchemaEditor{columns: map[string][]ColumnSchema{
+		"blog_post": {{Name: "id", PrimaryKey: true}, {Name: "title"}},
+	}}
+	if err := NewExecutor(recorder, match).Apply(ctx, []Migration{migration}, ExecutorOptions{FakeInitial: true}); err != nil {
+		t.Fatalf("Apply(fake-initial match) error = %v", err)
+	}
+	if len(match.SQL) != 0 {
+		t.Fatalf("shape match should fake initial without SQL, got %#v", match.SQL)
+	}
+}
+
+func TestMigrationChecksumIncludesCanonicalContent(t *testing.T) {
+	base := testMigration("blog", "0001_initial")
+	base.Atomic = true
+	base.Dependencies = []Dependency{{AppLabel: "auth", Name: "0001_initial"}}
+	base.RunBefore = []Dependency{{AppLabel: "comments", Name: "0001_initial"}}
+	base.Operations = []Operation{ManifestOperation{Spec: OperationSpec{Type: "RunSQL", SQL: "SELECT 1"}}}
+
+	changedSQL := base
+	changedSQL.Operations = []Operation{ManifestOperation{Spec: OperationSpec{Type: "RunSQL", SQL: "SELECT 2"}}}
+	if migrationChecksum(base) == migrationChecksum(changedSQL) {
+		t.Fatal("checksum did not include operation content")
+	}
+
+	changedAtomic := base
+	changedAtomic.Atomic = false
+	if migrationChecksum(base) == migrationChecksum(changedAtomic) {
+		t.Fatal("checksum did not include atomic flag")
+	}
+
+	changedRunBefore := base
+	changedRunBefore.RunBefore = nil
+	if migrationChecksum(base) == migrationChecksum(changedRunBefore) {
+		t.Fatal("checksum did not include run-before dependencies")
+	}
+}
+
 type FailingOperation struct{}
 
 func (FailingOperation) Name() string                      { return "FailingOperation" }
@@ -142,6 +203,27 @@ func (o initialTableOperation) ReferencesModel(string, string) bool         { re
 func (o initialTableOperation) ReferencesField(string, string, string) bool { return false }
 func (o initialTableOperation) InitialTables() []string                     { return []string{o.table} }
 
+type initialSchemaOperation struct {
+	table   string
+	columns []ColumnSchema
+}
+
+func (o initialSchemaOperation) Name() string                      { return "InitialSchemaOperation" }
+func (o initialSchemaOperation) StateForwards(*ProjectState) error { return nil }
+func (o initialSchemaOperation) DatabaseForwards(ctx context.Context, editor SchemaEditor) error {
+	return editor.Execute(ctx, "CREATE TABLE "+o.table+" ()")
+}
+func (o initialSchemaOperation) DatabaseBackwards(context.Context, SchemaEditor) error {
+	return nil
+}
+func (o initialSchemaOperation) Describe() string                            { return "initial schema" }
+func (o initialSchemaOperation) Reversible() bool                            { return true }
+func (o initialSchemaOperation) ReferencesModel(string, string) bool         { return false }
+func (o initialSchemaOperation) ReferencesField(string, string, string) bool { return false }
+func (o initialSchemaOperation) InitialSchema() []TableSchema {
+	return []TableSchema{{Name: o.table, Columns: append([]ColumnSchema(nil), o.columns...)}}
+}
+
 type tableAwareSchemaEditor struct {
 	FakeSchemaEditor
 	tables map[string]bool
@@ -149,4 +231,13 @@ type tableAwareSchemaEditor struct {
 
 func (e *tableAwareSchemaEditor) TableExists(_ context.Context, table string) (bool, error) {
 	return e.tables[table], nil
+}
+
+type shapeAwareSchemaEditor struct {
+	FakeSchemaEditor
+	columns map[string][]ColumnSchema
+}
+
+func (e *shapeAwareSchemaEditor) TableColumns(_ context.Context, table string) ([]ColumnSchema, error) {
+	return append([]ColumnSchema(nil), e.columns[table]...), nil
 }

@@ -10,7 +10,11 @@ import (
 
 func TestLoaderLoadsMigrationManifests(t *testing.T) {
 	dir := t.TempDir()
-	if err := WriteManifest(dir, testMigration("blog", "0001_initial")); err != nil {
+	migration := testMigration("blog", "0001_initial")
+	migration.Atomic = true
+	migration.RunBefore = []Dependency{{AppLabel: "comments", Name: "0001_initial"}}
+	migration.Operations = []Operation{ManifestOperation{Spec: OperationSpec{Type: "RunSQL", SQL: "SELECT 1"}}}
+	if err := WriteManifest(dir, migration); err != nil {
 		t.Fatalf("WriteManifest() error = %v", err)
 	}
 	loader := NewLoader([]string{dir})
@@ -21,6 +25,9 @@ func TestLoaderLoadsMigrationManifests(t *testing.T) {
 	if len(migrations) != 1 || migrations[0].Identity() != "blog.0001_initial" {
 		t.Fatalf("loaded migrations = %#v", migrations)
 	}
+	if !migrations[0].Atomic || len(migrations[0].RunBefore) != 1 || migrations[0].Operations[0].Name() != "RunSQL" {
+		t.Fatalf("loaded migration metadata = %#v", migrations[0])
+	}
 }
 
 func TestWriterWritesDeterministicGoMigration(t *testing.T) {
@@ -28,6 +35,8 @@ func TestWriterWritesDeterministicGoMigration(t *testing.T) {
 	dir := filepath.Join(root, "blog", "migrations")
 	migration := testMigration("blog", "0002_add_post")
 	migration.Dependencies = []Dependency{{AppLabel: "blog", Name: "0001_initial"}}
+	migration.RunBefore = []Dependency{{AppLabel: "comments", Name: "0001_initial"}}
+	migration.Atomic = true
 	writer := NewWriter(dir)
 	path, err := writer.Write(migration)
 	if err != nil {
@@ -41,7 +50,7 @@ func TestWriterWritesDeterministicGoMigration(t *testing.T) {
 		t.Fatalf("ReadFile() error = %v", err)
 	}
 	text := string(content)
-	for _, want := range []string{"package migrations", `gogomigrations.Migration`, `AppLabel: "blog"`, `"0002_add_post"`, `Dependencies:`} {
+	for _, want := range []string{"package migrations", `gogomigrations.Migration`, `AppLabel: "blog"`, `"0002_add_post"`, `Atomic:   true`, `Dependencies:`, `RunBefore:`, `SpecJSON:`} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("written migration missing %q:\n%s", want, text)
 		}

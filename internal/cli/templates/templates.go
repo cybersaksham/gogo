@@ -80,6 +80,7 @@ var appTemplateFiles = []templateFile{
 	{TemplatePath: "app/services.go.tmpl", TargetPath: "services.go"},
 	{TemplatePath: "app/tasks.go.tmpl", TargetPath: "tasks.go"},
 	{TemplatePath: "app/permissions.go.tmpl", TargetPath: "permissions.go"},
+	{TemplatePath: "app/migrations/0001_initial.go.tmpl", TargetPath: "migrations/0001_initial.go"},
 	{TemplatePath: "app/tests.go.tmpl", TargetPath: "tests/{{.AppLabel}}_test.go"},
 }
 

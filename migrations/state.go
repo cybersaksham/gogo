@@ -9,37 +9,37 @@ type ProjectState struct {
 
 // ModelState stores historical model state without live Go types.
 type ModelState struct {
-	AppLabel    string
-	Name        string
-	TableName   string
-	Fields      []FieldState
-	Indexes     []IndexState
-	Constraints []ConstraintState
-	Options     map[string]any
+	AppLabel    string            `json:"app_label"`
+	Name        string            `json:"name"`
+	TableName   string            `json:"table_name"`
+	Fields      []FieldState      `json:"fields,omitempty"`
+	Indexes     []IndexState      `json:"indexes,omitempty"`
+	Constraints []ConstraintState `json:"constraints,omitempty"`
+	Options     map[string]any    `json:"options,omitempty"`
 }
 
 // FieldState stores historical field state.
 type FieldState struct {
-	Name       string
-	Column     string
-	Kind       string
-	PrimaryKey bool
-	Null       bool
-	Unique     bool
+	Name       string `json:"name"`
+	Column     string `json:"column,omitempty"`
+	Kind       string `json:"kind,omitempty"`
+	PrimaryKey bool   `json:"primary_key,omitempty"`
+	Null       bool   `json:"null,omitempty"`
+	Unique     bool   `json:"unique,omitempty"`
 }
 
 // IndexState stores historical index state.
 type IndexState struct {
-	Name   string
-	Fields []string
+	Name   string   `json:"name"`
+	Fields []string `json:"fields,omitempty"`
 }
 
 // ConstraintState stores historical constraint state.
 type ConstraintState struct {
-	Name   string
-	Type   string
-	Fields []string
-	Check  string
+	Name   string   `json:"name"`
+	Type   string   `json:"type"`
+	Fields []string `json:"fields,omitempty"`
+	Check  string   `json:"check,omitempty"`
 }
 
 // NewProjectState creates empty state.

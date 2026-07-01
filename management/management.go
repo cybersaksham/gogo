@@ -12,6 +12,7 @@ import (
 	"github.com/cybersaksham/gogo/conf"
 	gogohttp "github.com/cybersaksham/gogo/http"
 	"github.com/cybersaksham/gogo/internal/cli"
+	"github.com/cybersaksham/gogo/migrations"
 	"github.com/cybersaksham/gogo/models"
 	"github.com/cybersaksham/gogo/orm"
 	"github.com/cybersaksham/gogo/queue"
@@ -31,6 +32,7 @@ type Project struct {
 	ModelMetadata func() []models.Metadata
 	Router        func() (*gogohttp.Router, error)
 	QueueApp      func() *queue.App
+	Migrations    func() []migrations.Migration
 	Commands      func() []Command
 	Checks        func() []checks.Check
 	Middleware    func(conf.Settings) (gogohttp.MiddlewareRegistry, error)
@@ -47,11 +49,12 @@ func Execute(ctx context.Context, args []string, stdout, stderr io.Writer) error
 // ExecuteProject runs management commands with generated project wiring.
 func ExecuteProject(ctx context.Context, args []string, stdout, stderr io.Writer, project Project) error {
 	root := cli.NewRootWithOptions(cli.RootOptions{
-		RunserverStarter: project.serverStarter(stdout),
-		AuthStore:        project.authStore(context.Background()),
-		QueueRuntime:     project.queueRuntime(),
-		FixtureStore:     project.fixtureStore(context.Background()),
-		ProjectChecks:    project.checks(),
+		RunserverStarter:  project.serverStarter(stdout),
+		AuthStore:         project.authStore(context.Background()),
+		QueueRuntime:      project.queueRuntime(),
+		FixtureStore:      project.fixtureStore(context.Background()),
+		ProjectChecks:     project.checks(),
+		ProjectMigrations: project.migrations(),
 	})
 	for _, command := range project.commands() {
 		if err := root.Register(command); err != nil {
@@ -98,6 +101,13 @@ func (p Project) commands() []cli.Command {
 		out = append(out, command)
 	}
 	return out
+}
+
+func (p Project) migrations() []migrations.Migration {
+	if p.Migrations == nil {
+		return nil
+	}
+	return append([]migrations.Migration(nil), p.Migrations()...)
 }
 
 func (p Project) checks() []checks.Check {

@@ -3,6 +3,7 @@ package operations
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/cybersaksham/gogo/migrations"
 )
@@ -33,7 +34,7 @@ func (o CreateModel) StateForwards(state *migrations.ProjectState) error {
 	return nil
 }
 func (o CreateModel) DatabaseForwards(ctx context.Context, editor migrations.SchemaEditor) error {
-	return editor.Execute(ctx, fmt.Sprintf("CREATE TABLE %s ()", o.Model.TableName))
+	return editor.Execute(ctx, createTableSQL(o.Model))
 }
 func (o CreateModel) DatabaseBackwards(ctx context.Context, editor migrations.SchemaEditor) error {
 	return editor.Execute(ctx, fmt.Sprintf("DROP TABLE %s", o.Model.TableName))
@@ -50,6 +51,26 @@ func (o CreateModel) InitialTables() []string {
 	}
 	return []string{o.Model.TableName}
 }
+func (o CreateModel) InitialSchema() []migrations.TableSchema {
+	table := o.Model.TableName
+	if table == "" {
+		table = tableName(o.Model.AppLabel, o.Model.Name)
+	}
+	fields := o.Model.Fields
+	if len(fields) == 0 {
+		fields = []migrations.FieldState{{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true}}
+	}
+	columns := make([]migrations.ColumnSchema, 0, len(fields))
+	for _, field := range fields {
+		columns = append(columns, migrations.ColumnSchema{
+			Name:       columnName(field),
+			Kind:       fieldKind(field),
+			PrimaryKey: field.PrimaryKey,
+			Nullable:   field.Null,
+		})
+	}
+	return []migrations.TableSchema{{Name: table, Columns: columns}}
+}
 
 func (o DeleteModel) Name() string { return "DeleteModel" }
 func (o DeleteModel) StateForwards(state *migrations.ProjectState) error {
@@ -60,7 +81,7 @@ func (o DeleteModel) DatabaseForwards(ctx context.Context, editor migrations.Sch
 	return editor.Execute(ctx, fmt.Sprintf("DROP TABLE %s", o.Model.TableName))
 }
 func (o DeleteModel) DatabaseBackwards(ctx context.Context, editor migrations.SchemaEditor) error {
-	return editor.Execute(ctx, fmt.Sprintf("CREATE TABLE %s ()", o.Model.TableName))
+	return editor.Execute(ctx, createTableSQL(o.Model))
 }
 func (o DeleteModel) Describe() string { return "Delete model " + o.Model.Name }
 func (o DeleteModel) Reversible() bool { return true }
@@ -217,6 +238,36 @@ func (o AlterTogether) ReferencesModel(appLabel, modelName string) bool {
 	return o.AppLabel == appLabel && o.ModelName == modelName
 }
 func (o AlterTogether) ReferencesField(string, string, string) bool { return false }
+
+func createTableSQL(model migrations.ModelState) string {
+	table := model.TableName
+	if table == "" {
+		table = tableName(model.AppLabel, model.Name)
+	}
+	fields := model.Fields
+	if len(fields) == 0 {
+		fields = []migrations.FieldState{{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true}}
+	}
+	columns := make([]string, 0, len(fields))
+	for _, field := range fields {
+		column := columnName(field)
+		kind := fieldKind(field)
+		if field.PrimaryKey && kind == "text" {
+			kind = "bigint"
+		}
+		parts := []string{column, kind}
+		if field.PrimaryKey {
+			parts = append(parts, "PRIMARY KEY")
+		} else if !field.Null {
+			parts = append(parts, "NOT NULL")
+		}
+		if field.Unique {
+			parts = append(parts, "UNIQUE")
+		}
+		columns = append(columns, strings.Join(parts, " "))
+	}
+	return fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", table, strings.Join(columns, ", "))
+}
 
 func ensureOptions(model *migrations.ModelState) {
 	if model.Options == nil {

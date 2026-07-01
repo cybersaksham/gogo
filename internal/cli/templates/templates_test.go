@@ -325,6 +325,7 @@ func TestAppFilesRenderExpectedStructure(t *testing.T) {
 		"commands.go",
 		"forms.go",
 		"migrations/.keep",
+		"migrations/0001_initial.go",
 		"models.go",
 		"permissions.go",
 		"serializers.go",
@@ -366,6 +367,17 @@ func TestAppTemplatesRenderParseablePublicGoFiles(t *testing.T) {
 	} {
 		if !strings.Contains(modelsGo, want) {
 			t.Fatalf("models.go missing unmanaged metadata example %q:\n%s", want, modelsGo)
+		}
+	}
+	migrationGo := files[filepath.Join("migrations", "0001_initial.go")]
+	for _, want := range []string{
+		"package blogmigrations",
+		"func Migrations() []gogomigrations.Migration",
+		"operations.CreateModel",
+		"TableName: \"blog_item\"",
+	} {
+		if !strings.Contains(migrationGo, want) {
+			t.Fatalf("generated migration missing %q:\n%s", want, migrationGo)
 		}
 	}
 }
