@@ -120,8 +120,8 @@ func TestGeneratedFunctionalSurface(t *testing.T) {
 	}
 
 	rawResponse := httptest.NewRecorder()
-	router.ServeHTTP(rawResponse, httptest.NewRequest(http.MethodGet, "/raw/", nil))
-	if rawResponse.Code != http.StatusOK || rawResponse.Body.String() != "raw handler" {
+	router.ServeHTTP(rawResponse, httptest.NewRequest(http.MethodGet, "/raw/sample/", nil))
+	if rawResponse.Code != http.StatusOK || rawResponse.Body.String() != "raw handler sample" {
 		t.Fatalf("raw route response = %d body=%q", rawResponse.Code, rawResponse.Body.String())
 	}
 

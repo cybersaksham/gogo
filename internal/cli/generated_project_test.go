@@ -88,7 +88,7 @@ func TestGeneratedRouterMountsAppHTTPAPIAndAdminRoutes(t *testing.T) {
 		want int
 	}{
 		{"/", http.StatusOK},
-		{"/raw/", http.StatusOK},
+		{"/raw/sample/", http.StatusOK},
 		{"/blog/", http.StatusOK},
 		{"/api/blog/items/", http.StatusOK},
 	} {
