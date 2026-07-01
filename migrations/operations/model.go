@@ -44,6 +44,12 @@ func (o CreateModel) ReferencesModel(appLabel, modelName string) bool {
 	return o.Model.AppLabel == appLabel && o.Model.Name == modelName
 }
 func (o CreateModel) ReferencesField(string, string, string) bool { return false }
+func (o CreateModel) InitialTables() []string {
+	if o.Model.TableName == "" {
+		return nil
+	}
+	return []string{o.Model.TableName}
+}
 
 func (o DeleteModel) Name() string { return "DeleteModel" }
 func (o DeleteModel) StateForwards(state *migrations.ProjectState) error {

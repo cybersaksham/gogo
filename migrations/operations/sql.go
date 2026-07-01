@@ -40,6 +40,13 @@ func (o RunSQL) ReferencesField(string, string, string) bool { return false }
 func (o RunSQL) ReducesToSQL() bool                          { return true }
 func (o RunSQL) Elidable() bool                              { return o.ElidableOp }
 func (o RunSQL) Category() OperationCategory                 { return CategorySQL }
+func (o RunSQL) InitialTables() []string {
+	table, ok := migrations.InitialTableNameFromSQL(o.SQL)
+	if !ok {
+		return nil
+	}
+	return []string{table}
+}
 func (o RunSQL) Reduce(next migrations.Operation) []migrations.Operation {
 	return []migrations.Operation{o, next}
 }

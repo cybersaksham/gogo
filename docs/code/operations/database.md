@@ -53,7 +53,8 @@ Operational rules:
 - Avoid editing applied migrations.
 - Keep raw SQL reversible when rollback is required.
 - Use `--fake` or `--fake-initial` only after manual inspection confirms the
-  database already matches the migration state.
+  database already matches the migration state. `--fake-initial` records an
+  initial migration only when all declared initial tables already exist.
 - Use `--prune` only when stale migration records are understood and backed up.
 
 ## Connection Management

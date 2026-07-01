@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/hex"
+	"strings"
 )
 
 // ExecutorOptions configure migration execution.
@@ -48,7 +49,11 @@ func (e Executor) Apply(ctx context.Context, migrations []Migration, options Exe
 		if applied {
 			continue
 		}
-		if !options.Fake && !options.Plan {
+		fakeInitial, err := e.shouldFakeInitial(ctx, migration, options)
+		if err != nil {
+			return err
+		}
+		if !options.Fake && !fakeInitial && !options.Plan {
 			for _, operation := range migration.Operations {
 				if err := operation.DatabaseForwards(ctx, e.Editor); err != nil {
 					return err
@@ -99,6 +104,56 @@ func (e Executor) lock(ctx context.Context, options ExecutorOptions) (func(conte
 		return nil, nil
 	}
 	return e.Recorder.AcquireLock(ctx)
+}
+
+func (e Executor) shouldFakeInitial(ctx context.Context, migration Migration, options ExecutorOptions) (bool, error) {
+	if !options.FakeInitial || !isInitialMigration(migration) {
+		return false, nil
+	}
+	checker, ok := e.Editor.(TableExistenceChecker)
+	if !ok {
+		return false, nil
+	}
+	tables := initialMigrationTables(migration)
+	if len(tables) == 0 {
+		return false, nil
+	}
+	for _, table := range tables {
+		exists, err := checker.TableExists(ctx, table)
+		if err != nil {
+			return false, err
+		}
+		if !exists {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+func isInitialMigration(migration Migration) bool {
+	return migration.Name == InitialMigrationName() || strings.HasPrefix(migration.Name, "0001_")
+}
+
+func initialMigrationTables(migration Migration) []string {
+	seen := map[string]struct{}{}
+	var tables []string
+	for _, operation := range migration.Operations {
+		provider, ok := operation.(InitialTableProvider)
+		if !ok {
+			continue
+		}
+		for _, table := range provider.InitialTables() {
+			if table == "" {
+				continue
+			}
+			if _, exists := seen[table]; exists {
+				continue
+			}
+			seen[table] = struct{}{}
+			tables = append(tables, table)
+		}
+	}
+	return tables
 }
 
 func migrationChecksum(migration Migration) string {

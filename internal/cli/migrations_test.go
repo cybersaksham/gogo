@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	authmigrations "github.com/cybersaksham/gogo/auth/migrations"
 	"github.com/cybersaksham/gogo/migrations"
 
 	_ "modernc.org/sqlite"
@@ -151,6 +152,35 @@ func TestBuiltInAuthMigrationIsDiscoveredAndAppliedByDefault(t *testing.T) {
 		assertSQLiteTableExists(t, dbPath, table)
 	}
 	assertMigrationRecorded(t, dbPath, "auth", "0001_initial")
+}
+
+func TestMigrateFakeInitialRecordsExistingBuiltInAuthSchema(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	dbPath := filepath.Join(dir, "db.sqlite3")
+	writeMigrationEnv(t, dir, dbPath)
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	for _, statement := range sqlStatementsForMigration(authmigrations.Initial()) {
+		if _, err := db.Exec(statement); err != nil {
+			_ = db.Close()
+			t.Fatalf("prepare existing auth schema: %v", err)
+		}
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close sqlite: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	if err := NewRoot().Execute(context.Background(), []string{"migrate", "--app", "auth", "--fake-initial"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("migrate --fake-initial error = %v", err)
+	}
+	if !strings.Contains(stdout.String(), "applied auth.0001_initial") {
+		t.Fatalf("migrate stdout = %q", stdout.String())
+	}
+	assertMigrationRecorded(t, dbPath, "auth", migrations.InitialMigrationName())
 }
 
 func TestMigrateAppliesGeneratedAppMigrationsAndShowMigrationsUsesRecorder(t *testing.T) {

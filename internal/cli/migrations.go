@@ -21,6 +21,7 @@ import (
 	"github.com/cybersaksham/gogo/migrations"
 	"github.com/cybersaksham/gogo/migrations/operations"
 	"github.com/cybersaksham/gogo/orm"
+	"github.com/cybersaksham/gogo/orm/dialects"
 	postgresdialect "github.com/cybersaksham/gogo/orm/dialects/postgres"
 	sqlitedialect "github.com/cybersaksham/gogo/orm/dialects/sqlite"
 
@@ -249,7 +250,7 @@ func runMigrate(ctx context.Context, options migrationOptions, stdout io.Writer)
 	}
 
 	pending := pendingMigrations(known, applied)
-	executor := migrations.NewExecutor(recorder, sqlSchemaEditor{db: database.SQLDB()})
+	executor := migrations.NewExecutor(recorder, sqlSchemaEditor{db: database.SQLDB(), dialect: database.Dialect})
 	if err := executor.Apply(ctx, pending, migrations.ExecutorOptions{Fake: options.fake, FakeInitial: options.fakeInitial}); err != nil {
 		return fmt.Errorf("%w: apply migrations: %v", ErrCommandFailed, err)
 	}
@@ -560,12 +561,34 @@ func migrationDatabaseConfig(alias, databaseURL string) (orm.DatabaseConfig, err
 }
 
 type sqlSchemaEditor struct {
-	db *sql.DB
+	db      *sql.DB
+	dialect dialects.Dialect
 }
 
 func (e sqlSchemaEditor) Execute(ctx context.Context, statement string, args ...any) error {
 	_, err := e.db.ExecContext(ctx, statement, args...)
 	return err
+}
+
+func (e sqlSchemaEditor) TableExists(ctx context.Context, table string) (bool, error) {
+	if e.dialect == nil || e.dialect.SchemaIntrospection().TablesSQL == "" {
+		return false, errors.New("database dialect does not support table introspection")
+	}
+	rows, err := e.db.QueryContext(ctx, e.dialect.SchemaIntrospection().TablesSQL)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return false, err
+		}
+		if name == table {
+			return true, nil
+		}
+	}
+	return false, rows.Err()
 }
 
 type sqlMigrationOperation struct {
@@ -595,6 +618,22 @@ func (o sqlMigrationOperation) ReferencesModel(string, string) bool {
 }
 func (o sqlMigrationOperation) ReferencesField(string, string, string) bool {
 	return false
+}
+func (o sqlMigrationOperation) InitialTables() []string {
+	seen := map[string]struct{}{}
+	var tables []string
+	for _, statement := range o.Statements {
+		table, ok := migrations.InitialTableNameFromSQL(statement)
+		if !ok {
+			continue
+		}
+		if _, exists := seen[table]; exists {
+			continue
+		}
+		seen[table] = struct{}{}
+		tables = append(tables, table)
+	}
+	return tables
 }
 
 func migrationFileNames(dir string) ([]string, error) {

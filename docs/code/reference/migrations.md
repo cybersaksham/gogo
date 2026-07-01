@@ -67,6 +67,11 @@ history. The lock is stored in `gogo_migration_lock`; concurrent `migrate`
 processes fail with `ErrMigrationLocked` before operations run. Plan-only
 execution does not take the lock.
 
+`migrate --fake-initial` records an initial migration without running its
+database operations only when every table declared by its initial table
+operations already exists. If any declared table is missing, the migration runs
+normally.
+
 ## Safety Checks
 
 Safety checks detect destructive drops, non-null additions without defaults, irreversible operations, unsafe SQL, and backend-specific hazards where operation metadata exposes the required details.

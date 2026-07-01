@@ -33,6 +33,30 @@ func TestRunSQLReversibleAndIrreversible(t *testing.T) {
 	}
 }
 
+func TestRunSQLInitialTablesDetectsCreateTable(t *testing.T) {
+	cases := []struct {
+		sql  string
+		want string
+	}{
+		{sql: `CREATE TABLE blog_post (id integer)`, want: "blog_post"},
+		{sql: `CREATE TABLE blog_post(id integer)`, want: "blog_post"},
+		{sql: `CREATE TABLE IF NOT EXISTS "blog_post" (id integer)`, want: "blog_post"},
+		{sql: "CREATE INDEX blog_post_title_idx ON blog_post(title)", want: ""},
+	}
+	for _, tc := range cases {
+		tables := RunSQL{SQL: tc.sql}.InitialTables()
+		if tc.want == "" {
+			if len(tables) != 0 {
+				t.Fatalf("InitialTables(%q) = %#v, want none", tc.sql, tables)
+			}
+			continue
+		}
+		if len(tables) != 1 || tables[0] != tc.want {
+			t.Fatalf("InitialTables(%q) = %#v, want %q", tc.sql, tables, tc.want)
+		}
+	}
+}
+
 func TestRunGoAndSeparateDatabaseAndState(t *testing.T) {
 	calledForward := false
 	calledReverse := false

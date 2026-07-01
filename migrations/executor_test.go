@@ -90,6 +90,27 @@ func TestExecutorApplyRequiresMigrationLock(t *testing.T) {
 	}
 }
 
+func TestExecutorFakeInitialRecordsWhenInitialTablesExist(t *testing.T) {
+	ctx := context.Background()
+	db := openRecorderDB(t)
+	defer db.Close()
+	recorder := NewRecorder(db, "executor")
+	editor := &tableAwareSchemaEditor{tables: map[string]bool{"blog_post": true}}
+	executor := NewExecutor(recorder, editor)
+	migration := testMigration("blog", "0001_initial")
+	migration.Operations = []Operation{initialTableOperation{table: "blog_post"}}
+
+	if err := executor.Apply(ctx, []Migration{migration}, ExecutorOptions{FakeInitial: true}); err != nil {
+		t.Fatalf("Apply(fake-initial) error = %v", err)
+	}
+	if len(editor.SQL) != 0 {
+		t.Fatalf("fake-initial executed SQL: %#v", editor.SQL)
+	}
+	if ok, _ := recorder.IsApplied(ctx, migration.Dependency()); !ok {
+		t.Fatal("fake-initial migration was not recorded")
+	}
+}
+
 type FailingOperation struct{}
 
 func (FailingOperation) Name() string                      { return "FailingOperation" }
@@ -102,3 +123,30 @@ func (FailingOperation) Describe() string                                      {
 func (FailingOperation) Reversible() bool                                      { return true }
 func (FailingOperation) ReferencesModel(string, string) bool                   { return false }
 func (FailingOperation) ReferencesField(string, string, string) bool           { return false }
+
+type initialTableOperation struct {
+	table string
+}
+
+func (o initialTableOperation) Name() string                      { return "InitialTableOperation" }
+func (o initialTableOperation) StateForwards(*ProjectState) error { return nil }
+func (o initialTableOperation) DatabaseForwards(ctx context.Context, editor SchemaEditor) error {
+	return editor.Execute(ctx, "CREATE TABLE "+o.table+" ()")
+}
+func (o initialTableOperation) DatabaseBackwards(context.Context, SchemaEditor) error {
+	return nil
+}
+func (o initialTableOperation) Describe() string                            { return "initial table" }
+func (o initialTableOperation) Reversible() bool                            { return true }
+func (o initialTableOperation) ReferencesModel(string, string) bool         { return false }
+func (o initialTableOperation) ReferencesField(string, string, string) bool { return false }
+func (o initialTableOperation) InitialTables() []string                     { return []string{o.table} }
+
+type tableAwareSchemaEditor struct {
+	FakeSchemaEditor
+	tables map[string]bool
+}
+
+func (e *tableAwareSchemaEditor) TableExists(_ context.Context, table string) (bool, error) {
+	return e.tables[table], nil
+}

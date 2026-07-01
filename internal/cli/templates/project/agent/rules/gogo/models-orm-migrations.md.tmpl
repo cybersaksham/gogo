@@ -48,6 +48,9 @@ Framework module: `github.com/cybersaksham/gogo`.
 - `go run manage.go migrate` takes a database-backed migration lock before
   applying schema or history changes; a concurrent migration run fails before
   operations execute.
+- Use `--fake-initial` for existing-schema baselines only when every initial
+  migration table already exists. If any table is missing, the migration runs
+  normally.
 - Use migration commands for normal workflow:
 
 ```bash
