@@ -80,8 +80,23 @@ func (e Editor) RenameColumn(table, oldName, newName string) string {
 }
 
 func (e Editor) AddIndex(table string, index migrations.IndexState) string {
-	fields := quoteList(e, index.Fields)
-	return "CREATE INDEX " + e.q(index.Name) + " ON " + e.q(table) + " (" + strings.Join(fields, ", ") + ")"
+	terms := e.indexTerms(index)
+	parts := []string{"CREATE INDEX"}
+	if index.Concurrently {
+		parts = append(parts, "CONCURRENTLY")
+	}
+	parts = append(parts, e.q(index.Name), "ON", e.q(table))
+	if index.Method != "" {
+		parts = append(parts, "USING", index.Method)
+	}
+	statement := strings.Join(parts, " ") + " (" + strings.Join(terms, ", ") + ")"
+	if len(index.Include) > 0 {
+		statement += " INCLUDE (" + strings.Join(quoteList(e, index.Include), ", ") + ")"
+	}
+	if index.ConditionSQL != "" {
+		statement += " WHERE " + index.ConditionSQL
+	}
+	return statement
 }
 
 func (e Editor) DropIndex(name string) string {
@@ -137,9 +152,40 @@ func (e Editor) constraintSQL(constraint migrations.ConstraintState) string {
 		return "CHECK (" + constraint.Check + ")"
 	case "exclusion":
 		return "EXCLUDE (" + fields + ")"
+	case "foreign_key":
+		references := constraint.ReferencesTable
+		columns := constraint.ReferencesColumns
+		if len(columns) == 0 {
+			columns = []string{"id"}
+		}
+		sql := "FOREIGN KEY (" + fields + ") REFERENCES " + e.q(references) + " (" + strings.Join(quoteList(e, columns), ", ") + ")"
+		if constraint.OnDelete != "" {
+			sql += " ON DELETE " + constraint.OnDelete
+		}
+		if constraint.Deferrable {
+			sql += " DEFERRABLE"
+			if constraint.InitiallyDeferred {
+				sql += " INITIALLY DEFERRED"
+			}
+		}
+		return sql
 	default:
 		return "UNIQUE (" + fields + ")"
 	}
+}
+
+func (e Editor) indexTerms(index migrations.IndexState) []string {
+	terms := make([]string, 0, len(index.Fields)+len(index.Expressions))
+	for _, field := range index.Fields {
+		terms = append(terms, e.q(field))
+	}
+	terms = append(terms, index.Expressions...)
+	for i := range terms {
+		if i < len(index.OpClasses) && index.OpClasses[i] != "" {
+			terms[i] += " " + index.OpClasses[i]
+		}
+	}
+	return terms
 }
 
 func (e Editor) q(identifier string) string {

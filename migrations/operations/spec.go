@@ -67,7 +67,7 @@ func (o RenameField) MigrationOperationSpec() migrations.OperationSpec {
 }
 
 func (o AddIndex) MigrationOperationSpec() migrations.OperationSpec {
-	index := migrations.IndexState{Name: o.Index.Name, Fields: append([]string(nil), o.Index.Fields...), Source: o.Index.Source}
+	index := cloneIndexState(o.Index)
 	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, TableName: o.TableName, Index: &index}
 }
 
@@ -80,7 +80,7 @@ func (o RenameIndex) MigrationOperationSpec() migrations.OperationSpec {
 }
 
 func (o AddConstraint) MigrationOperationSpec() migrations.OperationSpec {
-	constraint := migrations.ConstraintState{Name: o.Constraint.Name, Type: o.Constraint.Type, Fields: append([]string(nil), o.Constraint.Fields...), Check: o.Constraint.Check, Source: o.Constraint.Source}
+	constraint := cloneConstraintState(o.Constraint)
 	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, TableName: o.TableName, Constraint: &constraint}
 }
 
@@ -108,12 +108,12 @@ func cloneModelState(model migrations.ModelState) migrations.ModelState {
 	indexes := model.Indexes
 	model.Indexes = make([]migrations.IndexState, len(indexes))
 	for index, value := range indexes {
-		model.Indexes[index] = migrations.IndexState{Name: value.Name, Fields: append([]string(nil), value.Fields...), Source: value.Source}
+		model.Indexes[index] = cloneIndexState(value)
 	}
 	constraints := model.Constraints
 	model.Constraints = make([]migrations.ConstraintState, len(constraints))
 	for index, value := range constraints {
-		model.Constraints[index] = migrations.ConstraintState{Name: value.Name, Type: value.Type, Fields: append([]string(nil), value.Fields...), Check: value.Check, Source: value.Source}
+		model.Constraints[index] = cloneConstraintState(value)
 	}
 	model.Options = cloneOptions(model.Options)
 	return model
@@ -130,6 +130,39 @@ func cloneFieldStates(fields []migrations.FieldState) []migrations.FieldState {
 func cloneFieldState(field migrations.FieldState) migrations.FieldState {
 	field.ColumnTypes = cloneStringMap(field.ColumnTypes)
 	return field
+}
+
+func cloneIndexState(index migrations.IndexState) migrations.IndexState {
+	return migrations.IndexState{
+		Name:         index.Name,
+		Fields:       append([]string(nil), index.Fields...),
+		Expressions:  append([]string(nil), index.Expressions...),
+		Method:       index.Method,
+		OpClasses:    append([]string(nil), index.OpClasses...),
+		Include:      append([]string(nil), index.Include...),
+		ConditionSQL: index.ConditionSQL,
+		Concurrently: index.Concurrently,
+		Source:       index.Source,
+	}
+}
+
+func cloneConstraintState(constraint migrations.ConstraintState) migrations.ConstraintState {
+	return migrations.ConstraintState{
+		Name:              constraint.Name,
+		Type:              constraint.Type,
+		Fields:            append([]string(nil), constraint.Fields...),
+		Expressions:       append([]string(nil), constraint.Expressions...),
+		Check:             constraint.Check,
+		ConditionSQL:      constraint.ConditionSQL,
+		Include:           append([]string(nil), constraint.Include...),
+		OpClasses:         append([]string(nil), constraint.OpClasses...),
+		ReferencesTable:   constraint.ReferencesTable,
+		ReferencesColumns: append([]string(nil), constraint.ReferencesColumns...),
+		OnDelete:          constraint.OnDelete,
+		Deferrable:        constraint.Deferrable,
+		InitiallyDeferred: constraint.InitiallyDeferred,
+		Source:            constraint.Source,
+	}
 }
 
 func cloneOptions(options map[string]any) map[string]any {

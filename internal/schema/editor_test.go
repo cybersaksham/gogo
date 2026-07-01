@@ -68,6 +68,38 @@ func TestSchemaEditorRendersDatabaseDefaults(t *testing.T) {
 	}
 }
 
+func TestSchemaEditorPostgresRendersRichIndexesAndForeignKeys(t *testing.T) {
+	editor := NewEditor(postgres.New())
+	index := migrations.IndexState{
+		Name:         "idx_blog_post_title_trgm",
+		Expressions:  []string{"LOWER(title)"},
+		Method:       "gin",
+		OpClasses:    []string{"gin_trgm_ops"},
+		Include:      []string{"id"},
+		ConditionSQL: "deleted_at IS NULL",
+		Concurrently: true,
+	}
+	constraint := migrations.ConstraintState{
+		Name:              "fk_blog_post_author",
+		Type:              "foreign_key",
+		Fields:            []string{"author_id"},
+		ReferencesTable:   "auth_user",
+		ReferencesColumns: []string{"id"},
+		OnDelete:          "CASCADE",
+		Deferrable:        true,
+		InitiallyDeferred: true,
+	}
+
+	got := []string{editor.AddIndex("blog_post", index), editor.AddConstraint("blog_post", constraint)}
+	want := []string{
+		`CREATE INDEX CONCURRENTLY "idx_blog_post_title_trgm" ON "blog_post" USING gin (LOWER(title) gin_trgm_ops) INCLUDE ("id") WHERE deleted_at IS NULL`,
+		`ALTER TABLE "blog_post" ADD CONSTRAINT "fk_blog_post_author" FOREIGN KEY ("author_id") REFERENCES "auth_user" ("id") ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED`,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("rich postgres SQL = %#v", got)
+	}
+}
+
 func TestSchemaEditorSQLiteGoldenSQL(t *testing.T) {
 	editor := NewEditor(sqlite.New())
 	if got := editor.DropColumn("blog_post", "slug"); got != `ALTER TABLE "blog_post" DROP COLUMN "slug"` {

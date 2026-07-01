@@ -39,8 +39,24 @@ func TestProjectStateFromRegistry(t *testing.T) {
 			{Name: "id", Column: "id", PrimaryKey: true},
 			{Name: "title", Column: "title", Kind: "char", ColumnTypes: map[string]string{"postgres": "varchar(200)"}, Null: true, Unique: true, DBIndex: true, DBDefault: models.DefaultValue("untitled"), DBCollation: "en_US"},
 		},
-		Indexes:     []models.Index{{Name: "idx_title", Fields: []models.IndexField{models.Asc("title")}}},
-		Constraints: []models.Constraint{{Name: "uniq_title", Type: models.ConstraintUnique, Fields: []models.IndexField{models.Asc("title")}}},
+		Indexes: []models.Index{{
+			Name:        "idx_title",
+			Fields:      []models.IndexField{models.Asc("title")},
+			Expressions: []string{"LOWER(title)"},
+			Method:      "gin",
+			OpClasses:   []string{"gin_trgm_ops"},
+			Include:     []string{"id"},
+			Condition:   "deleted_at IS NULL",
+		}},
+		Constraints: []models.Constraint{{
+			Name:        "uniq_title",
+			Type:        models.ConstraintUnique,
+			Fields:      []models.IndexField{models.Asc("title")},
+			Expressions: []string{"LOWER(title)"},
+			Condition:   "deleted_at IS NULL",
+			Include:     []string{"id"},
+			OpClasses:   []string{"text_pattern_ops"},
+		}},
 	})
 	if err != nil {
 		t.Fatalf("RegisterMetadata() error = %v", err)
@@ -63,13 +79,13 @@ func TestProjectStateFromRegistry(t *testing.T) {
 	if again.ColumnTypes["postgres"] != "varchar(200)" {
 		t.Fatalf("field ColumnTypes state was not cloned: %#v", again.ColumnTypes)
 	}
-	if model.Indexes[0].Name != "idx_title" || model.Indexes[0].Source != "model" {
+	if model.Indexes[0].Name != "idx_title" || model.Indexes[0].Source != "model" || model.Indexes[0].Method != "gin" || model.Indexes[0].ConditionSQL != "deleted_at IS NULL" || model.Indexes[0].Expressions[0] != "LOWER(title)" || model.Indexes[0].Include[0] != "id" || model.Indexes[0].OpClasses[0] != "gin_trgm_ops" {
 		t.Fatalf("explicit index state = %#v", model.Indexes[0])
 	}
 	if model.Indexes[1].Fields[0] != "title" || model.Indexes[1].Name == "" || model.Indexes[1].Source != "field" {
 		t.Fatalf("field-derived index state = %#v", model.Indexes[1])
 	}
-	if model.Constraints[0].Name != "uniq_title" || model.Constraints[0].Source != "model" {
+	if model.Constraints[0].Name != "uniq_title" || model.Constraints[0].Source != "model" || model.Constraints[0].ConditionSQL != "deleted_at IS NULL" || model.Constraints[0].Expressions[0] != "LOWER(title)" || model.Constraints[0].Include[0] != "id" || model.Constraints[0].OpClasses[0] != "text_pattern_ops" {
 		t.Fatalf("explicit constraint state = %#v", model.Constraints[0])
 	}
 	if model.Constraints[1].Type != "unique" || model.Constraints[1].Fields[0] != "title" || model.Constraints[1].Name == "" || model.Constraints[1].Source != "field" {

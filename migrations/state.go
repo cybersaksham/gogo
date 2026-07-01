@@ -34,18 +34,33 @@ type FieldState struct {
 
 // IndexState stores historical index state.
 type IndexState struct {
-	Name   string   `json:"name"`
-	Fields []string `json:"fields,omitempty"`
-	Source string   `json:"source,omitempty"`
+	Name         string   `json:"name"`
+	Fields       []string `json:"fields,omitempty"`
+	Expressions  []string `json:"expressions,omitempty"`
+	Method       string   `json:"method,omitempty"`
+	OpClasses    []string `json:"op_classes,omitempty"`
+	Include      []string `json:"include,omitempty"`
+	ConditionSQL string   `json:"condition_sql,omitempty"`
+	Concurrently bool     `json:"concurrently,omitempty"`
+	Source       string   `json:"source,omitempty"`
 }
 
 // ConstraintState stores historical constraint state.
 type ConstraintState struct {
-	Name   string   `json:"name"`
-	Type   string   `json:"type"`
-	Fields []string `json:"fields,omitempty"`
-	Check  string   `json:"check,omitempty"`
-	Source string   `json:"source,omitempty"`
+	Name              string   `json:"name"`
+	Type              string   `json:"type"`
+	Fields            []string `json:"fields,omitempty"`
+	Expressions       []string `json:"expressions,omitempty"`
+	Check             string   `json:"check,omitempty"`
+	ConditionSQL      string   `json:"condition_sql,omitempty"`
+	Include           []string `json:"include,omitempty"`
+	OpClasses         []string `json:"op_classes,omitempty"`
+	ReferencesTable   string   `json:"references_table,omitempty"`
+	ReferencesColumns []string `json:"references_columns,omitempty"`
+	OnDelete          string   `json:"on_delete,omitempty"`
+	Deferrable        bool     `json:"deferrable,omitempty"`
+	InitiallyDeferred bool     `json:"initially_deferred,omitempty"`
+	Source            string   `json:"source,omitempty"`
 }
 
 // NewProjectState creates empty state.
@@ -123,10 +138,29 @@ func StateFromRegistry(registry *models.Registry) ProjectState {
 			}
 		}
 		for _, index := range meta.Indexes {
-			model.Indexes = appendIndexState(model.Indexes, IndexState{Name: index.NameFor(meta.TableName), Fields: index.FieldNames(), Source: "model"})
+			model.Indexes = appendIndexState(model.Indexes, IndexState{
+				Name:         index.NameFor(meta.TableName),
+				Fields:       index.FieldNames(),
+				Expressions:  append([]string(nil), index.Expressions...),
+				Method:       index.Method,
+				OpClasses:    append([]string(nil), index.OpClasses...),
+				Include:      append([]string(nil), index.Include...),
+				ConditionSQL: index.Condition,
+				Source:       "model",
+			})
 		}
 		for _, constraint := range meta.Constraints {
-			model.Constraints = appendConstraintState(model.Constraints, ConstraintState{Name: constraint.NameFor(meta.TableName), Type: string(constraint.Type), Fields: constraint.FieldNames(), Check: constraint.Check, Source: "model"})
+			model.Constraints = appendConstraintState(model.Constraints, ConstraintState{
+				Name:         constraint.NameFor(meta.TableName),
+				Type:         string(constraint.Type),
+				Fields:       constraint.FieldNames(),
+				Expressions:  append([]string(nil), constraint.Expressions...),
+				Check:        constraint.Check,
+				ConditionSQL: constraint.Condition,
+				Include:      append([]string(nil), constraint.Include...),
+				OpClasses:    append([]string(nil), constraint.OpClasses...),
+				Source:       "model",
+			})
 		}
 		for _, field := range model.Fields {
 			if field.DBIndex {
@@ -171,7 +205,17 @@ func cloneFieldState(field FieldState) FieldState {
 func cloneIndexStates(indexes []IndexState) []IndexState {
 	copied := make([]IndexState, len(indexes))
 	for i, index := range indexes {
-		copied[i] = IndexState{Name: index.Name, Fields: append([]string(nil), index.Fields...), Source: index.Source}
+		copied[i] = IndexState{
+			Name:         index.Name,
+			Fields:       append([]string(nil), index.Fields...),
+			Expressions:  append([]string(nil), index.Expressions...),
+			Method:       index.Method,
+			OpClasses:    append([]string(nil), index.OpClasses...),
+			Include:      append([]string(nil), index.Include...),
+			ConditionSQL: index.ConditionSQL,
+			Concurrently: index.Concurrently,
+			Source:       index.Source,
+		}
 	}
 	return copied
 }
@@ -180,11 +224,20 @@ func cloneConstraintStates(constraints []ConstraintState) []ConstraintState {
 	copied := make([]ConstraintState, len(constraints))
 	for i, constraint := range constraints {
 		copied[i] = ConstraintState{
-			Name:   constraint.Name,
-			Type:   constraint.Type,
-			Fields: append([]string(nil), constraint.Fields...),
-			Check:  constraint.Check,
-			Source: constraint.Source,
+			Name:              constraint.Name,
+			Type:              constraint.Type,
+			Fields:            append([]string(nil), constraint.Fields...),
+			Expressions:       append([]string(nil), constraint.Expressions...),
+			Check:             constraint.Check,
+			ConditionSQL:      constraint.ConditionSQL,
+			Include:           append([]string(nil), constraint.Include...),
+			OpClasses:         append([]string(nil), constraint.OpClasses...),
+			ReferencesTable:   constraint.ReferencesTable,
+			ReferencesColumns: append([]string(nil), constraint.ReferencesColumns...),
+			OnDelete:          constraint.OnDelete,
+			Deferrable:        constraint.Deferrable,
+			InitiallyDeferred: constraint.InitiallyDeferred,
+			Source:            constraint.Source,
 		}
 	}
 	return copied
