@@ -43,6 +43,9 @@ Framework module: `github.com/cybersaksham/gogo`.
 - Use public migration operations for creating, altering, renaming, deleting
   models and fields, indexes, constraints, raw SQL, data migrations, and
   safety annotations.
+- Treat generated migration `Operations` metadata as the source of truth for
+  `migrate` and `sqlmigrate`; migration filenames are not enough to determine
+  behavior.
 - Review generated operations for destructive changes before applying them.
 - Keep data migrations idempotent and reversible when possible.
 - `go run manage.go migrate` takes a database-backed migration lock before

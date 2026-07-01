@@ -53,6 +53,12 @@ Operations live in `migrations/operations`.
 6. Store history in `Recorder`.
 7. Validate consistency and safety checks.
 
+Generated Go migration files are the source of truth for dependency,
+replacement, and operation metadata. `migrate` and `sqlmigrate` load the
+`Operations` values from the file before deciding which SQL to execute or
+render; filename-based SQL is only a compatibility fallback for older placeholder
+files with no operation metadata.
+
 ## Migration History Recorder
 
 `Recorder` stores applied migration rows in `gogo_migrations` with app, name,

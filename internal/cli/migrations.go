@@ -347,6 +347,9 @@ func migrationFromFile(appLabel, dir, name string) migrations.Migration {
 	}
 	migration.Dependencies = metadata.Dependencies
 	migration.Replaces = metadata.Replaces
+	if len(metadata.Operations) > 0 {
+		migration.Operations = migrationOperationsFromNames(appLabel, metadata.Operations)
+	}
 	return migration
 }
 
@@ -365,6 +368,95 @@ func migrationOperations(appLabel, name string) []migrations.Operation {
 		return []migrations.Operation{migrations.ManifestOperation{NameValue: "NoopMigration"}}
 	}
 	return []migrations.Operation{sqlMigrationOperation{NameValue: "SQL:" + appLabel + "." + name, Statements: statements}}
+}
+
+func migrationOperationsFromNames(appLabel string, names []string) []migrations.Operation {
+	operations := make([]migrations.Operation, 0, len(names))
+	for _, name := range names {
+		switch {
+		case name == "EmptyMigration" || name == "NoopMigration":
+			operations = append(operations, migrations.ManifestOperation{NameValue: name})
+		case strings.HasPrefix(name, "CreateModel:"):
+			if statement, ok := createModelStatementFromOperation(appLabel, name); ok {
+				operations = append(operations, sqlMigrationOperation{NameValue: name, Statements: []string{statement}})
+				continue
+			}
+			operations = append(operations, migrations.ManifestOperation{NameValue: name})
+		case strings.HasPrefix(name, "AddField:"):
+			if statement, ok := addFieldStatementFromOperation(appLabel, name); ok {
+				operations = append(operations, sqlMigrationOperation{NameValue: name, Statements: []string{statement}})
+				continue
+			}
+			operations = append(operations, migrations.ManifestOperation{NameValue: name})
+		default:
+			operations = append(operations, migrations.ManifestOperation{NameValue: name})
+		}
+	}
+	if len(operations) == 0 {
+		return []migrations.Operation{migrations.ManifestOperation{NameValue: "NoopMigration"}}
+	}
+	return operations
+}
+
+func createModelStatementFromOperation(defaultAppLabel, operation string) (string, bool) {
+	appLabel, modelName, ok := modelOperationTarget(defaultAppLabel, strings.TrimPrefix(operation, "CreateModel:"))
+	if !ok {
+		return "", false
+	}
+	table := generatedModelTableName(appLabel, modelName)
+	return fmt.Sprintf("CREATE TABLE IF NOT EXISTS %q (id bigint PRIMARY KEY, name text NOT NULL, slug text NOT NULL, created_at timestamp, updated_at timestamp)", table), true
+}
+
+func addFieldStatementFromOperation(defaultAppLabel, operation string) (string, bool) {
+	target := strings.TrimPrefix(operation, "AddField:")
+	lastDot := strings.LastIndex(target, ".")
+	if lastDot < 0 || lastDot == len(target)-1 {
+		return "", false
+	}
+	appLabel, modelName, ok := modelOperationTarget(defaultAppLabel, target[:lastDot])
+	if !ok {
+		return "", false
+	}
+	fieldName := target[lastDot+1:]
+	table := generatedModelTableName(appLabel, modelName)
+	return fmt.Sprintf("ALTER TABLE %q ADD COLUMN %q text", table, fieldName), true
+}
+
+func modelOperationTarget(defaultAppLabel, target string) (string, string, bool) {
+	parts := strings.Split(target, ".")
+	switch len(parts) {
+	case 1:
+		if defaultAppLabel == "" || parts[0] == "" {
+			return "", "", false
+		}
+		return defaultAppLabel, parts[0], true
+	case 2:
+		if parts[0] == "" || parts[1] == "" {
+			return "", "", false
+		}
+		return parts[0], parts[1], true
+	default:
+		return "", "", false
+	}
+}
+
+func generatedModelTableName(appLabel, modelName string) string {
+	return appLabel + "_" + snakeCase(modelName)
+}
+
+func snakeCase(value string) string {
+	var builder strings.Builder
+	for index, r := range value {
+		if r >= 'A' && r <= 'Z' {
+			if index > 0 {
+				builder.WriteByte('_')
+			}
+			builder.WriteRune(r + ('a' - 'A'))
+			continue
+		}
+		builder.WriteRune(r)
+	}
+	return builder.String()
 }
 
 func pendingMigrations(known []migrations.Migration, applied map[string]struct{}) []migrations.Migration {
@@ -423,6 +515,7 @@ func replacementNames(migration migrations.Migration) []string {
 type generatedMigrationMetadata struct {
 	Dependencies []migrations.Dependency
 	Replaces     []migrations.Dependency
+	Operations   []string
 }
 
 func parseGeneratedMigrationMetadata(path string) (generatedMigrationMetadata, error) {
@@ -445,10 +538,40 @@ func parseGeneratedMigrationMetadata(path string) (generatedMigrationMetadata, e
 			metadata.Dependencies = parseMigrationDependencies(keyValue.Value)
 		case "Replaces":
 			metadata.Replaces = parseMigrationDependencies(keyValue.Value)
+		case "Operations":
+			metadata.Operations = parseMigrationOperations(keyValue.Value)
 		}
 		return true
 	})
 	return metadata, nil
+}
+
+func parseMigrationOperations(expr ast.Expr) []string {
+	literal, ok := expr.(*ast.CompositeLit)
+	if !ok {
+		return nil
+	}
+	operations := make([]string, 0, len(literal.Elts))
+	for _, element := range literal.Elts {
+		operationLiteral, ok := element.(*ast.CompositeLit)
+		if !ok {
+			continue
+		}
+		for _, field := range operationLiteral.Elts {
+			keyValue, ok := field.(*ast.KeyValueExpr)
+			if !ok {
+				continue
+			}
+			key, ok := keyValue.Key.(*ast.Ident)
+			if !ok || key.Name != "NameValue" {
+				continue
+			}
+			if name := stringLiteralValue(keyValue.Value); name != "" {
+				operations = append(operations, name)
+			}
+		}
+	}
+	return operations
 }
 
 func parseMigrationDependencies(expr ast.Expr) []migrations.Dependency {
@@ -664,7 +787,14 @@ func runSQLMigrate(options migrationOptions, positionals []string, stdout io.Wri
 	if _, err := fmt.Fprintf(stdout, "-- SQL for %s.%s on database %s\n", appLabel, migrationName, options.database); err != nil {
 		return err
 	}
+	migration, ok, err := knownMigration(appLabel, migrationName)
+	if err != nil {
+		return err
+	}
 	statements := migrationSQLStatements(appLabel, migrationName)
+	if ok {
+		statements = sqlStatementsForMigration(migration)
+	}
 	if len(statements) == 0 {
 		_, err := fmt.Fprintln(stdout, "-- No SQL operations rendered for this manifest migration.")
 		return err
@@ -675,6 +805,19 @@ func runSQLMigrate(options migrationOptions, positionals []string, stdout io.Wri
 		}
 	}
 	return nil
+}
+
+func knownMigration(appLabel, migrationName string) (migrations.Migration, bool, error) {
+	known, err := knownMigrations(appLabel)
+	if err != nil {
+		return migrations.Migration{}, false, err
+	}
+	for _, migration := range known {
+		if migration.AppLabel == appLabel && migration.Name == migrationName {
+			return migration, true, nil
+		}
+	}
+	return migrations.Migration{}, false, nil
 }
 
 func migrationSQLStatements(appLabel, migrationName string) []string {

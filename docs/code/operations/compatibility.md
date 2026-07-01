@@ -66,6 +66,9 @@ Compatibility rules:
   same major version.
 - New framework versions must keep existing migration operation semantics unless
   a major version explicitly changes them.
+- Generated migration `Operations` metadata is the source of truth for
+  `migrate` and `sqlmigrate`; filename-based SQL rendering is compatibility
+  fallback only.
 - Migration graph ordering, dependency resolution, and applied-record tracking
   must remain deterministic.
 - Removed or renamed migration operations must provide a compatibility adapter

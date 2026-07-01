@@ -118,6 +118,28 @@ func TestShowAndSQLMigrateUseGeneratedAppOutput(t *testing.T) {
 	}
 }
 
+func TestSQLMigrateUsesGeneratedOperationContent(t *testing.T) {
+	dir := t.TempDir()
+	migrationsDir := filepath.Join(dir, "apps", "blog", "migrations")
+	if err := os.MkdirAll(migrationsDir, 0o755); err != nil {
+		t.Fatalf("mkdir migrations: %v", err)
+	}
+	writeGeneratedMigration(t, migrationsDir, migrations.Migration{
+		AppLabel:   "blog",
+		Name:       "0001_initial",
+		Operations: []migrations.Operation{migrations.ManifestOperation{NameValue: "EmptyMigration"}},
+	})
+	t.Chdir(dir)
+
+	var stdout bytes.Buffer
+	if err := NewRoot().Execute(context.Background(), []string{"sqlmigrate", "blog", "0001_initial"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("sqlmigrate error = %v", err)
+	}
+	if strings.Contains(stdout.String(), "CREATE TABLE") || !strings.Contains(stdout.String(), "No SQL operations") {
+		t.Fatalf("sqlmigrate stdout = %q", stdout.String())
+	}
+}
+
 func TestBuiltInAuthMigrationIsDiscoveredAndAppliedByDefault(t *testing.T) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "db.sqlite3")
@@ -216,6 +238,29 @@ func TestMigrateAppliesGeneratedAppMigrationsAndShowMigrationsUsesRecorder(t *te
 	if !strings.Contains(showOut.String(), "[X] blog.0001_initial") {
 		t.Fatalf("showmigrations stdout = %q", showOut.String())
 	}
+}
+
+func TestMigrateUsesGeneratedOperationContent(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "db.sqlite3")
+	writeMigrationEnv(t, dir, dbPath)
+	migrationsDir := filepath.Join(dir, "apps", "blog", "migrations")
+	if err := os.MkdirAll(migrationsDir, 0o755); err != nil {
+		t.Fatalf("mkdir migrations: %v", err)
+	}
+	writeGeneratedMigration(t, migrationsDir, migrations.Migration{
+		AppLabel:   "blog",
+		Name:       "0001_initial",
+		Operations: []migrations.Operation{migrations.ManifestOperation{NameValue: "EmptyMigration"}},
+	})
+	t.Chdir(dir)
+
+	var stdout bytes.Buffer
+	if err := NewRoot().Execute(context.Background(), []string{"migrate"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("migrate error = %v", err)
+	}
+	assertMigrationRecorded(t, dbPath, "blog", "0001_initial")
+	assertSQLiteTableMissing(t, dbPath, "blog_item")
 }
 
 func TestMigratePlanListsPendingMigrations(t *testing.T) {
@@ -395,6 +440,23 @@ func assertSQLiteTableExists(t *testing.T, dbPath, table string) {
 	var name string
 	if err := db.QueryRow(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name); err != nil {
 		t.Fatalf("expected sqlite table %s: %v", table, err)
+	}
+}
+
+func assertSQLiteTableMissing(t *testing.T, dbPath, table string) {
+	t.Helper()
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	defer db.Close()
+	var name string
+	err = db.QueryRow(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&name)
+	if err == nil {
+		t.Fatalf("sqlite table %s exists", table)
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("query sqlite table %s: %v", table, err)
 	}
 }
 
