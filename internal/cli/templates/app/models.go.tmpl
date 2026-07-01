@@ -30,6 +30,22 @@ func (Item) ModelMeta() models.Metadata {
 	}
 }
 
+/*
+func LegacyItemMetadata() models.Metadata {
+	return models.Metadata{
+		AppLabel:   AppLabel,
+		ModelName:  "LegacyItem",
+		TableName:  "legacy_item",
+		DBTable:    "legacy_item",
+		Managed:    false,
+		Fields: []models.FieldMeta{
+			{Name: "id", Column: "id", PrimaryKey: true},
+			{Name: "name", Column: "name"},
+		},
+	}
+}
+*/
+
 func ModelMetadata() []models.Metadata {
 	return []models.Metadata{Item{}.ModelMeta()}
 }

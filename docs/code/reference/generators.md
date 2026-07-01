@@ -76,7 +76,7 @@ under `apps/<name>` automatically installs it into generated settings,
 `.env.example`, `.env` when present, URL routing, admin registration, queue
 task registration, and app config wiring.
 
-Define models in `models.go` by returning `models.Metadata` from `ModelMeta`. Add fields, indexes, constraints, custom permissions, and relationship metadata there.
+Define models in `models.go` by returning `models.Metadata` from `ModelMeta`. Add fields, indexes, constraints, custom permissions, and relationship metadata there. For existing tables, keep the generated unmanaged model example commented until needed, then set `Managed: false` so migrations do not create, drop, or alter that table.
 
 Register admin entries in `admin.go` with `admin.Registry.RegisterMetadata` or `Register`. Keep list displays, search fields, filters, readonly fields, inlines, actions, and prepopulated fields close to the model they configure. Use `go run manage.go createsuperuser` to create staff admin users for the generated admin login.
 

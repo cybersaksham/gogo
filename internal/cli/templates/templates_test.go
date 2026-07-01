@@ -195,6 +195,41 @@ func TestProjectTemplatesRenderParseablePublicGoFiles(t *testing.T) {
 			t.Fatalf("manage.go missing %q:\n%s", want, files["manage.go"])
 		}
 	}
+
+	urlsGo := files[filepath.Join("myproject", "urls.go")]
+	for _, want := range []string{
+		`router.HandleHTTP("raw-detail", "/raw/<str:name>/"`,
+		`r.PathValue("name")`,
+	} {
+		if !strings.Contains(urlsGo, want) {
+			t.Fatalf("urls.go missing %q:\n%s", want, urlsGo)
+		}
+	}
+}
+
+func TestProjectTemplatesDocumentSmokeCommandsAndExtensionChoices(t *testing.T) {
+	files, err := ProjectFiles(ProjectData{ProjectName: "myproject", ModulePath: "myproject"})
+	if err != nil {
+		t.Fatalf("ProjectFiles() error = %v", err)
+	}
+
+	readme := files["README.md"]
+	for _, want := range []string{
+		"go run manage.go check",
+		"go run manage.go makemigrations --check --dry-run",
+		"go run manage.go migrate --plan",
+		"go run manage.go runserver --addr 127.0.0.1:8000",
+		"go run manage.go worker --check --broker-url memory:// --result-backend memory",
+		"framework views",
+		"API viewsets",
+		"raw handlers",
+		"custom commands",
+		"Unmanaged models",
+	} {
+		if !strings.Contains(readme, want) {
+			t.Fatalf("README.md missing %q:\n%s", want, readme)
+		}
+	}
 }
 
 func TestProjectTemplatesWireBuiltInAuthByDefault(t *testing.T) {
@@ -321,6 +356,16 @@ func TestAppTemplatesRenderParseablePublicGoFiles(t *testing.T) {
 		}
 		if _, err := parser.ParseFile(token.NewFileSet(), path, contents, parser.AllErrors); err != nil {
 			t.Fatalf("%s is not parseable Go: %v\n%s", path, err, contents)
+		}
+	}
+
+	modelsGo := files["models.go"]
+	for _, want := range []string{
+		"func LegacyItemMetadata() models.Metadata",
+		"Managed:    false",
+	} {
+		if !strings.Contains(modelsGo, want) {
+			t.Fatalf("models.go missing unmanaged metadata example %q:\n%s", want, modelsGo)
 		}
 	}
 }

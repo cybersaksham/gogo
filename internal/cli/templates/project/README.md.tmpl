@@ -11,3 +11,30 @@ make test
 ```
 
 Project code lives in `{{.ProjectName}}/`; application packages live in `apps/`.
+
+## Smoke Commands
+
+After `.env` is configured, these commands should work in a new project:
+
+```bash
+go test ./...
+go run manage.go check
+go run manage.go makemigrations --check --dry-run
+go run manage.go migrate --plan
+go run manage.go runserver --addr 127.0.0.1:8000
+go run manage.go worker --check --broker-url memory:// --result-backend memory
+```
+
+## Where Code Goes
+
+Use framework views for Gogo-native HTML or plain HTTP responses. Use API viewsets
+for JSON CRUD endpoints that should share serializers, filters, pagination,
+permissions, and OpenAPI metadata. Use raw handlers when an existing
+`net/http.Handler` must keep exact streaming, upgrade, file-serving, or legacy
+response behavior.
+
+Use generated app checks for deploy or configuration validation. Use custom commands
+for repeatable operations such as imports, reindexing, and backfills.
+Unmanaged models describe existing tables with `Managed: false` so ORM, admin,
+or API code can inspect metadata without migrations creating or altering the
+table.
