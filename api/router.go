@@ -15,20 +15,23 @@ type RouterOption func(*Router)
 
 // Router stores generated API routes and resolves requests to API views.
 type Router struct {
-	prefix        string
-	trailingSlash bool
-	routes        []Route
-	byName        map[string]struct{}
+	prefix           string
+	trailingSlash    bool
+	exceptionHandler ExceptionHandler
+	routes           []Route
+	byName           map[string]struct{}
 }
 
 // Route stores generated API route metadata.
 type Route struct {
-	Name    string
-	Pattern string
-	Methods []string
-	Action  string
-	Detail  bool
-	View    View
+	Name        string
+	Pattern     string
+	Methods     []string
+	Action      string
+	Detail      bool
+	View        View
+	HTTPHandler nethttp.Handler
+	Metadata    OperationMetadata
 
 	compiled frameworkhttp.Pattern
 }
@@ -59,6 +62,14 @@ func WithTrailingSlash(enabled bool) RouterOption {
 	}
 }
 
+// WithExceptionHandler configures router-level exception handling for route
+// misses, method errors, write failures, and uncaught API view panics.
+func WithExceptionHandler(handler ExceptionHandler) RouterOption {
+	return func(router *Router) {
+		router.exceptionHandler = handler
+	}
+}
+
 // Register registers all standard routes and custom actions for a viewset.
 func (r *Router) Register(prefix, basename string, viewset *ModelViewSet) error {
 	if viewset == nil {
@@ -84,7 +95,13 @@ func (r *Router) Register(prefix, basename string, viewset *ModelViewSet) error 
 		{nameAction: "destroy", action: "destroy", pattern: r.withSlash(joinRoutePath(base, "<str:"+lookup+">")), methods: []string{nethttp.MethodDelete}, detail: true},
 	}
 	for _, route := range standardRoutes {
-		if err := r.addRoute(routeName(basename, route.nameAction), route.pattern, route.action, route.detail, viewset.AsView(route.action), route.methods...); err != nil {
+		if err := r.addRoute(Route{
+			Name:    routeName(basename, route.nameAction),
+			Pattern: route.pattern,
+			Action:  route.action,
+			Detail:  route.detail,
+			View:    viewset.AsView(route.action),
+		}, route.methods...); err != nil {
 			return err
 		}
 	}
@@ -100,7 +117,13 @@ func (r *Router) Register(prefix, basename string, viewset *ModelViewSet) error 
 		if len(methods) == 0 {
 			methods = []string{nethttp.MethodGet}
 		}
-		if err := r.addRoute(routeName(basename, actionName), pattern, actionName, action.Detail, viewset.AsView(actionName), methods...); err != nil {
+		if err := r.addRoute(Route{
+			Name:    routeName(basename, actionName),
+			Pattern: pattern,
+			Action:  actionName,
+			Detail:  action.Detail,
+			View:    viewset.AsView(actionName),
+		}, methods...); err != nil {
 			return err
 		}
 	}
@@ -109,7 +132,24 @@ func (r *Router) Register(prefix, basename string, viewset *ModelViewSet) error 
 
 // Handle registers one custom API route.
 func (r *Router) Handle(name, pattern string, view View, methods ...string) error {
-	return r.addRoute(name, r.withSlash(joinRoutePath(r.prefix, pattern)), "", false, view, methods...)
+	return r.addRoute(Route{
+		Name:    name,
+		Pattern: r.withSlash(joinRoutePath(r.prefix, pattern)),
+		View:    view,
+	}, methods...)
+}
+
+// HandleHTTP registers one raw standard-library API route with documentation metadata.
+func (r *Router) HandleHTTP(name, pattern string, handler nethttp.Handler, metadata OperationMetadata, methods ...string) error {
+	if handler == nil {
+		return fmt.Errorf("%w: nil http handler", ErrRouteConflict)
+	}
+	return r.addRoute(Route{
+		Name:        name,
+		Pattern:     r.withSlash(joinRoutePath(r.prefix, pattern)),
+		HTTPHandler: handler,
+		Metadata:    metadata,
+	}, methods...)
 }
 
 // Include includes another API router under a nested prefix.
@@ -119,7 +159,8 @@ func (r *Router) Include(prefix string, subrouter *Router) error {
 	}
 	for _, route := range subrouter.Routes() {
 		pattern := joinRoutePath(r.prefix, prefix, route.Pattern)
-		if err := r.addRoute(route.Name, pattern, route.Action, route.Detail, route.View, route.Methods...); err != nil {
+		route.Pattern = pattern
+		if err := r.addRoute(route, route.Methods...); err != nil {
 			return err
 		}
 	}
@@ -132,38 +173,62 @@ func (r *Router) Routes() []Route {
 	copy(routes, r.routes)
 	for index := range routes {
 		routes[index].Methods = append([]string(nil), r.routes[index].Methods...)
+		routes[index].Metadata = cloneOperationMetadata(r.routes[index].Metadata)
 	}
 	return routes
 }
 
 // Resolve matches one request and runs the route view.
-func (r *Router) Resolve(ctx context.Context, request *Request) Response {
-	var allowed []string
-	for _, route := range r.routes {
-		params, ok := route.compiled.Match(request.Raw().URL.Path)
-		if !ok {
-			continue
+func (r *Router) Resolve(ctx context.Context, request *Request) (response Response) {
+	if request == nil || request.Raw() == nil {
+		return r.exception(ctx, request, ErrInternal)
+	}
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			response = r.exception(ctx, request, fmt.Errorf("%w: %v", ErrInternal, recovered))
 		}
-		if !stringIn(route.Methods, request.Method()) {
-			allowed = append(allowed, route.Methods...)
-			continue
-		}
-		for name, value := range params {
-			request.WithPathParam(name, value)
+	}()
+
+	route, params, allowed := r.match(request.Raw())
+	if route != nil {
+		attachAPIPathParams(request, params)
+		if route.HTTPHandler != nil || route.View == nil {
+			return r.exception(ctx, request, ErrMethodNotAllowed)
 		}
 		return route.View(ctx, request)
 	}
 	if len(allowed) > 0 {
-		return DefaultExceptionHandler(ctx, request, ErrMethodNotAllowed)
+		return r.exception(ctx, request, ErrMethodNotAllowed)
 	}
-	return DefaultExceptionHandler(ctx, request, ErrNotFound)
+	return r.exception(ctx, request, ErrNotFound)
 }
 
 // ServeHTTP serves API routes directly as a standard HTTP handler.
 func (r *Router) ServeHTTP(w nethttp.ResponseWriter, raw *nethttp.Request) {
-	response := r.Resolve(raw.Context(), NewRequest(raw))
+	request := NewRequest(raw)
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			_ = r.exception(raw.Context(), request, fmt.Errorf("%w: %v", ErrInternal, recovered)).Write(w)
+		}
+	}()
+
+	route, params, allowed := r.match(raw)
+	if route == nil {
+		err := ErrNotFound
+		if len(allowed) > 0 {
+			err = ErrMethodNotAllowed
+		}
+		_ = r.exception(raw.Context(), request, err).Write(w)
+		return
+	}
+	attachAPIPathParams(request, params)
+	if route.HTTPHandler != nil {
+		route.HTTPHandler.ServeHTTP(w, raw)
+		return
+	}
+	response := route.View(raw.Context(), request)
 	if err := response.Write(w); err != nil {
-		_ = DefaultExceptionHandler(raw.Context(), NewRequest(raw), ErrInternal).Write(w)
+		_ = r.exception(raw.Context(), request, ErrInternal).Write(w)
 	}
 }
 
@@ -173,9 +238,15 @@ func (r *Router) MountHTTP(router *frameworkhttp.Router) error {
 		return fmt.Errorf("%w: nil http router", ErrRouteConflict)
 	}
 	for _, route := range r.Routes() {
-		if err := router.Handle(route.Name, route.Pattern, func(ctx context.Context, request *frameworkhttp.Request) frameworkhttp.Response {
-			return r.Resolve(ctx, NewRequest(request.Raw())).HTTP()
-		}, route.Methods...); err != nil {
+		var err error
+		if route.HTTPHandler != nil {
+			err = router.HandleHTTP(route.Name, route.Pattern, route.HTTPHandler, route.Methods...)
+		} else {
+			err = router.Handle(route.Name, route.Pattern, func(ctx context.Context, request *frameworkhttp.Request) frameworkhttp.Response {
+				return r.Resolve(ctx, NewRequest(request.Raw())).HTTP()
+			}, route.Methods...)
+		}
+		if err != nil {
 			return err
 		}
 	}
@@ -200,36 +271,67 @@ func (r *Router) Reverse(name string, args map[string]any) (string, error) {
 	return value, nil
 }
 
-func (r *Router) addRoute(name, pattern, action string, detail bool, view View, methods ...string) error {
-	if _, exists := r.byName[name]; exists {
-		return fmt.Errorf("%w: route name %q", ErrRouteConflict, name)
+func (r *Router) addRoute(route Route, methods ...string) error {
+	if route.View == nil && route.HTTPHandler == nil {
+		return fmt.Errorf("%w: route handler is required", ErrRouteConflict)
+	}
+	if _, exists := r.byName[route.Name]; exists {
+		return fmt.Errorf("%w: route name %q", ErrRouteConflict, route.Name)
 	}
 	normalizedMethods := normalizeAPIMethods(methods)
 	for _, existing := range r.routes {
-		if existing.Pattern != pattern {
+		if existing.Pattern != route.Pattern {
 			continue
 		}
 		for _, method := range normalizedMethods {
 			if stringIn(existing.Methods, method) {
-				return fmt.Errorf("%w: %s %s", ErrRouteConflict, method, pattern)
+				return fmt.Errorf("%w: %s %s", ErrRouteConflict, method, route.Pattern)
 			}
 		}
 	}
-	compiled, err := frameworkhttp.CompilePattern(pattern)
+	compiled, err := frameworkhttp.CompilePattern(route.Pattern)
 	if err != nil {
 		return err
 	}
-	r.byName[name] = struct{}{}
-	r.routes = append(r.routes, Route{
-		Name:     name,
-		Pattern:  pattern,
-		Methods:  normalizedMethods,
-		Action:   action,
-		Detail:   detail,
-		View:     view,
-		compiled: compiled,
-	})
+	route.Methods = normalizedMethods
+	route.Metadata = cloneOperationMetadata(route.Metadata)
+	route.compiled = compiled
+	r.byName[route.Name] = struct{}{}
+	r.routes = append(r.routes, route)
 	return nil
+}
+
+func (r *Router) match(raw *nethttp.Request) (*Route, map[string]string, []string) {
+	var allowed []string
+	for index := range r.routes {
+		route := &r.routes[index]
+		params, ok := route.compiled.Match(raw.URL.Path)
+		if !ok {
+			continue
+		}
+		if !stringIn(route.Methods, raw.Method) {
+			allowed = append(allowed, route.Methods...)
+			continue
+		}
+		return route, params, nil
+	}
+	return nil, nil, allowed
+}
+
+func (r *Router) exception(ctx context.Context, request *Request, err error) Response {
+	if r.exceptionHandler != nil {
+		return r.exceptionHandler(ctx, request, err)
+	}
+	return DefaultExceptionHandler(ctx, request, err)
+}
+
+func attachAPIPathParams(request *Request, params map[string]string) {
+	for name, value := range params {
+		request.WithPathParam(name, value)
+		if request.Raw() != nil {
+			request.Raw().SetPathValue(name, value)
+		}
+	}
 }
 
 func (r *Router) withSlash(pattern string) string {

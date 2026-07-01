@@ -109,6 +109,48 @@ func TestOpenAPIGenerationCoversViewSetAuthAndErrors(t *testing.T) {
 	}
 }
 
+func TestOpenAPIIncludesDocumentedRawHandlers(t *testing.T) {
+	router := NewRouter()
+	if err := router.HandleHTTP("legacy-report", "reports/<str:id>", http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}), OperationMetadata{
+		Summary:     "Legacy report",
+		Description: "Existing report endpoint preserved during migration.",
+		Tags:        []string{"legacy"},
+		Responses: map[int]ResponseSchema{
+			http.StatusOK: {
+				Description: "Legacy payload",
+				ContentType: "application/json",
+				Schema:      map[string]any{"type": "object"},
+			},
+			http.StatusNoContent: {Description: "No content"},
+		},
+	}, http.MethodGet); err != nil {
+		t.Fatalf("HandleHTTP() error = %v", err)
+	}
+
+	spec := GenerateOpenAPI(OpenAPIOptions{Router: router})
+	operation := spec.Paths["/reports/{id}/"]["get"]
+	if operation.OperationID != "legacy-report" || operation.Summary != "Legacy report" || operation.Description != "Existing report endpoint preserved during migration." {
+		t.Fatalf("operation header = %#v", operation)
+	}
+	if len(operation.Tags) != 1 || operation.Tags[0] != "legacy" {
+		t.Fatalf("tags = %#v", operation.Tags)
+	}
+	if operation.Parameters[0].Name != "id" {
+		t.Fatalf("parameters = %#v", operation.Parameters)
+	}
+	okResponse := operation.Responses["200"].(map[string]any)
+	if okResponse["description"] != "Legacy payload" {
+		t.Fatalf("200 response = %#v", okResponse)
+	}
+	content := okResponse["content"].(map[string]any)["application/json"].(map[string]any)
+	if content["schema"].(map[string]any)["type"] != "object" {
+		t.Fatalf("200 content = %#v", content)
+	}
+	if operation.Responses["204"].(map[string]any)["description"] != "No content" {
+		t.Fatalf("204 response = %#v", operation.Responses["204"])
+	}
+}
+
 func TestOpenAPIJSONViewReturnsSpec(t *testing.T) {
 	spec := GenerateOpenAPI(OpenAPIOptions{Title: "Gogo API", Version: "v1"})
 	response := OpenAPIJSONView(spec)(context.Background(), nil)

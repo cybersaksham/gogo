@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -52,7 +54,23 @@ type OpenAPIOperation struct {
 	Responses   map[string]any        `json:"responses"`
 	Security    []map[string][]string `json:"security,omitempty"`
 	Summary     string                `json:"summary,omitempty"`
+	Description string                `json:"description,omitempty"`
 	Tags        []string              `json:"tags,omitempty"`
+}
+
+// OperationMetadata documents a custom or raw API route for OpenAPI generation.
+type OperationMetadata struct {
+	Summary     string
+	Description string
+	Tags        []string
+	Responses   map[int]ResponseSchema
+}
+
+// ResponseSchema documents one OpenAPI response for a custom or raw API route.
+type ResponseSchema struct {
+	Description string
+	ContentType string
+	Schema      map[string]any
 }
 
 // OpenAPIParameter describes an operation parameter.
@@ -152,6 +170,7 @@ func openAPIOperation(route Route, method string, params []string, options OpenA
 			},
 		}
 	}
+	applyOperationMetadata(&operation, route.Metadata)
 	return operation
 }
 
@@ -185,6 +204,70 @@ func openAPIResponses(route Route, method string, options OpenAPIOptions) map[st
 		"description": description,
 	}
 	return responses
+}
+
+func applyOperationMetadata(operation *OpenAPIOperation, metadata OperationMetadata) {
+	if metadata.Summary != "" {
+		operation.Summary = metadata.Summary
+	}
+	if metadata.Description != "" {
+		operation.Description = metadata.Description
+	}
+	if len(metadata.Tags) > 0 {
+		operation.Tags = append([]string(nil), metadata.Tags...)
+	}
+	if len(metadata.Responses) == 0 {
+		return
+	}
+	for _, status := range sortedResponseStatuses(metadata.Responses) {
+		operation.Responses[strconv.Itoa(status)] = openAPIResponseFromSchema(metadata.Responses[status])
+	}
+}
+
+func openAPIResponseFromSchema(response ResponseSchema) map[string]any {
+	description := response.Description
+	if description == "" {
+		description = "Response"
+	}
+	documented := map[string]any{"description": description}
+	if len(response.Schema) == 0 {
+		return documented
+	}
+	contentType := response.ContentType
+	if contentType == "" {
+		contentType = "application/json"
+	}
+	documented["content"] = map[string]any{
+		contentType: map[string]any{"schema": cloneAnyMap(response.Schema)},
+	}
+	return documented
+}
+
+func sortedResponseStatuses(responses map[int]ResponseSchema) []int {
+	statuses := make([]int, 0, len(responses))
+	for status := range responses {
+		statuses = append(statuses, status)
+	}
+	sort.Ints(statuses)
+	return statuses
+}
+
+func cloneOperationMetadata(metadata OperationMetadata) OperationMetadata {
+	copied := OperationMetadata{
+		Summary:     metadata.Summary,
+		Description: metadata.Description,
+		Tags:        append([]string(nil), metadata.Tags...),
+	}
+	if len(metadata.Responses) > 0 {
+		copied.Responses = make(map[int]ResponseSchema, len(metadata.Responses))
+		for status, response := range metadata.Responses {
+			if len(response.Schema) > 0 {
+				response.Schema = cloneAnyMap(response.Schema)
+			}
+			copied.Responses[status] = response
+		}
+	}
+	return copied
 }
 
 func openAPIPath(pattern string) (string, []string) {

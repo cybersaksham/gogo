@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -120,5 +121,63 @@ func TestAPIRouterMountHTTPRoutesThroughFrameworkRouter(t *testing.T) {
 	}
 	if body := response.Body.String(); body != "{\"count\":0,\"results\":[]}\n" {
 		t.Fatalf("body = %q", body)
+	}
+}
+
+func TestAPIRouterExceptionHandlerOverridesDefaultErrors(t *testing.T) {
+	router := NewRouter(WithExceptionHandler(func(_ context.Context, _ *Request, err error) Response {
+		return JSON(http.StatusConflict, map[string]any{"legacy_error": err.Error()})
+	}))
+	if err := router.Handle("post-only", "/post-only/", func(context.Context, *Request) Response {
+		return NoContent()
+	}, http.MethodPost); err != nil {
+		t.Fatalf("Handle() error = %v", err)
+	}
+
+	notFound := httptest.NewRecorder()
+	router.ServeHTTP(notFound, httptest.NewRequest(http.MethodGet, "/missing/", nil))
+	if notFound.Code != http.StatusConflict || notFound.Body.String() != "{\"legacy_error\":\"not found\"}\n" {
+		t.Fatalf("not found response = %d %q", notFound.Code, notFound.Body.String())
+	}
+
+	methodNotAllowed := httptest.NewRecorder()
+	router.ServeHTTP(methodNotAllowed, httptest.NewRequest(http.MethodGet, "/post-only/", nil))
+	if methodNotAllowed.Code != http.StatusConflict || methodNotAllowed.Body.String() != "{\"legacy_error\":\"method not allowed\"}\n" {
+		t.Fatalf("method response = %d %q", methodNotAllowed.Code, methodNotAllowed.Body.String())
+	}
+}
+
+func TestAPIRouterHandleHTTPServesRawHandlersAndPathValues(t *testing.T) {
+	apiRouter := NewRouter(WithAPIPrefix("api"))
+	handler := http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = io.WriteString(w, "id="+request.PathValue("id"))
+	})
+	if err := apiRouter.HandleHTTP("legacy-detail", "legacy/<str:id>", handler, OperationMetadata{Summary: "Legacy detail"}, http.MethodGet); err != nil {
+		t.Fatalf("HandleHTTP() error = %v", err)
+	}
+
+	direct := httptest.NewRecorder()
+	apiRouter.ServeHTTP(direct, httptest.NewRequest(http.MethodGet, "/api/legacy/42/", nil))
+	if direct.Code != http.StatusOK || direct.Body.String() != "id=42" {
+		t.Fatalf("direct raw response = %d %q", direct.Code, direct.Body.String())
+	}
+
+	mountedRouter := gogohttp.NewRouter()
+	if err := apiRouter.MountHTTP(mountedRouter); err != nil {
+		t.Fatalf("MountHTTP() error = %v", err)
+	}
+	mounted := httptest.NewRecorder()
+	mountedRouter.ServeHTTP(mounted, httptest.NewRequest(http.MethodGet, "/api/legacy/84/", nil))
+	if mounted.Code != http.StatusOK || mounted.Body.String() != "id=84" {
+		t.Fatalf("mounted raw response = %d %q", mounted.Code, mounted.Body.String())
+	}
+
+	url, err := apiRouter.Reverse("legacy-detail", map[string]any{"id": "7"})
+	if err != nil {
+		t.Fatalf("Reverse() error = %v", err)
+	}
+	if url != "/api/legacy/7/" {
+		t.Fatalf("url = %q", url)
 	}
 }

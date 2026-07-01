@@ -9,7 +9,7 @@ The API package provides request/response wrappers, serializers, parser and rend
 | Request/response | `Request`, `Response`, `APIError` |
 | Serializers | `Serializer`, `SerializerField`, `FieldOptions`, `ModelSerializer`, `ModelSerializerConfig`, `OrderedFieldError` |
 | Views | `APIView`, `View`, `RequestInitializer`, `RequestHook`, `ExceptionHandler`, `ResponseFinalizer` |
-| ViewSets/routers | `ModelViewSet`, `ModelViewSetStore`, `ViewSetAction`, `Router`, `Route` |
+| ViewSets/routers | `ModelViewSet`, `ModelViewSetStore`, `ViewSetAction`, `Router`, `RouterOption`, `Route` |
 | Authentication | `Token`, `AuthenticationResult`, `Authenticator`, `AuthenticatorFunc`, `TokenStore`, `MemoryTokenStore` |
 | Permissions | `PermissionClass` |
 | Throttling | `Rate`, `ThrottleError`, `ThrottleDecision`, `Throttle`, `ThrottleStore`, `MemoryThrottleStore`, `RateThrottle` |
@@ -19,7 +19,7 @@ The API package provides request/response wrappers, serializers, parser and rend
 | Renderers | `Renderer`, `JSONRenderer`, `BrowsableAPIRenderer`, `PlainTextRenderer` |
 | Metadata | `MetadataOptions`, `APIMetadata`, `RouteMetadata`, `ActionMetadata`, `SerializerMetadata`, `SerializerFieldMetadata`, `FilterMetadata` |
 | Versioning | `VersioningConfig`, `VersioningStrategy`, `URLPathVersioning`, `NamespaceVersioning`, `HostNameVersioning`, `QueryParameterVersioning`, `AcceptHeaderVersioning` |
-| OpenAPI | `OpenAPIOptions`, `OpenAPISpec`, `OpenAPIInfo`, `OpenAPIExternalDocs`, `OpenAPIOperation`, `OpenAPIParameter`, `OpenAPIRequestBody`, `OpenAPIMediaType`, `OpenAPIComponents` |
+| OpenAPI | `OpenAPIOptions`, `OpenAPISpec`, `OpenAPIInfo`, `OpenAPIExternalDocs`, `OpenAPIOperation`, `OperationMetadata`, `ResponseSchema`, `OpenAPIParameter`, `OpenAPIRequestBody`, `OpenAPIMediaType`, `OpenAPIComponents` |
 
 ## Serializer Fields
 
@@ -64,6 +64,10 @@ Throttling supports request rate parsing, in-memory throttle storage, scoped key
 ## OpenAPI
 
 OpenAPI generation uses router, viewset, serializer, auth, permission, and metadata definitions to build paths, operations, request bodies, responses, security schemes, and components. `OpenAPIJSONView` serves a spec as an API view.
+
+`Router.HandleHTTP` registers an existing `net/http.Handler` on the API router while keeping a named route and optional `OperationMetadata` for OpenAPI. API path parameters are available through `request.PathValue("name")` for raw handlers and through `Request.PathParam("name")` for Gogo-native API views.
+
+`WithExceptionHandler` configures router-level handling for 404, 405, write failures, and uncaught API view panics. Use it when an existing public API must keep a legacy error body during migration. `WithTrailingSlash` keeps trailing-slash behavior configurable per API router, and nested routers preserve their registered route patterns.
 
 ## Errors
 
