@@ -93,6 +93,9 @@ func (e Editor) RenameIndex(oldName, newName string) string {
 }
 
 func (e Editor) AddConstraint(table string, constraint migrations.ConstraintState) string {
+	if e.Dialect.Name() == "sqlite" {
+		return "-- SQLite rebuild required to add constraint " + e.q(constraint.Name) + " on " + e.q(table)
+	}
 	return "ALTER TABLE " + e.q(table) + " ADD CONSTRAINT " + e.q(constraint.Name) + " " + e.constraintSQL(constraint)
 }
 

@@ -34,10 +34,7 @@ func (o CreateModel) StateForwards(state *migrations.ProjectState) error {
 	return nil
 }
 func (o CreateModel) DatabaseForwards(ctx context.Context, editor migrations.SchemaEditor) error {
-	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
-		return editor.Execute(ctx, renderer.CreateTable(modelTableName(o.Model), modelFields(o.Model)))
-	}
-	return editor.Execute(ctx, createTableSQL(o.Model))
+	return createModelDatabase(ctx, editor, o.Model)
 }
 func (o CreateModel) DatabaseBackwards(ctx context.Context, editor migrations.SchemaEditor) error {
 	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
@@ -90,10 +87,7 @@ func (o DeleteModel) DatabaseForwards(ctx context.Context, editor migrations.Sch
 	return editor.Execute(ctx, fmt.Sprintf("DROP TABLE %s", o.Model.TableName))
 }
 func (o DeleteModel) DatabaseBackwards(ctx context.Context, editor migrations.SchemaEditor) error {
-	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
-		return editor.Execute(ctx, renderer.CreateTable(modelTableName(o.Model), modelFields(o.Model)))
-	}
-	return editor.Execute(ctx, createTableSQL(o.Model))
+	return createModelDatabase(ctx, editor, o.Model)
 }
 func (o DeleteModel) Describe() string { return "Delete model " + o.Model.Name }
 func (o DeleteModel) Reversible() bool { return true }
@@ -273,12 +267,31 @@ func createTableSQL(model migrations.ModelState) string {
 		} else if !field.Null {
 			parts = append(parts, "NOT NULL")
 		}
-		if field.Unique {
-			parts = append(parts, "UNIQUE")
-		}
 		columns = append(columns, strings.Join(parts, " "))
 	}
 	return fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", table, strings.Join(columns, ", "))
+}
+
+func createModelDatabase(ctx context.Context, editor migrations.SchemaEditor, model migrations.ModelState) error {
+	table := modelTableName(model)
+	if renderer, ok := editor.(migrations.SchemaRenderer); ok {
+		if err := editor.Execute(ctx, renderer.CreateTable(table, modelFields(model))); err != nil {
+			return err
+		}
+	} else if err := editor.Execute(ctx, createTableSQL(model)); err != nil {
+		return err
+	}
+	for _, constraint := range model.Constraints {
+		if err := (AddConstraint{AppLabel: model.AppLabel, ModelName: model.Name, TableName: table, Constraint: constraint}).DatabaseForwards(ctx, editor); err != nil {
+			return err
+		}
+	}
+	for _, index := range model.Indexes {
+		if err := (AddIndex{AppLabel: model.AppLabel, ModelName: model.Name, TableName: table, Index: index}).DatabaseForwards(ctx, editor); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func modelTableName(model migrations.ModelState) string {

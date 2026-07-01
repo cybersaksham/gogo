@@ -447,7 +447,7 @@ func diffExistingModel(oldModel, newModel migrations.ModelState) []migrations.Op
 			detected = append(detected, operations.AddField{AppLabel: newModel.AppLabel, ModelName: newModel.Name, TableName: tableName, Field: field, HasDefault: fieldHasDatabaseDefault(field)})
 			continue
 		}
-		if !reflect.DeepEqual(oldField, field) {
+		if !fieldStateEqualForAlter(oldField, field) {
 			detected = append(detected, operations.AlterField{AppLabel: newModel.AppLabel, ModelName: newModel.Name, TableName: tableName, OldField: oldField, NewField: field})
 		}
 	}
@@ -467,13 +467,13 @@ func diffIndexes(oldModel, newModel migrations.ModelState) []migrations.Operatio
 	var detected []migrations.Operation
 	for _, index := range oldModel.Indexes {
 		newIndex, exists := newIndexes[index.Name]
-		if !exists || !reflect.DeepEqual(index, newIndex) {
+		if !exists || !indexStateEqualForMigration(index, newIndex) {
 			detected = append(detected, operations.RemoveIndex{AppLabel: oldModel.AppLabel, ModelName: oldModel.Name, TableName: oldModel.TableName, IndexName: index.Name})
 		}
 	}
 	for _, index := range newModel.Indexes {
 		oldIndex, exists := oldIndexes[index.Name]
-		if !exists || !reflect.DeepEqual(oldIndex, index) {
+		if !exists || !indexStateEqualForMigration(oldIndex, index) {
 			detected = append(detected, operations.AddIndex{AppLabel: newModel.AppLabel, ModelName: newModel.Name, TableName: newModel.TableName, Index: index})
 		}
 	}
@@ -486,13 +486,13 @@ func diffConstraints(oldModel, newModel migrations.ModelState) []migrations.Oper
 	var detected []migrations.Operation
 	for _, constraint := range oldModel.Constraints {
 		newConstraint, exists := newConstraints[constraint.Name]
-		if !exists || !reflect.DeepEqual(constraint, newConstraint) {
+		if !exists || !constraintStateEqualForMigration(constraint, newConstraint) {
 			detected = append(detected, operations.RemoveConstraint{AppLabel: oldModel.AppLabel, ModelName: oldModel.Name, TableName: oldModel.TableName, ConstraintName: constraint.Name})
 		}
 	}
 	for _, constraint := range newModel.Constraints {
 		oldConstraint, exists := oldConstraints[constraint.Name]
-		if !exists || !reflect.DeepEqual(oldConstraint, constraint) {
+		if !exists || !constraintStateEqualForMigration(oldConstraint, constraint) {
 			detected = append(detected, operations.AddConstraint{AppLabel: newModel.AppLabel, ModelName: newModel.Name, TableName: newModel.TableName, Constraint: constraint})
 		}
 	}
@@ -550,6 +550,26 @@ func constraintStatesByName(constraints []migrations.ConstraintState) map[string
 
 func fieldHasDatabaseDefault(field migrations.FieldState) bool {
 	return field.DBDefault != nil
+}
+
+func fieldStateEqualForAlter(oldField, newField migrations.FieldState) bool {
+	oldField.Unique = false
+	oldField.DBIndex = false
+	newField.Unique = false
+	newField.DBIndex = false
+	return reflect.DeepEqual(oldField, newField)
+}
+
+func indexStateEqualForMigration(oldIndex, newIndex migrations.IndexState) bool {
+	oldIndex.Source = ""
+	newIndex.Source = ""
+	return reflect.DeepEqual(oldIndex, newIndex)
+}
+
+func constraintStateEqualForMigration(oldConstraint, newConstraint migrations.ConstraintState) bool {
+	oldConstraint.Source = ""
+	newConstraint.Source = ""
+	return reflect.DeepEqual(oldConstraint, newConstraint)
 }
 
 func runMigrate(ctx context.Context, options migrationOptions, stdout io.Writer, projectMigrations []migrations.Migration) error {

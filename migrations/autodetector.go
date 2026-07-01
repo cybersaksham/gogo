@@ -112,7 +112,7 @@ func compareModel(oldModel, newModel ModelState) []DetectedChange {
 		old, exists := oldFields[name]
 		if !exists {
 			changes = append(changes, DetectedChange{Type: ChangeAddField, AppLabel: newModel.AppLabel, ModelName: newModel.Name, NewName: name})
-		} else if !reflect.DeepEqual(old, field) {
+		} else if !fieldStateEqualForAlter(old, field) {
 			changes = append(changes, DetectedChange{Type: ChangeAlterField, AppLabel: newModel.AppLabel, ModelName: newModel.Name, NewName: name})
 		}
 	}
@@ -132,6 +132,14 @@ func fieldMap(fields []FieldState) map[string]FieldState {
 		values[field.Name] = field
 	}
 	return values
+}
+
+func fieldStateEqualForAlter(oldField, newField FieldState) bool {
+	oldField.Unique = false
+	oldField.DBIndex = false
+	newField.Unique = false
+	newField.DBIndex = false
+	return reflect.DeepEqual(oldField, newField)
 }
 
 type namedState interface{ comparableName() string }

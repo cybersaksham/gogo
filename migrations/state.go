@@ -36,6 +36,7 @@ type FieldState struct {
 type IndexState struct {
 	Name   string   `json:"name"`
 	Fields []string `json:"fields,omitempty"`
+	Source string   `json:"source,omitempty"`
 }
 
 // ConstraintState stores historical constraint state.
@@ -44,6 +45,7 @@ type ConstraintState struct {
 	Type   string   `json:"type"`
 	Fields []string `json:"fields,omitempty"`
 	Check  string   `json:"check,omitempty"`
+	Source string   `json:"source,omitempty"`
 }
 
 // NewProjectState creates empty state.
@@ -93,8 +95,8 @@ func StateFromRegistry(registry *models.Registry) ProjectState {
 			Name:        meta.ModelName,
 			TableName:   meta.TableName,
 			Fields:      make([]FieldState, len(meta.Fields)),
-			Indexes:     make([]IndexState, len(meta.Indexes)),
-			Constraints: make([]ConstraintState, len(meta.Constraints)),
+			Indexes:     make([]IndexState, 0, len(meta.Indexes)+len(meta.Fields)),
+			Constraints: make([]ConstraintState, 0, len(meta.Constraints)+len(meta.Fields)),
 			Options: map[string]any{
 				"verbose_name": meta.VerboseName,
 				"ordering":     append([]string(nil), meta.Ordering...),
@@ -120,11 +122,19 @@ func StateFromRegistry(registry *models.Registry) ProjectState {
 				model.Fields[i].DBDefault = &defaultValue
 			}
 		}
-		for i, index := range meta.Indexes {
-			model.Indexes[i] = IndexState{Name: index.Name, Fields: index.FieldNames()}
+		for _, index := range meta.Indexes {
+			model.Indexes = appendIndexState(model.Indexes, IndexState{Name: index.NameFor(meta.TableName), Fields: index.FieldNames(), Source: "model"})
 		}
-		for i, constraint := range meta.Constraints {
-			model.Constraints[i] = ConstraintState{Name: constraint.Name, Type: string(constraint.Type), Fields: constraint.FieldNames(), Check: constraint.Check}
+		for _, constraint := range meta.Constraints {
+			model.Constraints = appendConstraintState(model.Constraints, ConstraintState{Name: constraint.NameFor(meta.TableName), Type: string(constraint.Type), Fields: constraint.FieldNames(), Check: constraint.Check, Source: "model"})
+		}
+		for _, field := range model.Fields {
+			if field.DBIndex {
+				model.Indexes = appendIndexState(model.Indexes, fieldIndexState(meta.TableName, field))
+			}
+			if field.Unique && !field.PrimaryKey {
+				model.Constraints = appendConstraintState(model.Constraints, fieldUniqueConstraintState(meta.TableName, field))
+			}
 		}
 		state.AddModel(model)
 	}
@@ -161,7 +171,7 @@ func cloneFieldState(field FieldState) FieldState {
 func cloneIndexStates(indexes []IndexState) []IndexState {
 	copied := make([]IndexState, len(indexes))
 	for i, index := range indexes {
-		copied[i] = IndexState{Name: index.Name, Fields: append([]string(nil), index.Fields...)}
+		copied[i] = IndexState{Name: index.Name, Fields: append([]string(nil), index.Fields...), Source: index.Source}
 	}
 	return copied
 }
@@ -174,9 +184,47 @@ func cloneConstraintStates(constraints []ConstraintState) []ConstraintState {
 			Type:   constraint.Type,
 			Fields: append([]string(nil), constraint.Fields...),
 			Check:  constraint.Check,
+			Source: constraint.Source,
 		}
 	}
 	return copied
+}
+
+func appendIndexState(indexes []IndexState, index IndexState) []IndexState {
+	for _, existing := range indexes {
+		if existing.Name == index.Name {
+			return indexes
+		}
+	}
+	return append(indexes, index)
+}
+
+func appendConstraintState(constraints []ConstraintState, constraint ConstraintState) []ConstraintState {
+	for _, existing := range constraints {
+		if existing.Name == constraint.Name {
+			return constraints
+		}
+	}
+	return append(constraints, constraint)
+}
+
+func fieldIndexState(table string, field FieldState) IndexState {
+	column := fieldColumnName(field)
+	index := models.Index{Fields: []models.IndexField{models.Asc(column)}}
+	return IndexState{Name: index.NameFor(table), Fields: []string{column}, Source: "field"}
+}
+
+func fieldUniqueConstraintState(table string, field FieldState) ConstraintState {
+	column := fieldColumnName(field)
+	constraint := models.Constraint{Type: models.ConstraintUnique, Fields: []models.IndexField{models.Asc(column)}}
+	return ConstraintState{Name: constraint.NameFor(table), Type: string(models.ConstraintUnique), Fields: []string{column}, Source: "field"}
+}
+
+func fieldColumnName(field FieldState) string {
+	if field.Column != "" {
+		return field.Column
+	}
+	return field.Name
 }
 
 func cloneStringMap(values map[string]string) map[string]string {

@@ -53,6 +53,37 @@ func TestModelOperationsMutateStateAndRenderSQL(t *testing.T) {
 	}
 }
 
+func TestCreateModelCreatesConstraintsThenIndexes(t *testing.T) {
+	editor := &fakeEditor{}
+	create := CreateModel{Model: migrations.ModelState{
+		AppLabel:  "blog",
+		Name:      "Post",
+		TableName: "blog_post",
+		Fields: []migrations.FieldState{
+			{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true},
+			{Name: "slug", Column: "slug", Kind: "text"},
+		},
+		Constraints: []migrations.ConstraintState{{Name: "uniq_blog_post_slug", Type: "unique", Fields: []string{"slug"}}},
+		Indexes:     []migrations.IndexState{{Name: "idx_blog_post_slug", Fields: []string{"slug"}}},
+	}}
+	if err := create.DatabaseForwards(context.Background(), editor); err != nil {
+		t.Fatalf("CreateModel DatabaseForwards() error = %v", err)
+	}
+	want := []string{
+		`CREATE TABLE IF NOT EXISTS blog_post (id bigint PRIMARY KEY, slug text NOT NULL)`,
+		`ALTER TABLE blog_post ADD CONSTRAINT uniq_blog_post_slug UNIQUE (slug)`,
+		`CREATE INDEX idx_blog_post_slug ON blog_post (slug)`,
+	}
+	if len(editor.SQL) != len(want) {
+		t.Fatalf("SQL count = %d, want %d: %#v", len(editor.SQL), len(want), editor.SQL)
+	}
+	for i, statement := range want {
+		if editor.SQL[i] != statement {
+			t.Fatalf("SQL[%d] = %q, want %q; all SQL %#v", i, editor.SQL[i], statement, editor.SQL)
+		}
+	}
+}
+
 type fakeEditor struct {
 	SQL []string
 }

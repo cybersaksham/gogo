@@ -48,7 +48,7 @@ func TestProjectStateFromRegistry(t *testing.T) {
 
 	state := StateFromRegistry(registry)
 	model := state.Models["blog.Post"]
-	if model.TableName != "blog_post" || len(model.Fields) != 2 || len(model.Indexes) != 1 || len(model.Constraints) != 1 {
+	if model.TableName != "blog_post" || len(model.Fields) != 2 || len(model.Indexes) != 2 || len(model.Constraints) != 2 {
 		t.Fatalf("registry state model = %#v", model)
 	}
 	if model.Fields[0].Name != "id" || !model.Fields[0].PrimaryKey {
@@ -62,6 +62,18 @@ func TestProjectStateFromRegistry(t *testing.T) {
 	again := StateFromRegistry(registry).Models["blog.Post"].Fields[1]
 	if again.ColumnTypes["postgres"] != "varchar(200)" {
 		t.Fatalf("field ColumnTypes state was not cloned: %#v", again.ColumnTypes)
+	}
+	if model.Indexes[0].Name != "idx_title" || model.Indexes[0].Source != "model" {
+		t.Fatalf("explicit index state = %#v", model.Indexes[0])
+	}
+	if model.Indexes[1].Fields[0] != "title" || model.Indexes[1].Name == "" || model.Indexes[1].Source != "field" {
+		t.Fatalf("field-derived index state = %#v", model.Indexes[1])
+	}
+	if model.Constraints[0].Name != "uniq_title" || model.Constraints[0].Source != "model" {
+		t.Fatalf("explicit constraint state = %#v", model.Constraints[0])
+	}
+	if model.Constraints[1].Type != "unique" || model.Constraints[1].Fields[0] != "title" || model.Constraints[1].Name == "" || model.Constraints[1].Source != "field" {
+		t.Fatalf("field-derived unique constraint state = %#v", model.Constraints[1])
 	}
 }
 

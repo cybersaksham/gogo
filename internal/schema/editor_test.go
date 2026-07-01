@@ -76,6 +76,9 @@ func TestSchemaEditorSQLiteGoldenSQL(t *testing.T) {
 	if got := editor.DropIndex("idx_slug"); got != `DROP INDEX "idx_slug"` {
 		t.Fatalf("DropIndex() = %q", got)
 	}
+	if got := editor.AddConstraint("blog_post", migrations.ConstraintState{Name: "uniq_slug", Type: "unique", Fields: []string{"slug"}}); got != `-- SQLite rebuild required to add constraint "uniq_slug" on "blog_post"` {
+		t.Fatalf("AddConstraint() = %q", got)
+	}
 	if got := editor.DropConstraint("blog_post", "uniq_slug"); got != `-- SQLite rebuild required to drop constraint "uniq_slug" on "blog_post"` {
 		t.Fatalf("DropConstraint() = %q", got)
 	}

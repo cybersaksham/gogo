@@ -171,7 +171,7 @@ func TestSQLMigrateRendersCustomTableNamesWithSharedRenderer(t *testing.T) {
 		t.Fatalf("sqlmigrate error = %v", err)
 	}
 	output := stdout.String()
-	for _, want := range []string{`CREATE TABLE "orders"`, `CREATE INDEX "idx_orders_status" ON "orders" ("status")`, `ALTER TABLE "orders" ADD CONSTRAINT "uniq_orders_status" UNIQUE ("status")`} {
+	for _, want := range []string{`CREATE TABLE "orders"`, `CREATE INDEX "idx_orders_status" ON "orders" ("status")`, `-- SQLite rebuild required to add constraint "uniq_orders_status" on "orders"`} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("sqlmigrate output missing %q:\n%s", want, output)
 		}
@@ -605,6 +605,56 @@ func TestMakeMigrationsRejectsUnsafeNonNullAddField(t *testing.T) {
 	err := root.Execute(context.Background(), []string{"makemigrations", "--app", "sales"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if !errors.Is(err, migrations.ErrUnsafeMigration) {
 		t.Fatalf("makemigrations error = %v, want ErrUnsafeMigration", err)
+	}
+}
+
+func TestMakeMigrationsDetectsFieldIndexWithoutAlterField(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	initial := migrations.Migration{
+		AppLabel: "sales",
+		Name:     migrations.InitialMigrationName(),
+		Atomic:   true,
+		Operations: []migrations.Operation{
+			operations.CreateModel{Model: migrations.ModelState{
+				AppLabel:  "sales",
+				Name:      "Order",
+				TableName: "orders",
+				Fields: []migrations.FieldState{
+					{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true},
+					{Name: "status", Column: "status", Kind: "text", Null: true},
+				},
+			}},
+		},
+	}
+	meta := models.Metadata{
+		AppLabel:  "sales",
+		ModelName: "Order",
+		TableName: "orders",
+		Fields: []models.FieldMeta{
+			{Name: "id", Column: "id", Kind: "bigint", PrimaryKey: true},
+			{Name: "status", Column: "status", Kind: "text", Null: true, DBIndex: true},
+		},
+	}
+	root := NewRootWithOptions(RootOptions{ProjectModels: []models.Metadata{meta}, ProjectMigrations: []migrations.Migration{initial}})
+
+	var stdout bytes.Buffer
+	if err := root.Execute(context.Background(), []string{"makemigrations", "--app", "sales", "--name", "index_status"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("makemigrations error = %v", err)
+	}
+	contents, err := os.ReadFile(filepath.Join(dir, "sales", "migrations", "0002_index_status.go"))
+	if err != nil {
+		t.Fatalf("read migration: %v", err)
+	}
+	if !strings.Contains(string(contents), `\"type\":\"AddIndex\"`) || strings.Contains(string(contents), `\"type\":\"AlterField\"`) {
+		t.Fatalf("unexpected migration operations:\n%s", contents)
+	}
+	stdout.Reset()
+	if err := root.Execute(context.Background(), []string{"sqlmigrate", "sales", "0002_index_status"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("sqlmigrate error = %v", err)
+	}
+	if !strings.Contains(stdout.String(), `CREATE INDEX`) || !strings.Contains(stdout.String(), `"status"`) {
+		t.Fatalf("sqlmigrate missing index SQL:\n%s", stdout.String())
 	}
 }
 

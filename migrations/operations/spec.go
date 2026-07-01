@@ -67,7 +67,7 @@ func (o RenameField) MigrationOperationSpec() migrations.OperationSpec {
 }
 
 func (o AddIndex) MigrationOperationSpec() migrations.OperationSpec {
-	index := migrations.IndexState{Name: o.Index.Name, Fields: append([]string(nil), o.Index.Fields...)}
+	index := migrations.IndexState{Name: o.Index.Name, Fields: append([]string(nil), o.Index.Fields...), Source: o.Index.Source}
 	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, TableName: o.TableName, Index: &index}
 }
 
@@ -80,7 +80,7 @@ func (o RenameIndex) MigrationOperationSpec() migrations.OperationSpec {
 }
 
 func (o AddConstraint) MigrationOperationSpec() migrations.OperationSpec {
-	constraint := migrations.ConstraintState{Name: o.Constraint.Name, Type: o.Constraint.Type, Fields: append([]string(nil), o.Constraint.Fields...), Check: o.Constraint.Check}
+	constraint := migrations.ConstraintState{Name: o.Constraint.Name, Type: o.Constraint.Type, Fields: append([]string(nil), o.Constraint.Fields...), Check: o.Constraint.Check, Source: o.Constraint.Source}
 	return migrations.OperationSpec{Type: o.Name(), AppLabel: o.AppLabel, ModelName: o.ModelName, TableName: o.TableName, Constraint: &constraint}
 }
 
@@ -108,12 +108,12 @@ func cloneModelState(model migrations.ModelState) migrations.ModelState {
 	indexes := model.Indexes
 	model.Indexes = make([]migrations.IndexState, len(indexes))
 	for index, value := range indexes {
-		model.Indexes[index] = migrations.IndexState{Name: value.Name, Fields: append([]string(nil), value.Fields...)}
+		model.Indexes[index] = migrations.IndexState{Name: value.Name, Fields: append([]string(nil), value.Fields...), Source: value.Source}
 	}
 	constraints := model.Constraints
 	model.Constraints = make([]migrations.ConstraintState, len(constraints))
 	for index, value := range constraints {
-		model.Constraints[index] = migrations.ConstraintState{Name: value.Name, Type: value.Type, Fields: append([]string(nil), value.Fields...), Check: value.Check}
+		model.Constraints[index] = migrations.ConstraintState{Name: value.Name, Type: value.Type, Fields: append([]string(nil), value.Fields...), Check: value.Check, Source: value.Source}
 	}
 	model.Options = cloneOptions(model.Options)
 	return model
