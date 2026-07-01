@@ -53,6 +53,11 @@ valid after the CLI is installed.
 | `go run manage.go dumpdata` | dump fixture data |
 | `go run manage.go loaddata` | load fixture data |
 
+Generated apps can expose `checks.Check` values through `Checks()` and custom
+management commands through `Commands()`. Project wiring passes both into
+`management.MainProject`, so app checks run under `go run manage.go check` and
+app commands run directly, for example `go run manage.go blog.reindex`.
+
 For generated project or deployment changes, also run:
 
 ```bash

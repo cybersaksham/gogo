@@ -37,6 +37,11 @@ func TestGeneratedProjectWithAppCompilesAsDownstreamModule(t *testing.T) {
 	if !strings.Contains(inspectOutput, "registered=1") {
 		t.Fatalf("project-aware inspect output = %q, want registered task", inspectOutput)
 	}
+	checkOutput := runGeneratedCommandOutput(t, target, "go", "run", "manage.go", "check", "--tag", "blog")
+	if !strings.Contains(checkOutput, "INFO blog blog app checks registered") {
+		t.Fatalf("project-aware check output = %q, want app check", checkOutput)
+	}
+	runGeneratedCommand(t, target, "go", "run", "manage.go", "blog.reindex", "--all")
 	runGeneratedCommand(t, target, "go", "test", "./...")
 	assertNoInternalFrameworkImports(t, target)
 }

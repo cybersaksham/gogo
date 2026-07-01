@@ -17,6 +17,11 @@ go run manage.go check --deploy
 go test ./...
 ```
 
+Generated apps can contribute `checks.Check` values through `Checks()` and
+custom management commands through `Commands()`. Project wiring passes both to
+`management.MainProject`, so app checks run through `go run manage.go check`
+and app commands run directly, for example `go run manage.go blog.reindex`.
+
 Generated projects also include a `Makefile` for common workflows.
 
 ## CLI commands

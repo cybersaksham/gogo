@@ -183,6 +183,8 @@ func TestProjectTemplatesRenderParseablePublicGoFiles(t *testing.T) {
 		"ModelMetadata: myproject.ModelMetadata",
 		"Router:        myproject.NewRouter",
 		"QueueApp:      myproject.NewQueueApp",
+		"Commands:      myproject.Commands",
+		"Checks:        myproject.Checks",
 	} {
 		if !strings.Contains(files["manage.go"], want) {
 			t.Fatalf("manage.go missing %q:\n%s", want, files["manage.go"])
@@ -279,6 +281,8 @@ func TestAppFilesRenderExpectedStructure(t *testing.T) {
 		"admin.go",
 		"api.go",
 		"app.go",
+		"checks.go",
+		"commands.go",
 		"forms.go",
 		"migrations/.keep",
 		"models.go",
@@ -330,6 +334,7 @@ func TestAppTemplatesRenderMeaningfulModuleAwareTests(t *testing.T) {
 		"TestGeneratedAppHTTPRoute",
 		"TestGeneratedAppAdminFormSerializerAndTasks",
 		"TestGeneratedAppAPIRoutes",
+		"TestGeneratedAppChecksAndCommands",
 	} {
 		if !strings.Contains(tests, want) {
 			t.Fatalf("generated app tests missing %q:\n%s", want, tests)

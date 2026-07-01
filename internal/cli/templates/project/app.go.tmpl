@@ -6,6 +6,8 @@ import (
 
 	"github.com/cybersaksham/gogo/app"
 	"github.com/cybersaksham/gogo/auth"
+	"github.com/cybersaksham/gogo/checks"
+	"github.com/cybersaksham/gogo/management"
 	"github.com/cybersaksham/gogo/models"
 )
 
@@ -34,4 +36,16 @@ func ModelMetadata() []models.Metadata {
 	metadata = append(metadata, auth.ModelMetadata()...)
 	// gogo:startapp-model-metadata
 	return metadata
+}
+
+func Commands() []management.Command {
+	var commands []management.Command
+	// gogo:startapp-commands
+	return commands
+}
+
+func Checks() []checks.Check {
+	var registered []checks.Check
+	// gogo:startapp-checks
+	return registered
 }

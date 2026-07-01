@@ -1,0 +1,14 @@
+package {{.AppName}}
+
+import "github.com/cybersaksham/gogo/checks"
+
+func Checks() []checks.Check {
+	return []checks.Check{
+		{
+			ID:       AppLabel + ".I001",
+			Tags:     []string{AppLabel},
+			Severity: checks.SeverityInfo,
+			Message:  AppLabel + " app checks registered",
+		},
+	}
+}

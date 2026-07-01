@@ -72,6 +72,8 @@ var appTemplateFiles = []templateFile{
 	{TemplatePath: "app/admin.go.tmpl", TargetPath: "admin.go"},
 	{TemplatePath: "app/urls.go.tmpl", TargetPath: "urls.go"},
 	{TemplatePath: "app/api.go.tmpl", TargetPath: "api.go"},
+	{TemplatePath: "app/checks.go.tmpl", TargetPath: "checks.go"},
+	{TemplatePath: "app/commands.go.tmpl", TargetPath: "commands.go"},
 	{TemplatePath: "app/serializers.go.tmpl", TargetPath: "serializers.go"},
 	{TemplatePath: "app/forms.go.tmpl", TargetPath: "forms.go"},
 	{TemplatePath: "app/services.go.tmpl", TargetPath: "services.go"},

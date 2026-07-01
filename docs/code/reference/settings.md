@@ -53,7 +53,8 @@ installed `gogo` binary for global help, version, and project creation. Inside
 a generated project, `go run manage.go <command>` is the explicit project
 entrypoint, and the installed `gogo` binary delegates project-aware commands to
 that entrypoint so commands load project settings, routes, admin, app configs,
-model metadata, fixtures, and queue tasks.
+model metadata, fixtures, queue tasks, project checks, and custom project
+commands.
 
 | Command | Status | Purpose |
 | --- | --- | --- |

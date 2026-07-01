@@ -139,6 +139,12 @@ func autoInstallGeneratedApp(target, appName string) error {
 	if err := installAppInGoFile(filepath.Join(projectDir, "app.go"), appImportPath, "// gogo:startapp-model-metadata", fmt.Sprintf("\tmetadata = append(metadata, %s.ModelMetadata()...)\n\t// gogo:startapp-model-metadata", appName)); err != nil {
 		return err
 	}
+	if err := installAppInGoFile(filepath.Join(projectDir, "app.go"), appImportPath, "// gogo:startapp-commands", fmt.Sprintf("\tcommands = append(commands, %s.Commands()...)\n\t// gogo:startapp-commands", appName)); err != nil {
+		return err
+	}
+	if err := installAppInGoFile(filepath.Join(projectDir, "app.go"), appImportPath, "// gogo:startapp-checks", fmt.Sprintf("\tregistered = append(registered, %s.Checks()...)\n\t// gogo:startapp-checks", appName)); err != nil {
+		return err
+	}
 	return nil
 }
 

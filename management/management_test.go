@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/cybersaksham/gogo/auth"
+	"github.com/cybersaksham/gogo/checks"
+	"github.com/cybersaksham/gogo/internal/cli"
 	"github.com/cybersaksham/gogo/queue"
 
 	_ "modernc.org/sqlite"
@@ -45,6 +48,84 @@ func TestExecuteProjectUsesProjectQueueApp(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "registered=1") {
 		t.Fatalf("inspect output missing registered task count:\n%s", stdout.String())
+	}
+}
+
+func TestExecuteProjectRunsProjectCommand(t *testing.T) {
+	var called bool
+	var gotArgs []string
+	command := projectCommand{
+		name:    "blog.reindex",
+		summary: "Reindex blog content",
+		run: func(_ context.Context, args []string) error {
+			called = true
+			gotArgs = append([]string(nil), args...)
+			return nil
+		},
+	}
+
+	var stdout bytes.Buffer
+	err := ExecuteProject(context.Background(), []string{"blog.reindex", "--all"}, &stdout, &bytes.Buffer{}, Project{
+		Commands: func() []Command {
+			return []Command{command}
+		},
+	})
+	if err != nil {
+		t.Fatalf("ExecuteProject(custom command) error = %v", err)
+	}
+	if !called || strings.Join(gotArgs, ",") != "--all" {
+		t.Fatalf("custom command called=%v args=%#v", called, gotArgs)
+	}
+
+	if err := ExecuteProject(context.Background(), []string{"check"}, &stdout, &bytes.Buffer{}, Project{
+		Commands: func() []Command {
+			return []Command{projectCommand{name: "check", summary: "Bad", run: func(context.Context, []string) error { return nil }}}
+		},
+	}); !errors.Is(err, cli.ErrDuplicateCommand) {
+		t.Fatalf("ExecuteProject(duplicate command) error = %v, want ErrDuplicateCommand", err)
+	}
+}
+
+func TestExecuteProjectRunsProjectChecks(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte("GOGO_SECRET_KEY=management-secret\nDATABASE_URL=sqlite://:memory:\n"), 0o600); err != nil {
+		t.Fatalf("write env: %v", err)
+	}
+
+	project := Project{
+		Checks: func() []checks.Check {
+			return []checks.Check{{
+				ID:       "project.E001",
+				Tags:     []string{"project"},
+				Severity: checks.SeverityError,
+				Message:  "PROJECT_REQUIRED is configured",
+				Run: func(context.Context) checks.Result {
+					if os.Getenv("PROJECT_REQUIRED") == "" {
+						return checks.Result{ID: "project.E001", Tags: []string{"project"}, Severity: checks.SeverityError, Message: "PROJECT_REQUIRED is required"}
+					}
+					return checks.Result{ID: "project.I001", Tags: []string{"project"}, Severity: checks.SeverityInfo, Message: "project settings valid"}
+				},
+			}}
+		},
+	}
+
+	var stdout bytes.Buffer
+	err := ExecuteProject(context.Background(), []string{"check", "--tag", "project"}, &stdout, &bytes.Buffer{}, project)
+	if !errors.Is(err, cli.ErrCommandFailed) {
+		t.Fatalf("ExecuteProject(check) error = %v, want ErrCommandFailed", err)
+	}
+	if !strings.Contains(stdout.String(), "ERROR project PROJECT_REQUIRED is required") {
+		t.Fatalf("check output missing project failure:\n%s", stdout.String())
+	}
+
+	t.Setenv("PROJECT_REQUIRED", "configured")
+	stdout.Reset()
+	if err := ExecuteProject(context.Background(), []string{"check", "--tag", "project"}, &stdout, &bytes.Buffer{}, project); err != nil {
+		t.Fatalf("ExecuteProject(check configured) error = %v\n%s", err, stdout.String())
+	}
+	if !strings.Contains(stdout.String(), "INFO project project settings valid") {
+		t.Fatalf("check output missing project pass:\n%s", stdout.String())
 	}
 }
 
@@ -87,4 +168,22 @@ func TestExecuteProjectCreateSuperuserPersistsToAuthUserTable(t *testing.T) {
 	if email != "admin@example.com" || !isStaff || !isSuperuser {
 		t.Fatalf("auth_user row = email:%q staff:%v superuser:%v", email, isStaff, isSuperuser)
 	}
+}
+
+type projectCommand struct {
+	name    string
+	summary string
+	run     func(context.Context, []string) error
+}
+
+func (c projectCommand) Name() string {
+	return c.name
+}
+
+func (c projectCommand) Summary() string {
+	return c.summary
+}
+
+func (c projectCommand) Run(ctx context.Context, args []string) error {
+	return c.run(ctx, args)
 }

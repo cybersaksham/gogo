@@ -46,6 +46,8 @@ go run manage.go startapp [--force] <name> [path]
 | `admin.go` | Model admin registration. |
 | `urls.go` | HTTP routes and views. |
 | `api.go` | API routes and views. |
+| `checks.go` | App system checks returned through generated project `management.Project.Checks`. |
+| `commands.go` | App management commands returned through generated project `management.Project.Commands`. |
 | `serializers.go` | API serializers. |
 | `forms.go` | Form constructors. |
 | `services.go` | App services and business logic. |
@@ -85,5 +87,10 @@ APIs in `api.go` with the API router and serializers from `serializers.go`;
 generated project routing mounts app APIs under `/api/`.
 
 Register background work in `tasks.go` with `queue.App.RegisterTask`. Keep task names namespaced as `<app>.<task>` and set queue, retry, timeout, and ack options explicitly.
+
+Register app checks in `checks.go` with `checks.Check` values and app commands
+in `commands.go` with `management.Command` implementations. Generated project
+wiring exposes them through `go run manage.go check` and direct command
+invocation such as `go run manage.go blog.reindex`.
 
 Keep reusable business rules in `services.go`, and keep permission names in `permissions.go` so views, admin hooks, API policies, and tasks share the same constants.

@@ -13,6 +13,7 @@ import (
 	"github.com/cybersaksham/gogo/admin"
 	"github.com/cybersaksham/gogo/api"
 	"github.com/cybersaksham/gogo/app"
+	"github.com/cybersaksham/gogo/checks"
 	gogohttp "github.com/cybersaksham/gogo/http"
 	"github.com/cybersaksham/gogo/models"
 	"github.com/cybersaksham/gogo/queue"
@@ -58,6 +59,21 @@ func TestGeneratedAppRegistrations(t *testing.T) {
 	}
 	if got := registry.Migrations(); len(got) != 1 || got[0].Name != "0001_initial" {
 		t.Fatalf("Migrations() = %#v", got)
+	}
+}
+
+func TestGeneratedAppChecksAndCommands(t *testing.T) {
+	appChecks := generatedapp.Checks()
+	if len(appChecks) != 1 || appChecks[0].ID != generatedapp.AppLabel+".I001" || appChecks[0].Severity != checks.SeverityInfo {
+		t.Fatalf("Checks() = %#v", appChecks)
+	}
+
+	commands := generatedapp.Commands()
+	if len(commands) != 1 || commands[0].Name() != generatedapp.AppLabel+".reindex" {
+		t.Fatalf("Commands() = %#v", commands)
+	}
+	if err := commands[0].Run(context.Background(), []string{"--all"}); err != nil {
+		t.Fatalf("command Run() error = %v", err)
 	}
 }
 

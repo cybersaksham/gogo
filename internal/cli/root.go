@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/cybersaksham/gogo/checks"
 	"github.com/cybersaksham/gogo/internal/version"
 )
 
@@ -24,6 +25,7 @@ type RootOptions struct {
 	AuthStore        authUserStore
 	QueueRuntime     *QueueRuntime
 	FixtureStore     FixtureStore
+	ProjectChecks    []checks.Check
 }
 
 // NewRootWithOptions creates the root CLI with project-specific integrations.
@@ -76,6 +78,11 @@ func (r *Root) mustRegister(command Command) {
 	if err := r.registry.Register(command); err != nil {
 		panic(err)
 	}
+}
+
+// Register adds a project-provided command to the root registry.
+func (r *Root) Register(command Command) error {
+	return r.registry.Register(command)
 }
 
 type helpCommand struct {
@@ -147,7 +154,7 @@ func plannedCommands(root *Root, options RootOptions) []Command {
 	return []Command{
 		helpCommand{root: root},
 		versionCommand{},
-		NewCheckCommand(),
+		NewCheckCommand(options.ProjectChecks...),
 		NewRunserverCommand(options.RunserverStarter),
 		NewStartprojectCommand(),
 		NewStartappCommand(),

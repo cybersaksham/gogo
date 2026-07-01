@@ -13,11 +13,13 @@ import (
 )
 
 // NewCheckCommand creates the built-in system check command.
-func NewCheckCommand() Command {
-	return checkCommand{}
+func NewCheckCommand(projectChecks ...checks.Check) Command {
+	return checkCommand{projectChecks: append([]checks.Check(nil), projectChecks...)}
 }
 
-type checkCommand struct{}
+type checkCommand struct {
+	projectChecks []checks.Check
+}
 
 func (c checkCommand) Name() string {
 	return "check"
@@ -39,7 +41,7 @@ func (c checkCommand) Run(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	results := checks.DefaultRegistry().Run(ctx, options)
+	results := c.registry().Run(ctx, options)
 	if deploy {
 		results = append(results, release.RunDeployChecks(release.BuildDeployConfig(ctx, settings))...)
 	}
@@ -65,7 +67,7 @@ func (c checkCommand) runWithIO(ctx context.Context, args []string, stdout, _ io
 	}
 
 	fmt.Fprintln(stdout, "OK config settings valid")
-	results := checks.DefaultRegistry().Run(ctx, options)
+	results := c.registry().Run(ctx, options)
 	if deploy {
 		results = append(results, release.RunDeployChecks(release.BuildDeployConfig(ctx, settings))...)
 	}
@@ -84,6 +86,14 @@ func (c checkCommand) runWithIO(ctx context.Context, args []string, stdout, _ io
 	}
 
 	return nil
+}
+
+func (c checkCommand) registry() *checks.Registry {
+	registry := checks.DefaultRegistry()
+	for _, check := range c.projectChecks {
+		registry.Register(check)
+	}
+	return registry
 }
 
 func parseCheckFlags(args []string) (checks.Options, checks.Severity, bool, error) {

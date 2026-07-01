@@ -8,6 +8,7 @@ import (
 
 	"github.com/cybersaksham/gogo/app"
 	"github.com/cybersaksham/gogo/auth"
+	"github.com/cybersaksham/gogo/checks"
 	"github.com/cybersaksham/gogo/conf"
 	gogohttp "github.com/cybersaksham/gogo/http"
 	"github.com/cybersaksham/gogo/internal/cli"
@@ -16,6 +17,13 @@ import (
 	"github.com/cybersaksham/gogo/queue"
 )
 
+// Command is the public management command contract for generated projects.
+type Command interface {
+	Name() string
+	Summary() string
+	Run(context.Context, []string) error
+}
+
 // Project connects generated client project wiring to management commands.
 type Project struct {
 	Settings      func() conf.Settings
@@ -23,6 +31,8 @@ type Project struct {
 	ModelMetadata func() []models.Metadata
 	Router        func() (*gogohttp.Router, error)
 	QueueApp      func() *queue.App
+	Commands      func() []Command
+	Checks        func() []checks.Check
 }
 
 // Execute runs the Gogo management command registry.
@@ -32,12 +42,19 @@ func Execute(ctx context.Context, args []string, stdout, stderr io.Writer) error
 
 // ExecuteProject runs management commands with generated project wiring.
 func ExecuteProject(ctx context.Context, args []string, stdout, stderr io.Writer, project Project) error {
-	return cli.NewRootWithOptions(cli.RootOptions{
+	root := cli.NewRootWithOptions(cli.RootOptions{
 		RunserverStarter: project.serverStarter(stdout),
 		AuthStore:        project.authStore(context.Background()),
 		QueueRuntime:     project.queueRuntime(),
 		FixtureStore:     project.fixtureStore(context.Background()),
-	}).Execute(ctx, args, stdout, stderr)
+		ProjectChecks:    project.checks(),
+	})
+	for _, command := range project.commands() {
+		if err := root.Register(command); err != nil {
+			return err
+		}
+	}
+	return root.Execute(ctx, args, stdout, stderr)
 }
 
 // Main runs management commands using os.Args and exits with a process status.
@@ -65,6 +82,25 @@ func (p Project) queueRuntime() *cli.QueueRuntime {
 		runtime.App = app
 	}
 	return runtime
+}
+
+func (p Project) commands() []cli.Command {
+	if p.Commands == nil {
+		return nil
+	}
+	commands := p.Commands()
+	out := make([]cli.Command, 0, len(commands))
+	for _, command := range commands {
+		out = append(out, command)
+	}
+	return out
+}
+
+func (p Project) checks() []checks.Check {
+	if p.Checks == nil {
+		return nil
+	}
+	return append([]checks.Check(nil), p.Checks()...)
 }
 
 type projectAuthStore interface {
