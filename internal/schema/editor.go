@@ -1,9 +1,12 @@
 package schema
 
 import (
+	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/cybersaksham/gogo/migrations"
+	"github.com/cybersaksham/gogo/models"
 	"github.com/cybersaksham/gogo/orm/dialects"
 )
 
@@ -57,7 +60,11 @@ func (e Editor) AlterDefault(table, column string, value any) string {
 	if value == nil {
 		return "ALTER TABLE " + e.q(table) + " ALTER COLUMN " + e.q(column) + " DROP DEFAULT"
 	}
-	return "ALTER TABLE " + e.q(table) + " ALTER COLUMN " + e.q(column) + " SET DEFAULT " + value.(string)
+	defaultSQL, err := databaseDefaultSQL(value)
+	if err != nil || defaultSQL == "" {
+		return "ALTER TABLE " + e.q(table) + " ALTER COLUMN " + e.q(column) + " DROP DEFAULT"
+	}
+	return "ALTER TABLE " + e.q(table) + " ALTER COLUMN " + e.q(column) + " SET DEFAULT " + defaultSQL
 }
 
 func (e Editor) RenameColumn(table, oldName, newName string) string {
@@ -98,6 +105,11 @@ func (e Editor) DropManyToManyTable(table string) string {
 
 func (e Editor) columnDefinition(field migrations.FieldState) string {
 	parts := []string{e.q(columnName(field)), fieldKind(field)}
+	if field.DBDefault != nil {
+		if defaultSQL, err := databaseDefaultSQL(field.DBDefault); err == nil && defaultSQL != "" {
+			parts = append(parts, "DEFAULT", defaultSQL)
+		}
+	}
 	if field.PrimaryKey {
 		parts = append(parts, "PRIMARY KEY")
 	}
@@ -143,4 +155,61 @@ func fieldKind(field migrations.FieldState) string {
 		return field.Kind
 	}
 	return "text"
+}
+
+func databaseDefaultSQL(value any) (string, error) {
+	defaultValue, err := models.NormalizeDatabaseDefault(value)
+	if err != nil {
+		return "", err
+	}
+	switch defaultValue.Kind {
+	case models.DefaultNone:
+		return "", nil
+	case models.DefaultExpression:
+		return defaultValue.SQL, nil
+	case models.DefaultLiteral:
+		return literalDefaultSQL(defaultValue.Value)
+	default:
+		return "", fmt.Errorf("%w: unknown database default kind %q", models.ErrInvalidMetadata, defaultValue.Kind)
+	}
+}
+
+func literalDefaultSQL(value any) (string, error) {
+	switch typed := value.(type) {
+	case nil:
+		return "NULL", nil
+	case string:
+		return "'" + strings.ReplaceAll(typed, "'", "''") + "'", nil
+	case bool:
+		if typed {
+			return "true", nil
+		}
+		return "false", nil
+	case int:
+		return strconv.FormatInt(int64(typed), 10), nil
+	case int8:
+		return strconv.FormatInt(int64(typed), 10), nil
+	case int16:
+		return strconv.FormatInt(int64(typed), 10), nil
+	case int32:
+		return strconv.FormatInt(int64(typed), 10), nil
+	case int64:
+		return strconv.FormatInt(typed, 10), nil
+	case uint:
+		return strconv.FormatUint(uint64(typed), 10), nil
+	case uint8:
+		return strconv.FormatUint(uint64(typed), 10), nil
+	case uint16:
+		return strconv.FormatUint(uint64(typed), 10), nil
+	case uint32:
+		return strconv.FormatUint(uint64(typed), 10), nil
+	case uint64:
+		return strconv.FormatUint(typed, 10), nil
+	case float32:
+		return strconv.FormatFloat(float64(typed), 'f', -1, 32), nil
+	case float64:
+		return strconv.FormatFloat(typed, 'f', -1, 64), nil
+	default:
+		return "", fmt.Errorf("%w: unsupported database default literal %T", models.ErrInvalidMetadata, value)
+	}
 }

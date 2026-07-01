@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/cybersaksham/gogo/models"
@@ -36,7 +37,7 @@ func TestProjectStateFromRegistry(t *testing.T) {
 		TableName: "blog_post",
 		Fields: []models.FieldMeta{
 			{Name: "id", Column: "id", PrimaryKey: true},
-			{Name: "title", Column: "title", Kind: "char", ColumnTypes: map[string]string{"postgres": "varchar(200)"}, Null: true, Unique: true, DBIndex: true, DBDefault: "untitled", DBCollation: "en_US"},
+			{Name: "title", Column: "title", Kind: "char", ColumnTypes: map[string]string{"postgres": "varchar(200)"}, Null: true, Unique: true, DBIndex: true, DBDefault: models.DefaultValue("untitled"), DBCollation: "en_US"},
 		},
 		Indexes:     []models.Index{{Name: "idx_title", Fields: []models.IndexField{models.Asc("title")}}},
 		Constraints: []models.Constraint{{Name: "uniq_title", Type: models.ConstraintUnique, Fields: []models.IndexField{models.Asc("title")}}},
@@ -54,13 +55,39 @@ func TestProjectStateFromRegistry(t *testing.T) {
 		t.Fatalf("field state = %#v", model.Fields)
 	}
 	title := model.Fields[1]
-	if title.Kind != "char" || title.ColumnTypes["postgres"] != "varchar(200)" || !title.Null || !title.Unique || !title.DBIndex || title.DBDefault != "untitled" || title.DBCollation != "en_US" {
+	if title.Kind != "char" || title.ColumnTypes["postgres"] != "varchar(200)" || !title.Null || !title.Unique || !title.DBIndex || title.DBDefault == nil || title.DBDefault.Kind != models.DefaultLiteral || title.DBDefault.Value != "untitled" || title.DBCollation != "en_US" {
 		t.Fatalf("rich field state was not preserved: %#v", title)
 	}
 	title.ColumnTypes["postgres"] = "text"
 	again := StateFromRegistry(registry).Models["blog.Post"].Fields[1]
 	if again.ColumnTypes["postgres"] != "varchar(200)" {
 		t.Fatalf("field ColumnTypes state was not cloned: %#v", again.ColumnTypes)
+	}
+}
+
+func TestFieldStateDatabaseDefaultManifestCompatibility(t *testing.T) {
+	var legacy FieldState
+	if err := json.Unmarshal([]byte(`{"name":"status","db_default":"draft"}`), &legacy); err != nil {
+		t.Fatalf("legacy default unmarshal error = %v", err)
+	}
+	if legacy.DBDefault == nil || legacy.DBDefault.Kind != models.DefaultLiteral || legacy.DBDefault.Value != "draft" {
+		t.Fatalf("legacy default = %#v", legacy.DBDefault)
+	}
+
+	var expression FieldState
+	if err := json.Unmarshal([]byte(`{"name":"id","db_default":{"kind":"expression","sql":"gen_random_uuid()"}}`), &expression); err != nil {
+		t.Fatalf("expression default unmarshal error = %v", err)
+	}
+	if expression.DBDefault == nil || expression.DBDefault.Kind != models.DefaultExpression || expression.DBDefault.SQL != "gen_random_uuid()" {
+		t.Fatalf("expression default = %#v", expression.DBDefault)
+	}
+
+	data, err := json.Marshal(FieldState{Name: "status", DBDefault: databaseDefaultPtr(models.DefaultValue("draft"))})
+	if err != nil {
+		t.Fatalf("marshal default error = %v", err)
+	}
+	if string(data) != `{"name":"status","db_default":{"kind":"literal","value":"draft"}}` {
+		t.Fatalf("marshaled default = %s", data)
 	}
 }
 
@@ -81,4 +108,8 @@ func TestProjectStateFromRegistrySkipsUnmanagedModels(t *testing.T) {
 	if _, exists := state.Models["legacy.Order"]; exists {
 		t.Fatalf("unmanaged model was included in migration state: %#v", state.Models)
 	}
+}
+
+func databaseDefaultPtr(defaultValue models.DatabaseDefault) *models.DatabaseDefault {
+	return &defaultValue
 }

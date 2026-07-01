@@ -94,6 +94,9 @@ func validateFields(meta Metadata) error {
 		if field.PrimaryKey {
 			hasPrimaryKey = true
 		}
+		if _, err := NormalizeDatabaseDefault(field.DBDefault); err != nil {
+			return fmt.Errorf("%w: field %s has invalid database default: %v", ErrInvalidMetadata, field.Name, err)
+		}
 	}
 	if meta.CompositePrimaryKey != nil {
 		if len(meta.CompositePrimaryKey.Columns) == 0 {

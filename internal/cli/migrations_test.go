@@ -479,6 +479,47 @@ func TestMakeMigrationsDetectsAddFieldOnCustomTable(t *testing.T) {
 	}
 }
 
+func TestMakeMigrationsRendersDatabaseDefaultsInSQL(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	statusDefault := models.DefaultValue("draft")
+	uuidDefault := models.DefaultSQL("gen_random_uuid()")
+	meta := models.Metadata{
+		AppLabel:  "sales",
+		ModelName: "Order",
+		TableName: "orders",
+		Fields: []models.FieldMeta{
+			{Name: "id", Column: "id", Kind: "uuid", PrimaryKey: true, DBDefault: uuidDefault},
+			{Name: "status", Column: "status", Kind: "text", DBDefault: statusDefault},
+		},
+	}
+	root := NewRootWithOptions(RootOptions{ProjectModels: []models.Metadata{meta}, ProjectMigrations: []migrations.Migration{}})
+
+	var stdout bytes.Buffer
+	if err := root.Execute(context.Background(), []string{"makemigrations", "--app", "sales"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("makemigrations error = %v", err)
+	}
+	contents, err := os.ReadFile(filepath.Join(dir, "sales", "migrations", "0001_initial.go"))
+	if err != nil {
+		t.Fatalf("read migration: %v", err)
+	}
+	for _, want := range []string{`\"db_default\":{\"kind\":\"expression\",\"sql\":\"gen_random_uuid()\"}`, `\"db_default\":{\"kind\":\"literal\",\"value\":\"draft\"}`} {
+		if !strings.Contains(string(contents), want) {
+			t.Fatalf("migration missing %q:\n%s", want, contents)
+		}
+	}
+
+	stdout.Reset()
+	if err := root.Execute(context.Background(), []string{"sqlmigrate", "sales", "0001_initial"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("sqlmigrate error = %v", err)
+	}
+	for _, want := range []string{`"id" uuid DEFAULT gen_random_uuid()`, `"status" text DEFAULT 'draft' NOT NULL`} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("sqlmigrate missing %q:\n%s", want, stdout.String())
+		}
+	}
+}
+
 func TestMakeMigrationsRejectsUnsafeNonNullAddField(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
